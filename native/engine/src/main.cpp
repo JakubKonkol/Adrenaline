@@ -54,7 +54,7 @@ class LineQueue {
 };
 
 void usage() {
-  std::cerr << "usage: adrenaline-engine --data-dir <dir> [--listen-port <n>] [--no-dht] [--no-upnp] [--test-mode] [--resume-interval <s>]\n"
+  std::cerr << "usage: adrenaline-engine --data-dir <dir> [--listen-port <n>] [--no-dht] [--no-upnp] [--test-mode] [--resume-interval <s>] [--max-memory-mib <n>]\n"
                "       adrenaline-engine --make-torrent <path> --out <file> [--hybrid]\n";
 }
 
@@ -94,6 +94,7 @@ int make_torrent(const std::string& src, const std::string& outFile, bool hybrid
 }
 
 int run_engine(const adr::Options& opts) {
+  if (!adr::limit_working_set(opts.maxMemoryMiB)) std::cerr << "working set limit not applied\n";
   std::error_code ec;
   std::filesystem::create_directories(opts.dataDir, ec);
   if (ec) {
@@ -185,6 +186,8 @@ int main(int argc, char** argv) {
       opts.noDht = true;
     } else if (a == "--no-upnp") {
       opts.noUpnp = true;
+    } else if (a == "--max-memory-mib") {
+      opts.maxMemoryMiB = std::max(0, std::stoi(next()));
     } else if (a == "--resume-interval") {
       opts.resumeIntervalSec = std::max(1, std::stoi(next()));
     } else if (a == "--test-mode") {

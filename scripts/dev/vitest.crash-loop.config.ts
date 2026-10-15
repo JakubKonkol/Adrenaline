@@ -6,7 +6,7 @@ export default defineConfig({
   resolve: { alias: { '@shared': resolve(import.meta.dirname, '../../src/shared') } },
   test: {
     root: resolve(import.meta.dirname, '../..'),
-    include: ['scripts/dev/crash-loop.test.ts'],
+    include: ['scripts/dev/crash-loop.test.ts', 'scripts/dev/memory.test.ts'],
     environment: 'node',
     testTimeout: 30 * 60_000,
   },

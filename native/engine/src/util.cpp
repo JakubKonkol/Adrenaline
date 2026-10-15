@@ -1,5 +1,6 @@
 #include "util.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <sstream>
 
@@ -96,6 +97,23 @@ std::vector<std::string> utf8_args(int argc, char** argv) {
   for (int i = 0; i < argc; ++i) args.emplace_back(argv[i]);
 #endif
   return args;
+}
+
+bool limit_working_set(int maxMiB) {
+#ifdef _WIN32
+  if (maxMiB <= 0) return true;
+  // With memory-mapped I/O the pages of the downloaded files count into the working set, so it would grow with the
+  // film size. A hard maximum (like qBittorrent's "physical memory limit") makes Windows trim those file-backed pages.
+  SIZE_T minWs = 0;
+  SIZE_T maxWs = 0;
+  if (!GetProcessWorkingSetSize(GetCurrentProcess(), &minWs, &maxWs)) return false;
+  const SIZE_T limit = static_cast<SIZE_T>(maxMiB) * 1024 * 1024;
+  return SetProcessWorkingSetSizeEx(GetCurrentProcess(), std::min(minWs, limit / 4), limit,
+                                    QUOTA_LIMITS_HARDWS_MIN_DISABLE | QUOTA_LIMITS_HARDWS_MAX_ENABLE) != 0;
+#else
+  (void)maxMiB;
+  return true;
+#endif
 }
 
 void set_binary_stdio() {

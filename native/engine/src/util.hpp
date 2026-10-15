@@ -27,6 +27,9 @@ bool valid_job_id(const std::string& id);
 // Command-line arguments as UTF-8 (wide arguments on Windows).
 std::vector<std::string> utf8_args(int argc, char** argv);
 
+// NFR11: caps the process working set (Windows; no-op elsewhere). Returns false when the OS refused.
+bool limit_working_set(int maxMiB);
+
 // stdin/stdout without newline translation on Windows.
 void set_binary_stdio();
 

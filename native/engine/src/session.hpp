@@ -16,6 +16,8 @@ struct Options {
   bool noUpnp = false;
   bool testMode = false;
   int resumeIntervalSec = 60;
+  // Hard working-set limit on Windows (memory-mapped file pages above it are trimmed); 0 = none.
+  int maxMemoryMiB = 512;
 };
 
 lt::settings_pack make_settings(const Options& o);
