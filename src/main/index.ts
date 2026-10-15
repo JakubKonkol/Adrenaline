@@ -10,6 +10,9 @@ import { createIpcRegistry } from './ipc/register';
 import { registerSettingsHandlers } from './ipc/settings-handlers';
 import { registerCatalogHandlers } from './ipc/catalog-handlers';
 import { registerSourcesHandlers } from './ipc/sources-handlers';
+import { registerDownloadsHandlers } from './ipc/downloads-handlers';
+import { JobsRepository } from './persistence/repositories/jobs';
+import { DownloadService } from './services/download-service';
 import { JackettManager } from './jackett/jackett-manager';
 import { SourcesRepository } from './persistence/repositories/sources';
 import { TorznabClient } from './providers/torznab/torznab-client';
@@ -56,6 +59,7 @@ if (!app.requestSingleInstanceLock()) {
   let mainWindow: BrowserWindow | null = null;
   let tray: AppTray | null = null;
   let quitting = false;
+  let downloadService: DownloadService | null = null;
   const isTrusted = createTrustedUrlCheck({
     indexHtmlPath: appPaths.rendererIndex,
     devUrl: appPaths.devRendererUrl(),
@@ -182,6 +186,37 @@ if (!app.requestSingleInstanceLock()) {
     });
     releaseSearch.on('update', (session) => send('releases:update', session));
     registerSourcesHandlers(ipc, { sources, search: releaseSearch, jackett });
+
+    // Downloads (etap 6). The service follows the engine (restores jobs on every engine start).
+    if (engine.supervisor) {
+      const downloads = new DownloadService({
+        jobs: new JobsRepository(db),
+        engine: engine.supervisor,
+        settings,
+        releaseInfo: (sessionId, releaseId) => releaseSearch.downloadInfo(sessionId, releaseId),
+        endpointFor: (id) => sources.endpointFor(id),
+        log: log.child('downloads'),
+        shell,
+      });
+      downloadService = downloads;
+      downloads.on('changed', (job) => send('downloads:changed', job));
+      downloads.on('progress', (p) => send('downloads:progress', p));
+      registerDownloadsHandlers(ipc, downloads, { devApi: !app.isPackaged && engine.fake !== null });
+      settings.on('changed', ({ patch }) => {
+        if (patch.maxActiveDownloads !== undefined) void downloads.schedule();
+      });
+      lifecycle.addStep('downloads', () => downloads.persistAll(), 1_000);
+      // Tray tooltip with the total speed (etap 6.5).
+      const tooltip = setInterval(() => {
+        const { down, up, active } = downloads.totals();
+        const mb = (b: number) => (b / 1024 / 1024).toFixed(1).replace('.', ',');
+        tray?.setTooltip(
+          active > 0 || down > 0 || up > 0 ? `Adrenaline — ↓ ${mb(down)} MB/s ↑ ${mb(up)} MB/s` : 'Adrenaline',
+        );
+      }, 2_000);
+      lifecycle.addStep('tooltip', () => clearInterval(tooltip), 100);
+    }
+
     lifecycle.addStep('jackett', () => jackett.stop(), 6_000);
     // Started in the background shortly after launch when a built-in source is enabled, otherwise on demand.
     if (sources.list().some((s) => s.kind === 'jackett_builtin' && s.enabled)) {
@@ -190,8 +225,8 @@ if (!app.requestSingleInstanceLock()) {
 
     tray = createTray({
       show: showWindow,
-      pauseAll: () => undefined, // etap 6
-      resumeAll: () => undefined, // etap 6
+      pauseAll: () => void downloadService?.pauseAll(),
+      resumeAll: () => void downloadService?.resumeAll(),
       quit: () => app.quit(),
     });
     lifecycle.addStep('tray', () => tray?.destroy(), 500);

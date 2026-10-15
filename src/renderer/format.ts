@@ -24,3 +24,19 @@ export function formatAgo(timestamp: number, now = Date.now()): string {
   const d = Math.round(h / 24);
   return d === 1 ? 'wczoraj' : `${d} dni temu`;
 }
+
+/** "1,2 MB/s". */
+export function formatRate(bytesPerSecond: number): string {
+  return `${formatBytes(bytesPerSecond) ?? '0 B'}/s`;
+}
+
+/** "45 s", "4 min", "2 godz. 5 min", "3 dni". */
+export function formatDuration(seconds: number): string {
+  const s = Math.max(0, Math.round(seconds));
+  if (s < 60) return `${s} s`;
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  if (h < 48) return m % 60 ? `${h} godz. ${m % 60} min` : `${h} godz.`;
+  return `${Math.round(h / 24)} dni`;
+}

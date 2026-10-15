@@ -13,6 +13,13 @@ import {
   tmdbIdSchema,
 } from './catalog';
 import { searchTargetSchema } from '../domain/search-target';
+import {
+  downloadJobSchema,
+  downloadOptionsSchema,
+  jobProgressSchema,
+  preflightSchema,
+  releaseRefSchema,
+} from './downloads';
 import { releaseSessionSchema } from './releases';
 import { addCustomSourceSchema, jackettStatusSchema, sourceIdSchema, sourceSchema } from './sources';
 
@@ -60,6 +67,36 @@ export const ipcChannels = {
   'sources:remove': { input: z.object({ id: sourceIdSchema }).strict(), output: z.array(sourceSchema) },
   'sources:jackettStatus': { input: z.void(), output: jackettStatusSchema },
   'sources:restartJackett': { input: z.void(), output: jackettStatusSchema },
+  'downloads:preflight': {
+    input: z.object({ ref: releaseRefSchema, options: downloadOptionsSchema.partial().optional() }).strict(),
+    output: preflightSchema,
+  },
+  'downloads:create': {
+    input: z.object({ ref: releaseRefSchema, options: downloadOptionsSchema }).strict(),
+    output: downloadJobSchema,
+  },
+  'downloads:list': { input: z.void(), output: z.array(downloadJobSchema) },
+  'downloads:get': { input: z.object({ jobId: z.string().max(64) }).strict(), output: downloadJobSchema },
+  'downloads:progress': { input: z.void(), output: z.array(jobProgressSchema) },
+  'downloads:selectFiles': {
+    input: z
+      .object({ jobId: z.string().max(64), indices: z.array(z.number().int().nonnegative()).min(1).max(10_000) })
+      .strict(),
+    output: downloadJobSchema,
+  },
+  'downloads:pause': { input: z.object({ jobId: z.string().max(64) }).strict(), output: downloadJobSchema },
+  'downloads:resume': { input: z.object({ jobId: z.string().max(64) }).strict(), output: downloadJobSchema },
+  'downloads:remove': {
+    input: z.object({ jobId: z.string().max(64), deleteFiles: z.boolean() }).strict(),
+    output: z.void(),
+  },
+  'downloads:openFolder': { input: z.object({ jobId: z.string().max(64) }).strict(), output: z.void() },
+  'downloads:recheck': { input: z.object({ jobId: z.string().max(64) }).strict(), output: downloadJobSchema },
+  /** Hidden test API: only registered with the fake engine in an unpackaged app (03-testy.md, smoke). */
+  'dev:addTestDownload': {
+    input: z.object({ name: z.string().min(1).max(120) }).strict(),
+    output: downloadJobSchema,
+  },
   'settings:testTmdb': { input: z.void(), output: z.boolean() },
   'app:version': { input: z.void(), output: z.string() },
   'app:updaterStatus': { input: z.void(), output: updaterStatusSchema },
@@ -87,6 +124,8 @@ export const ipcEvents = {
   'engine:status': engineStatusSchema,
   'releases:update': releaseSessionSchema,
   'jackett:status': jackettStatusSchema,
+  'downloads:changed': downloadJobSchema,
+  'downloads:progress': z.object({ jobs: z.array(jobProgressSchema) }),
 } as const satisfies Record<EventName, z.ZodType>;
 
 export type ChannelInput<C extends ChannelName> = z.input<(typeof ipcChannels)[C]['input']>;

@@ -160,6 +160,13 @@ export class SourcesService {
     this.synced = false;
   }
 
+  /** Torznab endpoint of a source (for the SSRF rule when fetching a .torrent). */
+  async endpointFor(id: string): Promise<string | null> {
+    const row = this.deps.repo.get(id);
+    if (!row) return null;
+    return (await this.toTorznab(row)).endpoint;
+  }
+
   async searchable(): Promise<SearchableSources> {
     const out: SearchableSources = { sources: [], failed: [] };
     for (const row of this.deps.repo.all().filter((r) => r.enabled)) {

@@ -237,3 +237,23 @@ describe('DownloadService (etap 6)', () => {
     expect(svc.list()).toHaveLength(1);
   });
 });
+
+describe('DownloadService restart without resume data', () => {
+  it('sends the stored selection again when the magnet metadata arrives', async () => {
+    const first = await setup({ rate: 2 * MiB });
+    const job = await first.add(release(1));
+    await until(() => first.svc.get(job.id).state === 'downloading');
+    await first.svc.pause(job.id);
+    await first.engine.stop();
+    // A new engine with no resume data at all (fresh FakeEngine store).
+    const second = await setup(
+      { rate: 2 * MiB },
+      { db: first.db, base: first.base, fake: new FakeEngine({ tickMs: 10, metadataDelayMs: 5, rate: 2 * MiB }) },
+    );
+    await until(() => second.svc.get(job.id).state === 'paused');
+    const resumed = await second.svc.resume(job.id);
+    expect(resumed.state).not.toBe('error');
+    await until(() => second.svc.get(job.id).state === 'downloading');
+    expect(second.svc.get(job.id).files.filter((f) => f.selected)).toHaveLength(1);
+  });
+});

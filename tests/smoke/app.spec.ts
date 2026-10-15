@@ -102,6 +102,27 @@ test('first run, onboarding, settings kept after restart, isolated renderer', as
     await expect(page.getByTestId('app-version')).toContainText(/\d+\.\d+\.\d+/);
     await expect(page.getByTestId('updater-status')).toContainText('wyłączone');
     await expect(page.getByTestId('engine-status')).toContainText('Działa');
+
+    // Etap 6.6: a job through the hidden test API (fake engine only) → progress → pause → kept after restart.
+    const added = await page.evaluate(async () => {
+      const w = globalThis as unknown as {
+        adrenaline: { dev: { addTestDownload(i: { name: string }): Promise<{ ok: boolean; data?: { id: string } }> } };
+      };
+      return w.adrenaline.dev.addTestDownload({ name: 'Smoke Film' });
+    });
+    expect(added.ok).toBe(true);
+    const jobId = added.data!.id;
+    await page
+      .getByRole('navigation')
+      .getByRole('link', { name: /Pobrane/ })
+      .click();
+    const row = page.getByTestId(`job-${jobId}`);
+    await expect(row).toHaveAttribute('data-state', 'downloading');
+    await expect(row.getByRole('progressbar')).toHaveAttribute('aria-valuenow', /^[1-9]/, { timeout: 10_000 });
+    await expect(page.getByTestId('nav-active-count')).toHaveText('1');
+    await row.getByRole('button', { name: /Wstrzymaj/ }).click();
+    await expect(row).toHaveAttribute('data-state', 'paused');
+    await expect(row.getByTestId('job-status')).toContainText('Wstrzymane');
     await quit(app);
 
     // Restart with the same profile: no onboarding, settings and the secret are kept.
@@ -143,6 +164,16 @@ test('first run, onboarding, settings kept after restart, isolated renderer', as
     await page.getByTestId('setting-maxActiveDownloads').fill('2');
     await page.getByTestId('settings-save').click();
     await expect(page.getByText('Zapisano')).toBeVisible();
+
+    // The paused job survived the restart (FR12) and resumes.
+    await page
+      .getByRole('navigation')
+      .getByRole('link', { name: /Pobrane/ })
+      .click();
+    const restored = page.getByTestId(`job-${jobId}`);
+    await expect(restored).toHaveAttribute('data-state', 'paused');
+    await restored.getByRole('button', { name: /Wznów/ }).click();
+    await expect(restored).toHaveAttribute('data-state', 'downloading');
     await quit(app);
   } finally {
     rmSync(userData, { recursive: true, force: true });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatAgo, formatBytes } from './format';
+import { formatAgo, formatBytes, formatDuration, formatRate } from './format';
 
 describe('formatBytes', () => {
   it.each([
@@ -24,5 +24,15 @@ describe('formatAgo', () => {
     [now - 4 * 86400_000, '4 dni temu'],
   ])('%s', (ts, expected) => {
     expect(formatAgo(ts, now)).toBe(expected);
+  });
+});
+
+describe('formatRate / formatDuration', () => {
+  it('formats speeds and durations', () => {
+    expect(formatRate(1.5 * 1024 * 1024)).toBe('1,5 MB/s');
+    expect(formatDuration(45)).toBe('45 s');
+    expect(formatDuration(240)).toBe('4 min');
+    expect(formatDuration(7500)).toBe('2 godz. 5 min');
+    expect(formatDuration(3 * 86400)).toBe('3 dni');
   });
 });

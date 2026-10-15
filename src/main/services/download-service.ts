@@ -5,6 +5,8 @@ import { dirname } from 'node:path';
 import type { DownloadJob, DownloadOptions, JobProgress, Preflight } from '@shared/contracts/downloads';
 import type { EngineEvent, EngineState, JobStatus } from '@shared/contracts/engine';
 import { fileKind, selectDefaultFiles } from '@shared/domain/file-selection';
+import { parseMagnet } from '@shared/domain/magnet';
+import type { SearchTarget } from '@shared/domain/search-target';
 import { ACTIVE_STATES, canTransition, ENGINE_STATES, type JobState, type PauseReason } from '@shared/domain/job-state';
 import { AppError } from '@shared/errors';
 import { mapEngineErrorCode } from '../engine/error-map';
@@ -250,6 +252,45 @@ export class DownloadService extends Emitter<DownloadEvents> {
     return this.get(job.id);
   }
 
+  /** Dev/test only (fake engine): a job straight from a magnet, with default options from Settings. */
+  async createDirect(target: SearchTarget, magnet: string, name: string): Promise<DownloadJob> {
+    const s = this.deps.settings.get();
+    const now = this.now();
+    const info = parseMagnet(magnet);
+    const job: JobRow = {
+      id: randomUUID(),
+      mediaItemId: null,
+      episodeId: null,
+      target,
+      release: { name, sources: ['test'], size: null, suggestedFiles: [] },
+      sourceKind: 'magnet',
+      magnet,
+      torrent: null,
+      infoHashV1: info?.infoHashV1 ?? null,
+      infoHashV2: info?.infoHashV2 ?? null,
+      saveDir: jobFolder(s.downloadDir, target, name),
+      state: 'queued',
+      pauseReason: null,
+      resumeState: null,
+      errorCode: null,
+      errorMessage: null,
+      totalBytes: null,
+      doneBytes: 0,
+      seedRatioLimit: s.seedRatioLimit,
+      seedTimeLimitMin: s.seedTimeLimitMin,
+      subtitleLang: s.subtitlesEnabled ? s.subtitleLang : null,
+      subtitleFallbackLang: null,
+      createdAt: now,
+      updatedAt: now,
+      completedAt: null,
+    };
+    if (this.deps.jobs.findByHash(job.infoHashV1, null)) throw new AppError('DUPLICATE_JOB');
+    this.deps.jobs.insert(job);
+    this.emitJob(job.id);
+    await this.schedule();
+    return this.get(job.id);
+  }
+
   /** Magnet when any source has one; otherwise the .torrent from the source host only (SSRF rule, 5.3). */
   private async obtainTorrent(
     release: ReleaseDownloadInfo['release'],
@@ -356,15 +397,9 @@ export class DownloadService extends Emitter<DownloadEvents> {
         { ratio: job.seedRatioLimit, minutes: job.seedTimeLimitMin },
         job.id,
       );
-      const selected = this.deps.jobs.files(job.id).filter((f) => f.selected);
-      if (selected.length > 0) {
-        // Restart: the selection lives in SQLite, the engine is told again.
-        await this.deps.engine.request(
-          'selectFiles',
-          { files: selected.map((f) => ({ index: f.index, priority: 4 })) },
-          job.id,
-        );
-      }
+      // Restart: the selection lives in SQLite and is sent again once the engine knows the files (right away
+      // with resume data or a .torrent, otherwise on the `metadata` event of the magnet).
+      if (added.hasMetadata) await this.resendSelection(job.id);
       if (job.state === 'queued') {
         const fresh = this.deps.jobs.get(job.id)!;
         if (fresh.state === 'queued') this.setState(fresh, added.hasMetadata ? 'downloading' : 'fetching_metadata');
@@ -434,7 +469,10 @@ export class DownloadService extends Emitter<DownloadEvents> {
       infoHashV2: data.infoHashV2 || job.infoHashV2,
       totalBytes: data.totalSize,
     });
-    if (this.deps.jobs.files(job.id).length > 0) return; // known from an earlier run
+    if (this.deps.jobs.files(job.id).length > 0) {
+      await this.resendSelection(job.id); // known from an earlier run
+      return;
+    }
     const files = data.files.filter((f) => !f.pad);
     // NFR06: every path must stay inside the job folder; otherwise nothing is downloaded.
     try {
@@ -456,6 +494,16 @@ export class DownloadService extends Emitter<DownloadEvents> {
       this.deps.jobs.update(job.id, { release: { ...job.release, suggestedFiles: choice.selected } });
       this.setState(this.deps.jobs.get(job.id)!, 'awaiting_file_selection');
     }
+  }
+
+  private async resendSelection(jobId: string): Promise<void> {
+    const selected = this.deps.jobs.files(jobId).filter((f) => f.selected);
+    if (selected.length === 0) return;
+    await this.deps.engine.request(
+      'selectFiles',
+      { files: selected.map((f) => ({ index: f.index, priority: 4 })) },
+      jobId,
+    );
   }
 
   private async applySelection(job: JobRow, indices: number[]): Promise<void> {

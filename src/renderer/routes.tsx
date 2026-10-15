@@ -1,7 +1,8 @@
 import { createHashRouter } from 'react-router';
 import { Layout } from './Layout';
 import { About } from './screens/About';
-import { Downloads } from './screens/Downloads';
+import { Downloads } from './screens/downloads/Downloads';
+import { JobDetails } from './screens/downloads/JobDetails';
 import { Home } from './screens/Home';
 import { Details } from './screens/catalog/Details';
 import { Season } from './screens/catalog/Season';
@@ -22,6 +23,7 @@ export function createRouter() {
         { path: '/releases', element: <Releases /> },
         { path: '/download-setup', element: <DownloadSetup /> },
         { path: '/downloads', element: <Downloads /> },
+        { path: '/downloads/:jobId', element: <JobDetails /> },
         { path: '/settings', element: <SettingsScreen /> },
         { path: '/about', element: <About /> },
       ],

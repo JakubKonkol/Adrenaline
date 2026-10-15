@@ -30,9 +30,28 @@ export const IPC_CHANNEL_NAMES = [
   'sources:remove',
   'sources:jackettStatus',
   'sources:restartJackett',
+  'downloads:preflight',
+  'downloads:create',
+  'downloads:list',
+  'downloads:get',
+  'downloads:progress',
+  'downloads:selectFiles',
+  'downloads:pause',
+  'downloads:resume',
+  'downloads:remove',
+  'downloads:openFolder',
+  'downloads:recheck',
+  'dev:addTestDownload',
 ] as const;
 
-export const IPC_EVENT_NAMES = ['updater:status', 'engine:status', 'releases:update', 'jackett:status'] as const;
+export const IPC_EVENT_NAMES = [
+  'updater:status',
+  'engine:status',
+  'releases:update',
+  'jackett:status',
+  'downloads:changed',
+  'downloads:progress',
+] as const;
 
 export type ChannelName = (typeof IPC_CHANNEL_NAMES)[number];
 export type EventName = (typeof IPC_EVENT_NAMES)[number];
