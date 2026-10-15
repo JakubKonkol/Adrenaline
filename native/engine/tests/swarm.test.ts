@@ -299,12 +299,13 @@ describe.skipIf(!ENGINE)('adrenaline-engine swarm', () => {
       60_000,
       'more data',
     );
-    // Simulated crash mid-download: measure, wait for the next periodic resume save, kill immediately.
+    // Simulated crash mid-download: measure, wait for a periodic resume save requested after the measurement (the
+    // first one seen may have been requested just before it), kill immediately.
     const beforeKill = (await leecher.status('job-kill')).selectedDoneBytes;
     const savedCount = leecher.events.filter((e) => e.event === 'resumeSaved').length;
     await until(
-      () => leecher.events.filter((e) => e.event === 'resumeSaved').length > savedCount,
-      10_000,
+      () => leecher.events.filter((e) => e.event === 'resumeSaved').length > savedCount + 1,
+      15_000,
       'resume save',
     );
     leecher.kill();
