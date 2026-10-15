@@ -41,7 +41,10 @@ lt::settings_pack make_settings(const Options& o) {
   p.set_int(lt::settings_pack::alert_mask, lt::alert_category::status | lt::alert_category::error |
                                               lt::alert_category::storage | lt::alert_category::file_progress);
   std::string port = std::to_string(o.listenPort);
-  p.set_str(lt::settings_pack::listen_interfaces, "0.0.0.0:" + port + ",[::]:" + port);
+  // Test mode listens on loopback only: one socket, so listen_port() is the port peers must use (with port 0
+  // the IPv4 and IPv6 sockets get different random ports on Windows), and no firewall prompts.
+  p.set_str(lt::settings_pack::listen_interfaces,
+            o.testMode ? "127.0.0.1:" + port : "0.0.0.0:" + port + ",[::]:" + port);
   p.set_bool(lt::settings_pack::enable_dht, !o.noDht);
   p.set_bool(lt::settings_pack::enable_lsd, !o.noDht);
   p.set_bool(lt::settings_pack::enable_upnp, !o.noUpnp);

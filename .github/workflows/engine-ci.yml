@@ -60,13 +60,15 @@ jobs:
         run: |
           dumpbin /dependents "$env:ENGINE_EXE"
           & "$env:ENGINE_EXE" --version
-      - run: npm ci
-      - name: Swarm test
-        run: npm run test:engine
-        env:
-          ADRENALINE_ENGINE_PATH: ${{ env.ENGINE_EXE }}
+      # Uploaded before the test so a failing swarm run can be reproduced locally; the release job only
+      # packages it when this whole job succeeded.
       - uses: actions/upload-artifact@v4
         with:
           name: adrenaline-engine
           path: native/engine/build/windows-release/adrenaline-engine.exe
           if-no-files-found: error
+      - run: npm ci
+      - name: Swarm test
+        run: npm run test:engine
+        env:
+          ADRENALINE_ENGINE_PATH: ${{ env.ENGINE_EXE }}
