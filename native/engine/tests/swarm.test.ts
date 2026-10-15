@@ -78,9 +78,13 @@ class Engine {
   }
 
   async hello() {
-    const h = await this.client.hello('test');
-    this.listenPort = h.listenPort ?? 0;
-    return h;
+    // libtorrent may briefly reopen its listen sockets (network change on Windows): ask until a port is known.
+    for (let i = 0; ; i++) {
+      const h = await this.client.hello('test');
+      this.listenPort = h.listenPort ?? 0;
+      if (this.listenPort > 0 || i >= 40) return h;
+      await sleep(250);
+    }
   }
 
   kill() {
@@ -313,10 +317,16 @@ describe.skipIf(!ENGINE)('adrenaline-engine swarm', () => {
       'job-kill',
     );
     await leecher.client.request('selectFiles', { files: [{ index: target.index, priority: 4 }] }, 'job-kill');
+    // A paused torrent reports "paused" while libtorrent still applies the resume data: wait until the restored
+    // byte count is stable.
+    let previous = -1;
     const restored = await until(
       async () => {
         const s = await leecher.status('job-kill');
-        return s.state !== 'checking' ? s : undefined;
+        const stable = s.state !== 'checking' && s.selectedDoneBytes === previous && s.selectedDoneBytes > 0;
+        previous = s.selectedDoneBytes;
+        if (!stable) await sleep(400);
+        return stable ? s : undefined;
       },
       30_000,
       'restored',
