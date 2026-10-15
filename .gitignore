@@ -11,3 +11,4 @@ playwright-report/
 coverage/
 *.tsbuildinfo
 Adrenaline-logo.zip
+tests/fixtures/tmdb/live/

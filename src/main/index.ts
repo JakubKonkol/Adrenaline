@@ -8,6 +8,11 @@ import { createEventSender } from './events';
 import { mainText } from './i18n';
 import { createIpcRegistry } from './ipc/register';
 import { registerSettingsHandlers } from './ipc/settings-handlers';
+import { registerCatalogHandlers } from './ipc/catalog-handlers';
+import { TmdbClient } from './providers/tmdb/tmdb-client';
+import { CacheRepository } from './persistence/repositories/cache';
+import { MediaRepository } from './persistence/repositories/media';
+import { CatalogService } from './services/catalog-service';
 import { createLifecycle } from './lifecycle';
 import { createFileLogger } from './logger';
 import { openDatabase } from './persistence/db';
@@ -137,6 +142,9 @@ if (!app.requestSingleInstanceLock()) {
       return engineStatus();
     });
     registerSettingsHandlers(ipc, { settings, secrets, window: () => mainWindow });
+    const tmdb = new TmdbClient({ token: () => secrets.get('tmdb.token') });
+    const catalog = new CatalogService(tmdb, new CacheRepository(db), new MediaRepository(db));
+    registerCatalogHandlers(ipc, catalog, tmdb);
 
     tray = createTray({
       show: showWindow,

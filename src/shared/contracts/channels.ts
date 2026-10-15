@@ -15,6 +15,11 @@ export const IPC_CHANNEL_NAMES = [
   'settings:chooseFolder',
   'settings:secretsStatus',
   'settings:setSecret',
+  'settings:testTmdb',
+  'catalog:search',
+  'catalog:details',
+  'catalog:season',
+  'catalog:select',
 ] as const;
 
 export const IPC_EVENT_NAMES = ['updater:status', 'engine:status'] as const;

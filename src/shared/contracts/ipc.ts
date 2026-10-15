@@ -3,6 +3,16 @@ import type { AppErrorShape } from '../errors';
 import { engineStatusSchema, updaterStatusSchema } from './app';
 import type { ChannelName, EventName } from './channels';
 import { appSettingsSchema, secretsStatusSchema, settingsPatchSchema, userSecretNameSchema } from './settings';
+import {
+  catalogItemSchema,
+  catalogSelectionSchema,
+  mediaTypeSchema,
+  seasonDetailsSchema,
+  seasonNumberSchema,
+  titleDetailsSchema,
+  tmdbIdSchema,
+} from './catalog';
+import { searchTargetSchema } from '../domain/search-target';
 
 export type { ChannelName, EventName } from './channels';
 
@@ -16,6 +26,20 @@ interface ChannelSchema {
  * The preload API, the main handlers and the renderer types are all derived from this table (01-architektura.md).
  */
 export const ipcChannels = {
+  'catalog:search': {
+    input: z.object({ query: z.string().trim().max(300), type: mediaTypeSchema.optional() }).strict(),
+    output: z.array(catalogItemSchema),
+  },
+  'catalog:details': {
+    input: z.object({ type: mediaTypeSchema, tmdbId: tmdbIdSchema }).strict(),
+    output: titleDetailsSchema,
+  },
+  'catalog:season': {
+    input: z.object({ tmdbId: tmdbIdSchema, season: seasonNumberSchema }).strict(),
+    output: seasonDetailsSchema,
+  },
+  'catalog:select': { input: catalogSelectionSchema, output: searchTargetSchema },
+  'settings:testTmdb': { input: z.void(), output: z.boolean() },
   'app:version': { input: z.void(), output: z.string() },
   'app:updaterStatus': { input: z.void(), output: updaterStatusSchema },
   'app:checkForUpdates': { input: z.void(), output: updaterStatusSchema },

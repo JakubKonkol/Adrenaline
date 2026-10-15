@@ -1,0 +1,9 @@
+{
+  "id": 900002,
+  "season_number": 1,
+  "name": "Sezon pierwszy",
+  "episodes": [
+    { "id": 900003, "season_number": 1, "episode_number": 1, "name": "Początek podróży", "air_date": "2024-01-01", "overview": "Własny opis pierwszego odcinka." },
+    { "id": 900004, "season_number": 1, "episode_number": 2, "name": "Nowy szlak", "air_date": null, "overview": "" }
+  ]
+}

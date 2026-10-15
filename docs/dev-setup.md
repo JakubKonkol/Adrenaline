@@ -9,6 +9,14 @@
 - `npm run build && npm run test:smoke` — smoke test Playwright na zbudowanej aplikacji. Na Linuksie bez ekranu: `xvfb-run -a npm run test:smoke` (`apt-get install -y xvfb`).
 - `ADRENALINE_USER_DATA=<katalog>` — osobny profil danych (tylko niespakowana aplikacja).
 
+## Katalog TMDB (etap 4)
+
+- W aplikacji zapisz własny token „API Read Access Token” lub klucz v3 w Ustawieniach → Konta i klucze. Przycisk „Sprawdź zapisany klucz TMDB” wykonuje zapytanie `configuration`. Renderer nie odczytuje sekretu.
+- Do testu live skopiuj `.env.example` do `.env`, ustaw `TMDB_TOKEN` i uruchom `node scripts/live/tmdb.mjs`. Plik `.env` służy tylko skryptom live, nie ustawia automatycznie kont w aplikacji.
+- Skrypt zapisuje przycięte odpowiedzi w ignorowanym `tests/fixtures/tmdb/live/`. W razie potrzeby `TMDB_TEST_TV_QUERY` wskazuje inny tytuł serialu. Brak klucza kończy skrypt kodem 1 bez zapytania do sieci.
+- Testy jednostkowe i smoke używają danych syntetycznych opisanych w `tests/fixtures/tmdb/README.md`; nie łączą się z TMDB. Smoke przechodzi przez prawdziwe IPC i SQLite, podmieniając tylko `fetch` w uruchomionym procesie testowym.
+- Na Windows z zablokowanym `npm.ps1` uruchamiaj `npm.cmd run check` / `npm.cmd run build`; nie trzeba zmieniać polityki PowerShell.
+
 ## Silnik C++ (`native/engine`)
 
 Na Windows binarka powstaje w GitHub Actions (`engine-ci.yml`, preset `windows-release`, vcpkg). Lokalnie najprościej budować wersję linuksową w WSL (Ubuntu) albo kontenerze:

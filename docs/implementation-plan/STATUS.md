@@ -2,7 +2,7 @@
 
 Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka notatka, jeśli coś odbiega od planu). Zadania odpowiadają numeracji w `etapy/`.
 
-**Bieżący etap:** 3 (etap 1: wydano v0.1.0, czeka v0.1.1 i test ręczny; etap 2: czeka zielony `engine-ci.yml` na Windows)
+**Bieżący etap:** 4 — katalog TMDB (kontynuacja Codex, 15.10.2026; etap 1: czeka v0.1.1 i test ręczny; etap 2: build Windows w toku)
 **Ostatnie wydanie:** v0.1.0 (15.10.2026; electron-builder utworzył 2 Release dla jednego taga — scalone ręcznie, workflow poprawiony: najpierw draft)
 
 ## Blokady wymagające właściciela
@@ -48,11 +48,11 @@ Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka no
 - [x] 3.8 Logger (zrobiony w etapie 1, bo potrzebuje go updater; IPC `app:openLogsFolder` też)
 
 ### Etap 4 — Katalog TMDB
-- [ ] 4.1 Weryfikacja API, fixtures
-- [ ] 4.2 Klient
-- [ ] 4.3 Serwis i IPC
-- [ ] 4.4 UI
-- [ ] 4.5 SearchTarget
+- [ ] 4.1 Weryfikacja API, fixtures — dokumentacja sprawdzona, syntetyczne fixtures i `scripts/live/tmdb.mjs` gotowe; zapis odpowiedzi live czeka na `TMDB_TOKEN` w `.env`.
+- [x] 4.2 Klient — Bearer/klucz v3, timeout 10 s, walidacja Zod, limit odpowiedzi 5 MiB, stabilne błędy, jedno ponowienie 429, fallback opisu en-US; testy kontraktowe offline.
+- [x] 4.3 Serwis i IPC — `catalog:search/details/season/select`, `settings:testTmdb`, cache SQLite 15 min/24 h, scalenie wg popularności. Media/odcinek zapisują się dopiero przy wyborze, na podstawie danych main.
+- [x] 4.4 UI — wyszukiwanie z debounce 350 ms i filtrami, karty, szczegóły, sezony/odcinki, stany błędów i brak klucza, test klucza w Ustawieniach, oficjalne logo i atrybucja TMDB. Testy komponentowe obejmują nawigację i awarię katalogu.
+- [x] 4.5 SearchTarget — walidowany film/odcinek trafia przez stan routera do `/releases`; ekran docelowy oczekuje implementacji wyszukiwania z etapu 5.
 
 ### Etap 5 — Źródła
 - [ ] 5.1 Spike Jackett (decyzje D-56, D-57)
@@ -108,6 +108,11 @@ Uzupełnić w etapie 0 (i przy każdej zmianie).
 
 ## Odstępstwa od planu
 
+- **Kontynuacja od etapu 4 (15.10.2026):** etap 3 jest zakończony. Otwarte odbiory 1.4/2.5 nie blokują niezależnej implementacji katalogu. Przy przejęciu CI aplikacji było zielone, build Engine [38765947897](https://github.com/JakubKonkol/Adrenaline/actions/runs/38765947897) nadal trwał; repo jest prywatne, jedyne wydanie to v0.1.0. Nie uznajemy aktualizacji ani silnika Windows za odebrane.
+- **TMDB 4.1:** brak `.env` podczas przejęcia. Dokumentacja API sprawdzona w oficjalnym serwisie; fixtures offline są danymi syntetycznymi zgodnymi z kontraktem, wyraźnie opisanymi jako takie. Skrypt live pozwoli później zapisać rzeczywiste odpowiedzi. Test live i wydanie v0.4.0 pozostają oddzielnymi kryteriami odbioru.
+- **TMDB — granice żądań:** limit odpowiedzi 5 MiB obejmuje także strumień bez `Content-Length`. Przy `Retry-After` do 10 s klient ponawia raz; przy dłuższym czasie od razu zwraca `TMDB_RATE_LIMITED`, bez przedwczesnego ponowienia. Brak dostępności opcjonalnego angielskiego opisu nie ukrywa pobranych polskich szczegółów. Skrypt live nie wywołuje celowo lawiny żądań dla 429 — ten przypadek testujemy syntetycznie.
+- **Przekazanie do etapu 5:** dodano `catalog:select` (wejście zawiera wyłącznie identyfikatory, main pobiera i zapisuje zaufane metadane), a `/releases` pokazuje wybrany tytuł/odcinek oraz komunikat o funkcji dostępnej w kolejnej wersji. To punkt podłączenia etapu 5, nie gotowe wyszukiwanie wydań.
+
 - **Środowisko dev (etap 0.7):** pętla dev działa na Windows właściciela (Node 24.11), a silnik C++ budowany jest w WSL Ubuntu 26.04 (libtorrent 2.0.12 z apt, preset `linux-system`). Lokalnie brak MSVC/vcpkg; binarka Windows powstaje tylko w CI.
 - **Wygląd (prośba właściciela 15.10.2026):** Adrenaline wizualnie należy do rodziny Oxytocin: te same neutralne kolory, typografia (Inter + JetBrains Mono, dołączone przez `@fontsource-variable/*`, bo CSP blokuje zewnętrzne fonty), etykiety mono uppercase, własny pasek tytułu 36 px (`titleBarStyle: hidden` + overlay). Akcent pomarańczowy z logo zamiast niebieskiego. Nadal CSS Modules + zmienne CSS bez Tailwinda (D-21).
 - **Preload:** sandboxowany preload nie może ładować modułów npm, więc nazwy kanałów są w osobnym pliku bez Zod (`src/shared/contracts/channels.ts`), a schematy w `ipc.ts`.
@@ -117,6 +122,14 @@ Uzupełnić w etapie 0 (i przy każdej zmianie).
 - **Silnik — tryb testowy:** `--test-mode` dodatkowo obejmuje peery lokalne limitami prędkości (domyślnie libtorrent ich nie dławi), a `--resume-interval <s>` skraca okres zapisu resume (domyślnie 60 s) — test „kill w połowie” zabija proces tuż po zapisie.
 - **Silnik — stan przed wyborem plików:** dopóki main nie wyśle `selectFiles`, silnik nie raportuje `downloaded/seeding` (torrent z zerowymi priorytetami jest dla libtorrent „finished”). Po restarcie main zawsze ponawia `selectFiles` z bazy.
 - **Audyt npm:** `npm audit --omit=dev` = 0 podatności; ostrzeżenia dotyczą tylko narzędzi deweloperskich (electron-builder → app-builder-lib). Do przeglądu w etapie 8.6.
+
+## Notatka dla kolejnego agenta — Codex, 15.10.2026
+
+- Zaimplementowane zadania **4.2–4.5**. Kod: `src/main/providers/tmdb/`, `src/main/services/catalog-service.ts`, `src/main/persistence/repositories/{cache,media}.ts`, `src/main/ipc/catalog-handlers.ts`; kontrakty w `src/shared/contracts/catalog.ts`, model w `src/shared/domain/search-target.ts`; UI w `src/renderer/screens/catalog/`, `Home.tsx` i hooki `api/catalog.ts`.
+- **4.1 częściowo:** dokumentacja i schematy zweryfikowane, fixtures syntetyczne (opis pochodzenia w `tests/fixtures/tmdb/README.md`), skrypt live gotowy. Do zakończenia: dodać klucz lokalnie, uruchomić `node scripts/live/tmdb.mjs`, zweryfikować i ewentualnie przenieść przycięte odpowiedzi z ignorowanego `tests/fixtures/tmdb/live/`. `.env` nie jest automatycznie używany przez aplikację — klucz zapisuje się przez Ustawienia.
+- Testy: **152 zaliczone, 1 pominięty** (istniejący test uprawnień folderu pomijany na Windows). `npm.cmd run check`, build i rozszerzony smoke Playwright przechodzą. Smoke obejmuje katalog przez prawdziwe IPC/SQLite, wybór drugiego odcinka, restart i trwałość cache bez sieci; testy komponentowe obejmują awarię TMDB i dostępność innych ekranów.
+- Engine Windows [38765947897](https://github.com/JakubKonkol/Adrenaline/actions/runs/38765947897) przy ostatnim sprawdzeniu nadal budował zależności vcpkg. Sprawdzić wynik przed zamknięciem **2.5** i wydaniem. Nie zmieniano widoczności repo, nie wydano v0.1.1/v0.4.0 ani nie potwierdzono ręcznej aktualizacji.
+- Następne prace: zakończyć odbiory powyżej, potem **5.1 — spike Jackett** według `etapy/etap-5-zrodla-jackett.md`. Przejście do etapu 5 bez testu live wymaga jawnego uzasadnienia w Odstępstwach zgodnie z README planu.
 
 ## Pomiary
 

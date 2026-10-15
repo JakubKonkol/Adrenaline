@@ -2,6 +2,7 @@ import { Check, Save } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { AppSettings } from '@shared/contracts/settings';
 import { useSecretsStatus, useSetSecret, useSettings, useUpdateSettings } from '../../api/settings';
+import { useTestTmdb } from '../../api/catalog';
 import { t } from '../../i18n/t';
 import { Button } from '../../ui/Button';
 import { ErrorNotice } from '../../ui/ErrorNotice';
@@ -56,6 +57,7 @@ function SettingsForm({ settings }: { settings: AppSettings }) {
   const update = useUpdateSettings();
   const setSecret = useSetSecret();
   const { data: secrets } = useSecretsStatus();
+  const testTmdb = useTestTmdb();
 
   useEffect(() => {
     if (!saved) return;
@@ -66,6 +68,7 @@ function SettingsForm({ settings }: { settings: AppSettings }) {
   const set: DraftSetter = (key, value) => {
     setDraft((d) => ({ ...d, [key]: value }));
     setSaved(false);
+    if (key === 'secrets') testTmdb.reset();
   };
 
   const save = async () => {
@@ -158,6 +161,15 @@ function SettingsForm({ settings }: { settings: AppSettings }) {
             <p className={styles.warning}>{t('settings.accounts.noEncryption')}</p>
           ) : null}
           <TmdbField {...group} {...(secrets ? { status: secrets } : {})} />
+          <p>{t('catalog.testKeyHint')}</p>
+          <Button
+            disabled={busy || testTmdb.isPending || !!draft.secrets['tmdb.token'].trim()}
+            onClick={() => testTmdb.mutate()}
+          >
+            {t(testTmdb.isPending ? 'app.loading' : 'catalog.testKey')}
+          </Button>
+          {testTmdb.isSuccess ? <p role="status">{t('catalog.testSuccess')}</p> : null}
+          {testTmdb.error ? <ErrorNotice error={testTmdb.error} /> : null}
           <OpenSubtitlesFields {...group} {...(secrets ? { status: secrets } : {})} />
         </Section>
 

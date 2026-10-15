@@ -1,0 +1,9 @@
+{
+  "page": 1,
+  "results": [
+    { "id": 10331, "title": "Noc żywych trupów", "original_title": "Night of the Living Dead", "release_date": "1968-10-04", "poster_path": "/fixture1968.jpg", "overview": "Przykładowy opis testowy filmu z 1968 roku.", "popularity": 25 },
+    { "id": 19185, "title": "Noc żywych trupów", "original_title": "Night of the Living Dead", "release_date": "1990-10-19", "poster_path": "/fixture1990.jpg", "overview": "Przykładowy opis testowy wersji z 1990 roku.", "popularity": 10 }
+  ],
+  "total_pages": 1,
+  "total_results": 2
+}

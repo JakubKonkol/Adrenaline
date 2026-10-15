@@ -25,7 +25,10 @@ export function useSetSecret() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: { name: UserSecretName; value: string | null }) => unwrap(api().settings.setSecret(input)),
-    onSuccess: (s) => qc.setQueryData<SecretsStatus>(SECRETS, s),
+    onSuccess: (s, input) => {
+      qc.setQueryData<SecretsStatus>(SECRETS, s);
+      if (input.name === 'tmdb.token') qc.removeQueries({ queryKey: ['catalog'] });
+    },
   });
 }
 

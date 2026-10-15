@@ -2,6 +2,11 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { _electron as electron, type ElectronApplication, expect, test } from '@playwright/test';
+import movies from '../fixtures/tmdb/search-movie.json' with { type: 'json' };
+import series from '../fixtures/tmdb/search-tv.json' with { type: 'json' };
+import movie from '../fixtures/tmdb/movie.json' with { type: 'json' };
+import show from '../fixtures/tmdb/tv.json' with { type: 'json' };
+import season from '../fixtures/tmdb/season.json' with { type: 'json' };
 
 const launch = (userData: string) =>
   electron.launch({
@@ -50,6 +55,45 @@ test('first run, onboarding, settings kept after restart, isolated renderer', as
     await next.click();
     await expect(page.getByTestId('screen-home')).toBeVisible();
 
+    // Stage 4: real preload/IPC/SQLite, provider HTTP replaced only in the test process.
+    await page.route('https://image.tmdb.org/**', (route) => route.abort());
+    await app.evaluate(
+      (_electron, fixtures) => {
+        globalThis.fetch = (input) => {
+          const url = new URL(input instanceof Request ? input.url : input.toString());
+          if (url.hostname !== 'api.themoviedb.org')
+            return Promise.reject(new Error('Unexpected network request in smoke'));
+          const body =
+            url.pathname === '/3/search/movie'
+              ? fixtures.movies
+              : url.pathname === '/3/search/tv'
+                ? fixtures.series
+                : url.pathname === '/3/movie/10331'
+                  ? fixtures.movie
+                  : url.pathname === '/3/tv/900001'
+                    ? fixtures.show
+                    : url.pathname === '/3/tv/900001/season/1'
+                      ? fixtures.season
+                      : null;
+          return Promise.resolve(Response.json(body, { status: body ? 200 : 404 }));
+        };
+      },
+      { movies, series, movie, show, season },
+    );
+    await page.getByRole('searchbox').fill('Night of the Living Dead');
+    await page.getByRole('searchbox').press('Enter');
+    await expect(page.getByRole('link', { name: /1968/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /1990/ })).toBeVisible();
+    await page.screenshot({ path: test.info().outputPath('catalog.png') });
+    await page.getByRole('link', { name: /Przygody Adrenaliny/ }).click();
+    await page.getByRole('link', { name: /Sezon 1/ }).click();
+    await page
+      .getByRole('listitem')
+      .filter({ has: page.getByRole('heading', { name: 'Nowy szlak' }) })
+      .getByRole('button', { name: 'Szukaj wydań' })
+      .click();
+    await expect(page.getByTestId('screen-releases')).toContainText('Sezon 1 · Odcinek 2');
+
     await page.getByRole('link', { name: 'O aplikacji' }).click();
     await expect(page.getByTestId('app-version')).toContainText(/\d+\.\d+\.\d+/);
     await expect(page.getByTestId('updater-status')).toContainText('wyłączone');
@@ -60,6 +104,14 @@ test('first run, onboarding, settings kept after restart, isolated renderer', as
     app = await launch(userData);
     page = await app.firstWindow();
     await expect(page.getByTestId('screen-home')).toBeVisible();
+    // The cached search must survive restart and work without any provider network access.
+    await page.route('https://image.tmdb.org/**', (route) => route.abort());
+    await app.evaluate(() => {
+      globalThis.fetch = () => Promise.reject(new Error('Provider network is disabled after restart'));
+    });
+    await page.getByRole('searchbox').fill('Night of the Living Dead');
+    await page.getByRole('searchbox').press('Enter');
+    await expect(page.getByRole('link', { name: /1968/ })).toBeVisible();
     await page.getByRole('link', { name: 'Ustawienia' }).click();
     await expect(page.getByTestId('subtitle-lang')).toHaveValue('en');
     await expect(page.getByTestId('tmdb-token')).toHaveAttribute('placeholder', /Zapisany/);

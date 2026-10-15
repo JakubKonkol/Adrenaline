@@ -3,6 +3,7 @@ import type { UpdaterStatus } from '@shared/contracts/app';
 import logoDark from '../assets/brand/adrenaline-logo-on-dark.svg';
 import logoLight from '../assets/brand/adrenaline-logo-on-light.svg';
 import { api } from '../api/bridge';
+import { TmdbAttribution } from '../components/TmdbAttribution';
 import { useEngineStatus, useRestartEngine } from '../api/engine';
 import { useAppVersion, useCheckForUpdates, useUpdaterStatus } from '../api/updater';
 import { t } from '../i18n/t';
@@ -92,6 +93,7 @@ export function About() {
       </Card>
 
       <p className={styles.footer}>{t('about.author')}</p>
+      <TmdbAttribution />
     </Page>
   );
 }
