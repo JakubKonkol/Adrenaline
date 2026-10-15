@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<caps>
+  <searching>
+    <search available="yes" supportedParams="q" />
+    <tv-search available="no" supportedParams="q" />
+    <movie-search available="no" supportedParams="q" />
+  </searching>
+  <categories><category id="2000" name="Movies" /></categories>
+</caps>

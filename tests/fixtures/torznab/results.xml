@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:torznab="http://torznab.com/schemas/2015/feed">
+  <channel>
+    <title>Example</title>
+    <item>
+      <title>Night of the Living Dead (1968) 1080p BRRip x264 -EXAMPLE</title>
+      <guid>https://indexer.example/torrent/1</guid>
+      <jackettindexer id="example">Example</jackettindexer>
+      <link>http://127.0.0.1:9117/dl/example/?jackett_apikey=abc&amp;path=xyz&amp;file=Night</link>
+      <pubDate>Thu, 15 Oct 2026 10:00:00 +0000</pubDate>
+      <size>1610612736</size>
+      <enclosure url="http://127.0.0.1:9117/dl/example/?jackett_apikey=abc&amp;path=xyz&amp;file=Night" length="1610612736" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="seeders" value="120" />
+      <torznab:attr name="peers" value="135" />
+      <torznab:attr name="infohash" value="0123456789ABCDEF0123456789ABCDEF01234567" />
+      <torznab:attr name="magneturl" value="magnet:?xt=urn:btih:0123456789ABCDEF0123456789ABCDEF01234567&amp;dn=Night" />
+      <torznab:attr name="imdbid" value="tt0063350" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+    </item>
+    <item>
+      <title>Night.of.the.Living.Dead.1990.720p.BluRay.x264-EXAMPLE</title>
+      <guid>magnet:?xt=urn:btih:89abcdef0123456789abcdef0123456789abcdef</guid>
+      <link>magnet:?xt=urn:btih:89abcdef0123456789abcdef0123456789abcdef&amp;dn=Night1990</link>
+      <torznab:attr name="imdb" value="100258" />
+    </item>
+    <item>
+      <title></title>
+      <guid>empty-title-is-skipped</guid>
+    </item>
+  </channel>
+</rss>
