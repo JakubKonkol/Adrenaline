@@ -2,8 +2,9 @@
 
 Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka notatka, jeśli coś odbiega od planu). Zadania odpowiadają numeracji w `etapy/`.
 
-**Bieżący etap:** 5 zakończony w kodzie (czeka wydanie v0.5.0 i ręczne testy właściciela); następny: 6 — pobieranie. Etap 1: czeka v0.1.1 i test aktualizacji.
-**Ostatnie wydanie:** v0.1.0 (15.10.2026; electron-builder utworzył 2 Release dla jednego taga — scalone ręcznie, workflow poprawiony: najpierw draft)
+**Bieżący etap:** 6 zakończony w kodzie (czeka zielony Engine CI, wydanie i test ręczny właściciela); następny: 7 — napisy (wymaga konta OpenSubtitles w `.env`). Etap 1: czeka test aktualizacji.
+**Ostatnie wydanie:** v0.1.0 (tag v0.5.0 nie został opublikowany: workflow zatrzymał się na niestabilnym teście swarm na Windows — bramka zadziałała; poprawione, następne wydanie z nowym numerem).
+  v0.1.0 (15.10.2026): electron-builder utworzył 2 Release dla jednego taga — scalone ręcznie, workflow poprawiony: najpierw draft)
 
 ## Blokady wymagające właściciela
 
@@ -65,12 +66,12 @@ Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka no
 - [x] 5.6 UI — ekran wydań, Ustawienia → Źródła, krok źródeł w kreatorze. Wybór wydania prowadzi na `/download-setup` (placeholder do etapu 6).
 
 ### Etap 6 — Pobieranie
-- [ ] 6.1 Domena zadań
-- [ ] 6.2 Konfiguracja pobrania
-- [ ] 6.3 Serwis pobrań
-- [ ] 6.4 Restart i awaria (crash-loop 20 cykli)
-- [ ] 6.5 UI
-- [ ] 6.6 Smoke z restartem
+- [x] 6.1 Domena zadań — przejścia stanów, status zbiorczy (BR02/BR03), domyślny wybór plików (FR09), foldery D-75.
+- [x] 6.2 Konfiguracja pobrania — folder, miejsce, konflikt (inna nazwa / inny folder), duplikat, napisy, seedowanie.
+- [x] 6.3 Serwis pobrań — kolejka, magnet lub .torrent tylko z hosta źródła, walidacja ścieżek, pauza po potwierdzeniu, dysk, usuwanie, otwieranie folderu.
+- [x] 6.4 Restart i awaria — `npm run crash-loop`: 20/20 cykli bez utraty zadań na prawdziwym silniku Windows i na FakeEngine (15.10.2026); wykrył i poprawiono 2 błędy (stan `error` przy awarii silnika w trakcie odtwarzania, zamiana błędu na „pauzę użytkownika”).
+- [x] 6.5 UI — Pobrane (aktywne/zakończone, postęp co 500 ms bez przerysowania listy), szczegóły, wybór plików, usuwanie z listą plików, zasobnik.
+- [x] 6.6 Smoke z restartem — zadanie przez ukryte API (tylko FakeEngine), postęp, pauza, restart, wznowienie.
 
 ### Etap 7 — Napisy
 - [ ] 7.1 Weryfikacja API, fixtures
@@ -142,4 +143,6 @@ Uzupełnić w etapie 0 (i przy każdej zmianie).
 
 ## Pomiary
 
+- **NFR11 (15.10.2026, silnik Windows, lokalny seeder, przed limitem working setu):** 1 × 256 MiB — pamięć prywatna 6 MiB, working set 272 MiB; 3 × 256 MiB — prywatna 13 MiB, working set 787 MiB. Working set rósł liniowo przez mmap → limit 512 MiB (D-44).
+- **NFR11 po limicie (silnik z CI 4d0bb86):** 1 × 256 MiB — prywatna 6 MiB, working set 273 MiB, 6 s; 3 × 256 MiB — prywatna 9 MiB, working set 512 MiB (limit), 8 s. Pamięć nie rośnie już liniowo z rozmiarem; skrypt: `scripts/dev/memory.test.ts`.
 - **NFR03 (15.10.2026, live, 4 indeksatory + 1 zepsute źródło):** pierwsze wyniki w zdarzeniu `releases:update` po odpowiedzi pierwszego źródła; pełna sesja 3,5 s (limit 20 s).
