@@ -32,6 +32,12 @@ struct Job {
   std::optional<double> seedRatio;
   std::optional<int> seedMinutes;
   bool metadataSent = false;
+  // libtorrent 2.1 buffers disk writes: "done" is only reported after a save_resume_data with flush_disk_cache
+  // has completed, so files are really on disk (subtitle hashing, the user opening the folder).
+  int saveOutstanding = 0;
+  bool flushForDone = false;
+  bool doneFlushed = false;
+  std::vector<int> pendingFiles;  // fileCompleted events waiting for the flush
   std::string lastState;
   std::string lastReason;
   std::deque<std::pair<Clock::time_point, std::int64_t>> samples;  // selected done bytes, for ETA
@@ -86,6 +92,7 @@ class JobManager {
   void update_state(Job& j, const lt::torrent_status& st);
   void update_state(Job& j);
   void save_resume(Job& j, lt::resume_data_flags_t flags);
+  void on_save_finished(Job& j);
   void check_seed_policy();
   void connect_test_peers(Job& j, bool force);
 

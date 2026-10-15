@@ -439,7 +439,7 @@ std::pair<std::string, std::string> JobManager::compute_state(const Job& j, cons
       return {"fetching_metadata", ""};
     case lt::torrent_status::finished:
     case lt::torrent_status::seeding:
-      return {j.hasSelection ? "seeding" : "downloading", ""};
+      return {j.hasSelection && j.doneFlushed ? "seeding" : "downloading", ""};
     case lt::torrent_status::downloading:
     default:
       return {"downloading", ""};
@@ -449,6 +449,13 @@ std::pair<std::string, std::string> JobManager::compute_state(const Job& j, cons
 void JobManager::update_state(Job& j) { update_state(j, j.handle.status()); }
 
 void JobManager::update_state(Job& j, const lt::torrent_status& st) {
+  const bool complete = st.state == lt::torrent_status::finished || st.state == lt::torrent_status::seeding;
+  if (!complete) {
+    j.doneFlushed = false;
+  } else if (j.hasSelection && !j.doneFlushed && !j.flushForDone) {
+    j.flushForDone = true;
+    save_resume(j, lt::torrent_handle::save_info_dict);
+  }
   auto [state, reason] = compute_state(j, st, false);
   if (state == j.lastState && reason == j.lastReason) return;
   if (state == "seeding" && j.lastState != "seeding" && j.lastState != "downloaded") {
@@ -518,7 +525,23 @@ json JobManager::status_json(Job& j, const lt::torrent_status& st) {
 
 void JobManager::save_resume(Job& j, lt::resume_data_flags_t flags) {
   if (!j.handle.is_valid()) return;
-  j.handle.save_resume_data(flags);
+  // Always flush: resume data must never claim pieces that are still only in the write cache (a crash would
+  // then leave a corrupted file that is trusted on restart).
+  ++j.saveOutstanding;
+  j.handle.save_resume_data(flags | lt::torrent_handle::flush_disk_cache);
+}
+
+void JobManager::on_save_finished(Job& j) {
+  if (j.saveOutstanding > 0) --j.saveOutstanding;
+  if (j.saveOutstanding > 0) return;
+  for (int index : j.pendingFiles) out_.event("fileCompleted", json{{"jobId", j.id}, {"index", index}});
+  j.pendingFiles.clear();
+  if (j.flushForDone) {
+    j.flushForDone = false;
+    auto st = j.handle.status();
+    j.doneFlushed = st.state == lt::torrent_status::finished || st.state == lt::torrent_status::seeding;
+    update_state(j, st);
+  }
 }
 
 void JobManager::connect_test_peers(Job& j, bool force) {
@@ -563,11 +586,13 @@ void JobManager::on_alert(lt::alert* a) {
         atomic_write(tpath, lt::write_torrent_file_buf(sr->params, {}), error);
       }
       out_.event("resumeSaved", json{{"jobId", j->id}});
+      on_save_finished(*j);
     }
     if (shuttingDown_ && outstandingResume_ > 0) --outstandingResume_;
     return;
   }
-  if (lt::alert_cast<lt::save_resume_data_failed_alert>(a)) {
+  if (auto* sf = lt::alert_cast<lt::save_resume_data_failed_alert>(a)) {
+    if (Job* j = find(sf->handle)) on_save_finished(*j);
     if (shuttingDown_ && outstandingResume_ > 0) --outstandingResume_;
     return;
   }
@@ -600,7 +625,10 @@ void JobManager::on_alert(lt::alert* a) {
   }
   if (auto* fc = lt::alert_cast<lt::file_completed_alert>(a)) {
     if (Job* j = find(fc->handle)) {
-      if (j->hasSelection) out_.event("fileCompleted", json{{"jobId", j->id}, {"index", static_cast<int>(fc->index)}});
+      if (j->hasSelection) {
+        j->pendingFiles.push_back(static_cast<int>(fc->index));
+        save_resume(*j, lt::torrent_handle::save_info_dict);
+      }
     }
     return;
   }
@@ -726,7 +754,7 @@ void JobManager::begin_shutdown(const std::string& requestId) {
   ses_.pause();
   for (auto& [id, j] : jobs_) {
     if (!j.handle.is_valid()) continue;
-    j.handle.save_resume_data(lt::torrent_handle::save_info_dict | lt::torrent_handle::flush_disk_cache);
+    save_resume(j, lt::torrent_handle::save_info_dict);
     ++outstandingResume_;
   }
 }
