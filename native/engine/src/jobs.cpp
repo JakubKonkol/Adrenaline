@@ -9,6 +9,7 @@
 #include <libtorrent/alert_types.hpp>
 #include <libtorrent/download_priority.hpp>
 #include <libtorrent/error_code.hpp>
+#include <libtorrent/load_torrent.hpp>
 #include <libtorrent/magnet_uri.hpp>
 #include <libtorrent/read_resume_data.hpp>
 #include <libtorrent/settings_pack.hpp>
@@ -77,6 +78,14 @@ std::string classify_file_error(const lt::error_code& ec) {
 
 std::vector<lt::download_priority_t> all_dont_download(const lt::torrent_info& ti) {
   return std::vector<lt::download_priority_t>(static_cast<std::size_t>(ti.num_files()), lt::dont_download);
+}
+
+const lt::file_storage& file_layout(const lt::torrent_info& ti) {
+#if LIBTORRENT_VERSION_NUM >= 20100
+  return ti.layout();
+#else
+  return ti.files();
+#endif
 }
 
 }  // namespace
@@ -182,10 +191,12 @@ json JobManager::op_add(const Request& r, bool& deferred) {
   } else if (!torrentB64.empty()) {
     auto bytes = base64_decode(torrentB64);
     if (!bytes) throw EngineError("INVALID_TORRENT", "invalid base64");
-    auto ti = std::make_shared<lt::torrent_info>(lt::span<char const>(bytes->data(), static_cast<std::ptrdiff_t>(bytes->size())), ec, lt::from_span);
-    if (ec) throw EngineError("INVALID_TORRENT", ec.message());
-    requested = ti->info_hashes();
-    atp.ti = std::move(ti);
+    try {
+      atp = lt::load_torrent_buffer(*bytes);
+    } catch (const std::exception& error) {
+      throw EngineError("INVALID_TORRENT", error.what());
+    }
+    requested = atp.ti->info_hashes();
   } else {
     throw EngineError("BAD_REQUEST", "magnet or torrentBase64 required");
   }
@@ -206,13 +217,24 @@ json JobManager::op_add(const Request& r, bool& deferred) {
     lt::error_code rec;
     lt::add_torrent_params resumed = lt::read_resume_data(*buf, rec);
     if (!rec && same_torrent(resumed.info_hashes, requested)) {
-      if (!resumed.ti && atp.ti) resumed.ti = atp.ti;
+      const auto restore_metadata = [&resumed](const lt::add_torrent_params& metadata) {
+        resumed.ti = metadata.ti;
+        if (resumed.merkle_trees.empty()) {
+          resumed.merkle_trees = metadata.merkle_trees;
+          resumed.merkle_tree_mask = metadata.merkle_tree_mask;
+          resumed.verified_leaf_hashes = metadata.verified_leaf_hashes;
+        }
+      };
+      if (!resumed.ti && atp.ti) restore_metadata(atp);
       if (!resumed.ti) {
         // Metadata may only be in the .torrent file saved after the metadata arrived.
         if (auto tbuf = read_file(torrent_path(opts_.dataDir, r.jobId))) {
-          lt::error_code tec;
-          auto ti = std::make_shared<lt::torrent_info>(lt::span<char const>(tbuf->data(), static_cast<std::ptrdiff_t>(tbuf->size())), tec, lt::from_span);
-          if (!tec) resumed.ti = std::move(ti);
+          try {
+            auto metadata = lt::load_torrent_buffer(*tbuf);
+            if (same_torrent(metadata.ti->info_hashes(), requested)) restore_metadata(metadata);
+          } catch (const std::exception&) {
+            // An unreadable cached .torrent is recoverable: peers can supply metadata again.
+          }
         }
       }
       resumed.trackers.insert(resumed.trackers.end(), atp.trackers.begin(), atp.trackers.end());
@@ -375,7 +397,7 @@ json JobManager::files_json(const Job& j) const {
   json files = json::array();
   auto ti = j.handle.torrent_file();
   if (!ti) return files;
-  const auto& fs = ti->files();
+  const auto& fs = file_layout(*ti);
   for (auto i : fs.file_range()) {
     std::string path = fs.file_path(i);
     std::replace(path.begin(), path.end(), '\\', '/');
@@ -450,7 +472,7 @@ json JobManager::status_json(Job& j, const lt::torrent_status& st) {
     auto prios = j.handle.get_file_priorities();
     std::vector<std::int64_t> progress;
     j.handle.file_progress(progress);
-    const auto& fs = ti->files();
+    const auto& fs = file_layout(*ti);
     for (auto i : fs.file_range()) {
       auto idx = static_cast<std::size_t>(static_cast<int>(i));
       if (fs.pad_file_at(i) || idx >= prios.size() || prios[idx] == lt::dont_download) continue;

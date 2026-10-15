@@ -17,6 +17,7 @@
 #include <libtorrent/alert_types.hpp>
 #include <libtorrent/bencode.hpp>
 #include <libtorrent/create_torrent.hpp>
+#include <libtorrent/load_torrent.hpp>
 #include <libtorrent/magnet_uri.hpp>
 #include <libtorrent/torrent_info.hpp>
 #include <libtorrent/version.hpp>
@@ -63,7 +64,7 @@ int make_torrent(const std::string& src, const std::string& outFile, bool hybrid
     auto srcPath = adr::u8path(src);
     std::string parent = adr::path_to_utf8(srcPath.parent_path());
 #if LIBTORRENT_VERSION_NUM >= 20100
-    lt::create_torrent t(lt::list_files(src, {}), 0, flags);
+    lt::create_torrent t(lt::list_files(src, lt::create_flags_t{}), 0, flags);
 #else
     lt::file_storage fs;
     lt::add_files(fs, src);
@@ -75,13 +76,13 @@ int make_torrent(const std::string& src, const std::string& outFile, bool hybrid
     std::ofstream out(adr::u8path(outFile), std::ios::binary);
     out.write(buf.data(), static_cast<std::streamsize>(buf.size()));
     out.close();
-    lt::error_code ec;
-    lt::torrent_info ti(lt::span<char const>(buf.data(), static_cast<std::ptrdiff_t>(buf.size())), ec, lt::from_span);
-    if (ec) throw std::runtime_error(ec.message());
+    // load_torrent_buffer is shared by 2.0/2.1 and retains v2 piece layers in add_torrent_params.
+    auto params = lt::load_torrent_buffer(buf);
+    const auto& ti = *params.ti;
     json info{{"name", ti.name()},
               {"infoHashV1", adr::hex_v1(ti.info_hashes())},
               {"infoHashV2", adr::hex_v2(ti.info_hashes())},
-              {"magnet", lt::make_magnet_uri(ti)},
+              {"magnet", lt::make_magnet_uri(params)},
               {"totalSize", ti.total_size()},
               {"numFiles", ti.num_files()}};
     std::cout << info.dump() << '\n';
