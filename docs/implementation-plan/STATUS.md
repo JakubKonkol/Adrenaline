@@ -11,6 +11,7 @@ Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka no
 - [ ] Test ręczny etapu 1 (do potwierdzenia przez Jakuba): instalacja 0.1.0 → baner aktualizacji do 0.1.1 → restart w 0.1.1.
 - [ ] Zmiana widoczności repo `JakubKonkol/Adrenaline` na publiczną. Potrzebne przed etapem 1.4.
 - [x] Klucz TMDB w `.env` (15.10.2026).
+- [ ] Test Jackett w Windows Sandbox (`docs/manual-tests.md`) — potwierdzenie D-56 na czystym systemie.
 - [ ] Konto/klucz OpenSubtitles w `.env` do testów live (etap 7).
 
 ## Etapy
@@ -56,7 +57,7 @@ Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka no
 - [x] 4.5 SearchTarget — walidowany film/odcinek trafia przez stan routera do `/releases`; ekran docelowy oczekuje implementacji wyszukiwania z etapu 5.
 
 ### Etap 5 — Źródła
-- [ ] 5.1 Spike Jackett (decyzje D-56, D-57)
+- [x] 5.1 Spike Jackett (decyzje D-56, D-57, D-58) — `scripts/jackett-spike.mjs` 13/13 na Windows 11 bez admina; workflow `jackett-spike.yml` (ręczny); Windows Sandbox do potwierdzenia przez Jakuba (`docs/manual-tests.md`).
 - [ ] 5.2 JackettManager
 - [ ] 5.3 Adapter Torznab
 - [ ] 5.4 Domena wydań
@@ -105,7 +106,7 @@ Uzupełnić w etapie 0 (i przy każdej zmianie).
 | ESLint / typescript-eslint / Prettier | 10.12.0 / 8.71.2 / 3.9.10 |
 | vcpkg baseline | `20ceb8adbf0504d4b0d5e4058a32f9d4fc896391` (15.10.2026) |
 | libtorrent | 2.1.2 (vcpkg, Windows) / 2.0.12 (Ubuntu 26.04, dev) |
-| Jackett | |
+| Jackett | v0.24.2856 (.NET 9.0.21 w paczce, self-contained) |
 
 ## Odstępstwa od planu
 

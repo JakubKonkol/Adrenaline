@@ -1,0 +1,17 @@
+name: Jackett spike
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  spike:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - run: node scripts/fetch-jackett.mjs
+      # The runner is an administrator, so this proves the mechanics; "no admin" is confirmed locally and in
+      # Windows Sandbox (docs/manual-tests.md).
+      - run: node scripts/jackett-spike.mjs
