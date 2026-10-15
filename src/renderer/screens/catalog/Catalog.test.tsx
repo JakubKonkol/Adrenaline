@@ -112,7 +112,16 @@ beforeEach(() => {
   // Only this screen's IPC surface is used; nothing contacts a real provider.
   Object.defineProperty(window, 'adrenaline', {
     configurable: true,
-    value: { catalog: { search, details, season: getSeason, select }, settings: { secretsStatus: secrets } },
+    value: {
+      catalog: { search, details, season: getSeason, select },
+      settings: { secretsStatus: secrets },
+      // Stage 5: the releases screen starts a search; no source is enabled here.
+      releases: {
+        startSearch: vi.fn().mockResolvedValue(success({ sessionId: 's1' })),
+        session: vi.fn().mockResolvedValue(success(null)),
+      },
+      events: { on: () => () => undefined },
+    },
   });
 });
 afterEach(() => {
@@ -182,7 +191,7 @@ describe('catalog screens', () => {
     expect(router.state.location.state).toMatchObject({
       target: { kind: 'episode', tmdbId: 900001, season: 1, episode: 2 },
     });
-    expect(screen.getByText('Sezon 1 · Odcinek 2')).toBeTruthy();
+    expect(screen.getByText(/Sezon 1 · Odcinek 2/)).toBeTruthy();
   });
 
   it('rejects invalid route parameters without requesting details', async () => {

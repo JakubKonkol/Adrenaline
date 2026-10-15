@@ -11,9 +11,10 @@ import { Button } from '../../ui/Button';
 import { ErrorNotice } from '../../ui/ErrorNotice';
 import { changedSecrets, fromDraft, type SettingsDraft, toDraft } from '../settings/draft';
 import { type DraftSetter, FolderField, OpenSubtitlesFields, SubtitleFields, TmdbField } from '../settings/fields';
+import { BuiltinSources } from '../settings/SourcesSection';
 import styles from './Onboarding.module.css';
 
-const STEPS = ['welcome', 'folder', 'subtitles', 'tmdb', 'opensubtitles', 'done'] as const;
+const STEPS = ['welcome', 'folder', 'subtitles', 'tmdb', 'opensubtitles', 'sources', 'done'] as const;
 type Step = (typeof STEPS)[number];
 
 export function Onboarding() {
@@ -55,7 +56,7 @@ function Wizard({ settings, secrets }: { settings: AppSettings; secrets: Secrets
 
   const busy = update.isPending || setSecret.isPending;
   const tmdbMissing = !secrets.set['tmdb.token'] && draft.secrets['tmdb.token'].trim() === '';
-  const optional = step === 'opensubtitles';
+  const optional = step === 'opensubtitles' || step === 'sources';
 
   return (
     <div className={styles.shell}>
@@ -105,6 +106,14 @@ function Wizard({ settings, secrets }: { settings: AppSettings; secrets: Secrets
               <h1 className={styles.title}>{t('onboarding.opensubtitles.title')}</h1>
               <p className={styles.body}>{t('onboarding.opensubtitles.body')}</p>
               <OpenSubtitlesFields {...group} />
+            </>
+          ) : null}
+
+          {step === 'sources' ? (
+            <>
+              <h1 className={styles.title}>{t('sources.onboardingTitle')}</h1>
+              <p className={styles.body}>{t('sources.onboardingBody')}</p>
+              <BuiltinSources compact />
             </>
           ) : null}
 

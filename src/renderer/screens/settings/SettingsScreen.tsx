@@ -11,6 +11,7 @@ import { Page } from '../../ui/Page';
 import { changedSecrets, type DraftErrors, fromDraft, type SettingsDraft, toDraft } from './draft';
 import { type DraftSetter, FolderField, OpenSubtitlesFields, rangeError, SubtitleFields, TmdbField } from './fields';
 import styles from './Settings.module.css';
+import { SourcesSection } from './SourcesSection';
 
 export function SettingsScreen() {
   const { data: settings } = useSettings();
@@ -174,7 +175,7 @@ function SettingsForm({ settings }: { settings: AppSettings }) {
         </Section>
 
         <Section title={t('settings.sources.title')}>
-          <p className={styles.placeholder}>{t('settings.sources.placeholder')}</p>
+          <SourcesSection />
         </Section>
 
         <Section title={t('settings.app.title')}>

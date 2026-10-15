@@ -52,6 +52,9 @@ test('first run, onboarding, settings kept after restart, isolated renderer', as
     await page.getByTestId('tmdb-token').fill('smoke-test-token');
     await next.click();
     await page.getByTestId('onboarding-skip').click();
+    // Sources step (etap 5): Jackett is disabled in the smoke test (ADRENALINE_NO_JACKETT), so skip it.
+    await expect(page.getByTestId('source-toggle-jackett:yts')).toBeVisible();
+    await page.getByTestId('onboarding-skip').click();
     await next.click();
     await expect(page.getByTestId('screen-home')).toBeVisible();
 
@@ -93,6 +96,7 @@ test('first run, onboarding, settings kept after restart, isolated renderer', as
       .getByRole('button', { name: 'Szukaj wydań' })
       .click();
     await expect(page.getByTestId('screen-releases')).toContainText('Sezon 1 · Odcinek 2');
+    await expect(page.getByTestId('screen-releases')).toContainText('Nie masz włączonych źródeł');
 
     await page.getByRole('link', { name: 'O aplikacji' }).click();
     await expect(page.getByTestId('app-version')).toContainText(/\d+\.\d+\.\d+/);
@@ -109,10 +113,28 @@ test('first run, onboarding, settings kept after restart, isolated renderer', as
     await app.evaluate(() => {
       globalThis.fetch = () => Promise.reject(new Error('Provider network is disabled after restart'));
     });
+    // Secrets persist with OS encryption (DPAPI on Windows). Without it (Linux under xvfb, no keyring) they are
+    // kept for the session only and Settings says so (etap 3.3): the key is entered again there.
+    const encrypted = await page.evaluate(async () => {
+      const w = globalThis as unknown as {
+        adrenaline: {
+          settings: { secretsStatus(): Promise<{ ok: boolean; data?: { encryptionAvailable: boolean } }> };
+        };
+      };
+      return (await w.adrenaline.settings.secretsStatus()).data?.encryptionAvailable ?? false;
+    });
+    if (!encrypted) {
+      await page.getByRole('link', { name: 'Ustawienia', exact: true }).click();
+      await expect(page.getByText(/tylko do zamknięcia aplikacji/)).toBeVisible();
+      await page.getByTestId('tmdb-token').fill('smoke-test-token');
+      await page.getByTestId('settings-save').click();
+      await expect(page.getByText('Zapisano')).toBeVisible();
+      await page.getByRole('link', { name: 'Szukaj', exact: true }).click();
+    }
     await page.getByRole('searchbox').fill('Night of the Living Dead');
     await page.getByRole('searchbox').press('Enter');
     await expect(page.getByRole('link', { name: /1968/ })).toBeVisible();
-    await page.getByRole('link', { name: 'Ustawienia' }).click();
+    await page.getByRole('link', { name: 'Ustawienia', exact: true }).click();
     await expect(page.getByTestId('subtitle-lang')).toHaveValue('en');
     await expect(page.getByTestId('tmdb-token')).toHaveAttribute('placeholder', /Zapisany/);
     await page.getByTestId('setting-maxActiveDownloads').fill('0');

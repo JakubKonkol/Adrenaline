@@ -35,7 +35,7 @@ jobs:
         with:
           name: adrenaline-engine
           path: resources/engine
-      # etap 5: jackett (node scripts/fetch-jackett.mjs)
+      - run: node scripts/fetch-jackett.mjs
       - run: npm run build
       # The release is created as a draft first: electron-builder uploads files in parallel and, without an
       # existing release, may create two releases for one tag. The draft is published once all files are there.

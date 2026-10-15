@@ -13,6 +13,8 @@ import {
   tmdbIdSchema,
 } from './catalog';
 import { searchTargetSchema } from '../domain/search-target';
+import { releaseSessionSchema } from './releases';
+import { addCustomSourceSchema, jackettStatusSchema, sourceIdSchema, sourceSchema } from './sources';
 
 export type { ChannelName, EventName } from './channels';
 
@@ -39,6 +41,25 @@ export const ipcChannels = {
     output: seasonDetailsSchema,
   },
   'catalog:select': { input: catalogSelectionSchema, output: searchTargetSchema },
+  'releases:startSearch': {
+    input: z.object({ target: searchTargetSchema, refresh: z.boolean().optional() }).strict(),
+    output: z.object({ sessionId: z.string() }),
+  },
+  'releases:cancelSearch': { input: z.object({ sessionId: z.string().max(100) }).strict(), output: z.void() },
+  'releases:session': {
+    input: z.object({ sessionId: z.string().max(100) }).strict(),
+    output: releaseSessionSchema.nullable(),
+  },
+  'sources:list': { input: z.void(), output: z.array(sourceSchema) },
+  'sources:setEnabled': {
+    input: z.object({ id: sourceIdSchema, enabled: z.boolean() }).strict(),
+    output: z.array(sourceSchema),
+  },
+  'sources:test': { input: z.object({ id: sourceIdSchema }).strict(), output: sourceSchema },
+  'sources:addCustom': { input: addCustomSourceSchema, output: z.array(sourceSchema) },
+  'sources:remove': { input: z.object({ id: sourceIdSchema }).strict(), output: z.array(sourceSchema) },
+  'sources:jackettStatus': { input: z.void(), output: jackettStatusSchema },
+  'sources:restartJackett': { input: z.void(), output: jackettStatusSchema },
   'settings:testTmdb': { input: z.void(), output: z.boolean() },
   'app:version': { input: z.void(), output: z.string() },
   'app:updaterStatus': { input: z.void(), output: updaterStatusSchema },
@@ -64,6 +85,8 @@ export const ipcChannels = {
 export const ipcEvents = {
   'updater:status': updaterStatusSchema,
   'engine:status': engineStatusSchema,
+  'releases:update': releaseSessionSchema,
+  'jackett:status': jackettStatusSchema,
 } as const satisfies Record<EventName, z.ZodType>;
 
 export type ChannelInput<C extends ChannelName> = z.input<(typeof ipcChannels)[C]['input']>;

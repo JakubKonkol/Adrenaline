@@ -20,9 +20,19 @@ export const IPC_CHANNEL_NAMES = [
   'catalog:details',
   'catalog:season',
   'catalog:select',
+  'releases:startSearch',
+  'releases:cancelSearch',
+  'releases:session',
+  'sources:list',
+  'sources:setEnabled',
+  'sources:test',
+  'sources:addCustom',
+  'sources:remove',
+  'sources:jackettStatus',
+  'sources:restartJackett',
 ] as const;
 
-export const IPC_EVENT_NAMES = ['updater:status', 'engine:status'] as const;
+export const IPC_EVENT_NAMES = ['updater:status', 'engine:status', 'releases:update', 'jackett:status'] as const;
 
 export type ChannelName = (typeof IPC_CHANNEL_NAMES)[number];
 export type EventName = (typeof IPC_EVENT_NAMES)[number];

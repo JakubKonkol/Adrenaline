@@ -18,6 +18,8 @@ It is a preliminary version; the complete list of npm production dependencies is
 | Boost (adrenaline-engine) | BSL-1.0 | https://www.boost.org |
 | OpenSSL (adrenaline-engine) | Apache-2.0 | https://www.openssl.org |
 | nlohmann/json (adrenaline-engine) | MIT | https://github.com/nlohmann/json |
+| Jackett v0.24.2856 (bundled, run as a separate program) | GPL-2.0 | https://github.com/Jackett/Jackett/tree/v0.24.2856 |
+| .NET runtime 9.0 (part of the Jackett build) | MIT | https://github.com/dotnet/runtime |
 | Inter (font) | SIL Open Font License 1.1 | https://github.com/rsms/inter |
 | JetBrains Mono (font) | SIL Open Font License 1.1 | https://github.com/JetBrains/JetBrainsMono |
 

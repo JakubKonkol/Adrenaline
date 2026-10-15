@@ -12,7 +12,9 @@ asar: true
 extraResources:
   - from: resources/engine/adrenaline-engine.exe
     to: engine/adrenaline-engine.exe
-  # etap 5: jackett (vendor/jackett → jackett)
+  - from: vendor/jackett
+    to: jackett
+    filter: ['**/*', '!**/*.pdb']
   - from: resources/licenses
     to: licenses
 win:

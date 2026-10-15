@@ -9,6 +9,12 @@ import { mainText } from './i18n';
 import { createIpcRegistry } from './ipc/register';
 import { registerSettingsHandlers } from './ipc/settings-handlers';
 import { registerCatalogHandlers } from './ipc/catalog-handlers';
+import { registerSourcesHandlers } from './ipc/sources-handlers';
+import { JackettManager } from './jackett/jackett-manager';
+import { SourcesRepository } from './persistence/repositories/sources';
+import { TorznabClient } from './providers/torznab/torznab-client';
+import { ReleaseSearchService } from './services/release-search-service';
+import { SourcesService } from './services/sources-service';
 import { TmdbClient } from './providers/tmdb/tmdb-client';
 import { CacheRepository } from './persistence/repositories/cache';
 import { MediaRepository } from './persistence/repositories/media';
@@ -145,6 +151,42 @@ if (!app.requestSingleInstanceLock()) {
     const tmdb = new TmdbClient({ token: () => secrets.get('tmdb.token') });
     const catalog = new CatalogService(tmdb, new CacheRepository(db), new MediaRepository(db));
     registerCatalogHandlers(ipc, catalog, tmdb);
+
+    // Sources (etap 5): bundled Jackett (resources/jackett, dev: vendor/jackett) + user Torznab endpoints.
+    const jackett = new JackettManager({
+      exePath: app.isPackaged
+        ? join(process.resourcesPath, 'jackett', 'JackettConsole.exe')
+        : join(app.getAppPath(), 'vendor', 'jackett', 'JackettConsole.exe'),
+      dataDir: join(userData, 'jackett'),
+      secrets,
+      log: log.child('jackett'),
+      disabled: !app.isPackaged && process.env['ADRENALINE_NO_JACKETT'] === '1',
+    });
+    const torznab = new TorznabClient();
+    const sources = new SourcesService({
+      repo: new SourcesRepository(db),
+      jackett,
+      secrets,
+      torznab,
+      log: log.child('sources'),
+    });
+    jackett.on('status', (status) => {
+      if (status.state === 'restarting') sources.resetSync();
+      send('jackett:status', status);
+    });
+    const releaseSearch = new ReleaseSearchService({
+      sources,
+      torznab,
+      cache: new CacheRepository(db),
+      log: log.child('releases'),
+    });
+    releaseSearch.on('update', (session) => send('releases:update', session));
+    registerSourcesHandlers(ipc, { sources, search: releaseSearch, jackett });
+    lifecycle.addStep('jackett', () => jackett.stop(), 6_000);
+    // Started in the background shortly after launch when a built-in source is enabled, otherwise on demand.
+    if (sources.list().some((s) => s.kind === 'jackett_builtin' && s.enabled)) {
+      setTimeout(() => void jackett.ensureRunning().catch((e: unknown) => log.warn('jackett start failed', e)), 5_000);
+    }
 
     tray = createTray({
       show: showWindow,
