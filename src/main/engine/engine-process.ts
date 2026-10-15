@@ -263,6 +263,14 @@ export class EngineSupervisor extends Emitter<SupervisorEvents> {
     await this.start();
   }
 
+  /** Immediate kill without shutdown or restart (crash simulation, last resort when the shutdown hangs). */
+  kill(): void {
+    this.stopping = true;
+    if (this.restartTimer) clearTimeout(this.restartTimer);
+    this.stopHeartbeat();
+    this.instance?.kill();
+  }
+
   /** Graceful stop: `shutdown` (resume data saved, max ~12 s), then kill. No restart. */
   async stop(timeoutMs = 12_000): Promise<void> {
     this.stopping = true;

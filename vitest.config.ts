@@ -17,6 +17,8 @@ export default defineConfig({
             'src/preload/**/*.test.ts',
             'scripts/**/*.test.{ts,mjs}',
           ],
+          // Manual long-running checks (npm run crash-loop).
+          exclude: ['scripts/dev/**', '**/node_modules/**'],
         },
       },
       {

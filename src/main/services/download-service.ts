@@ -24,6 +24,7 @@ import type { SettingsService } from './settings-service';
 
 const MAX_TORRENT_BYTES = 10 * 1024 * 1024;
 const PROGRESS_SAVE_MS = 30_000;
+const ENGINE_LEVEL_ERRORS: readonly string[] = ['ENGINE_CRASHED', 'ENGINE_UNAVAILABLE', 'ENGINE_TIMEOUT'];
 
 export interface DownloadServiceDeps {
   jobs: JobsRepository;
@@ -410,6 +411,8 @@ export class DownloadService extends Emitter<DownloadEvents> {
           ? error.code
           : mapEngineErrorCode((error as { engineCode?: string }).engineCode ?? 'INTERNAL');
       this.deps.log.warn(`could not start ${job.id}: ${code}`);
+      // The engine itself went away (crash, restart): the job is fine and is added again on the next start.
+      if (ENGINE_LEVEL_ERRORS.includes(code)) return;
       const fresh = this.deps.jobs.get(job.id);
       if (fresh)
         this.setState(fresh, 'error', {
@@ -545,6 +548,8 @@ export class DownloadService extends Emitter<DownloadEvents> {
         if (job.state !== 'paused') this.setState(job, 'checking');
         break;
       case 'paused': {
+        // A job in error is added paused on restore; the engine's "paused" must not turn it into a user pause.
+        if (job.state === 'error') break;
         const pauseReason: PauseReason =
           reason === 'disk_full'
             ? 'disk_full'
