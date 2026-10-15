@@ -4,6 +4,7 @@
 #include <libtorrent/address.hpp>
 #include <libtorrent/fingerprint.hpp>
 #include <libtorrent/ip_filter.hpp>
+#include <libtorrent/mmap_disk_io.hpp>
 #include <libtorrent/session_params.hpp>
 
 #include "resume.hpp"
@@ -76,6 +77,13 @@ std::unique_ptr<lt::session> make_session(const Options& o) {
     }
   }
   params.settings = make_settings(o);
+#if TORRENT_HAVE_MMAP || TORRENT_HAVE_MAP_VIEW_OF_FILE
+  // libtorrent 2.1 defaults to the experimental pread backend on Windows: its write buffer is not flushed by
+  // save_resume_data(flush_disk_cache), so "complete" files were still partly zeros and a killed process left resume
+  // data ahead of the disk. Memory-mapped I/O (the 2.0 default) writes into the OS cache, which readers see at once
+  // and which survives the process being killed.
+  params.disk_io_constructor = lt::mmap_disk_io_constructor;
+#endif
   auto ses = std::make_unique<lt::session>(std::move(params));
   if (o.testMode) {
     // Local peers ignore rate limits by default; the swarm test runs on 127.0.0.1 and needs setLimits to apply.
