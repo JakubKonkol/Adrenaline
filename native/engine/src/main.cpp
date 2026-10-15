@@ -105,17 +105,14 @@ int run_engine(const adr::Options& opts) {
   auto ses = adr::make_session(opts);
   adr::JobManager jobs(*ses, opts, out);
 
-  // Wait (briefly) for the listen socket so `ready` can report the real port.
-  auto until = std::chrono::steady_clock::now() + std::chrono::seconds(3);
-  bool listening = false;
-  while (!listening && std::chrono::steady_clock::now() < until) {
-    ses->wait_for_alert(std::chrono::milliseconds(100));
+  // Wait for the listen socket so `ready`/`hello` report the real port. Polled (not via listen_succeeded_alert,
+  // whose alert category differs between libtorrent versions); a slow start on CI can take a few seconds.
+  auto until = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+  while (ses->listen_port() == 0 && std::chrono::steady_clock::now() < until) {
+    ses->wait_for_alert(std::chrono::milliseconds(50));
     std::vector<lt::alert*> alerts;
     ses->pop_alerts(&alerts);
-    for (auto* a : alerts) {
-      if (lt::alert_cast<lt::listen_succeeded_alert>(a)) listening = true;
-      jobs.on_alert(a);
-    }
+    for (auto* a : alerts) jobs.on_alert(a);
   }
   out.event("ready", json{{"engineVersion", ADRENALINE_VERSION},
                           {"protocol", adr::kProtocolVersion},
