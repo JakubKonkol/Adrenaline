@@ -1,3 +1,23 @@
+# Kontynuacja — Claude, 15/16.10.2026 (sesja „dokończenie + napisy opcjonalne + angielski”)
+
+Zlecenie Jakuba (15.10.2026 wieczorem):
+1. Dokończyć implementację, wszystkie testy zielone, przygotować release (Jakub odpali release rano, jeśli agent nie ma uprawnień).
+2. Napisy opcjonalne: przy starcie pobierania pytamy o napisy; można je potem pominąć/wyłączyć albo dociągnąć później. Błąd z v0.7.0: bez konta OpenSubtitles zadanie wisiało na „oczekiwaniu na napisy” i nie kończyło się.
+3. Aplikacja, README i wszystko, co widzi użytkownik lub osoba klonująca repo — po angielsku (docs implementacyjne mogą zostać po polsku). README ze zrzutami ekranu.
+
+Gałąź robocza sesji: `claude/finish-implementation-readme-e3hepr` (narzucona przez środowisko; do scalenia na `main`).
+
+Plan i postęp (aktualizowane na bieżąco):
+- [x] Engine CI na `d89d97a` padł na Windows (timeout „download complete” w teście paczki). Lokalnie (Ubuntu 24.04, libtorrent 2.0.10) swarm 4/4 wielokrotnie. Hipoteza: port 0 + ponowne otwarcie gniazd na Windows → nowy port seedera. Seeder dostaje teraz stały wolny port; przy timeoucie test wypisuje stan leechera i port seedera.
+- [ ] UI po angielsku (słownik `en.ts`, błędy, nazwy języków, formatowanie, zasobnik, TMDB `en-US`), decyzja D-xx w `00-decyzje.md`.
+- [ ] Napisy opcjonalne (setup: przełącznik; szczegóły i lista: „Skip subtitles” / „Get subtitles”), bez konta OpenSubtitles domyślnie wyłączone.
+- [ ] README po angielsku + zrzuty (`scripts/dev/screens.mjs` pod xvfb), `docs/user-guide.md` po angielsku.
+- [ ] STATUS.md, mapa wymagań, instrukcja wydania.
+
+Środowisko w kontenerze: Node 24 przez `/opt/nvm` (`source /opt/nvm/nvm.sh && nvm use 24`), `npm ci`, `node node_modules/electron/install.js` jeśli brak `dist`. Silnik: `apt-get install libtorrent-rasterbar-dev nlohmann-json3-dev cmake ninja-build`, potem preset `linux-system`. Swarm wymaga `LANG=C.UTF-8` (polska nazwa pliku) i `ADRENALINE_SKIP_BIG=1` w kontenerze.
+
+---
+
 # Kontynuacja — Codex, 15.10.2026
 
 Źródło statusu punktów: [implementation-plan/STATUS.md](implementation-plan/STATUS.md).
