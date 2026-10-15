@@ -1,0 +1,33 @@
+appId: com.jakubkonkol.adrenaline
+productName: Adrenaline
+copyright: Copyright © 2026 Jakub Konkol
+directories:
+  output: dist
+  buildResources: build
+files:
+  - out/**
+  - resources/icons/**
+  - package.json
+asar: true
+extraResources:
+  # etap 2: engine (resources/engine/adrenaline-engine.exe → engine/adrenaline-engine.exe)
+  # etap 5: jackett (vendor/jackett → jackett)
+  - from: resources/licenses
+    to: licenses
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.ico
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  deleteAppDataOnUninstall: false
+  artifactName: Adrenaline-Setup-${version}.exe
+publish:
+  provider: github
+  owner: JakubKonkol
+  repo: Adrenaline
+  releaseType: release

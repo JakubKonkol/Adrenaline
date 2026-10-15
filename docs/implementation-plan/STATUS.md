@@ -2,7 +2,7 @@
 
 Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka notatka, jeśli coś odbiega od planu). Zadania odpowiadają numeracji w `etapy/`.
 
-**Bieżący etap:** 0
+**Bieżący etap:** 1
 **Ostatnie wydanie:** brak
 
 ## Blokady wymagające właściciela
@@ -19,13 +19,13 @@ Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka no
 - [x] 0.3 Minimalna aplikacja
 - [x] 0.4 Skrypty npm
 - [x] 0.5 Testy (Vitest, smoke)
-- [ ] 0.6 CI
-- [ ] 0.7 Pętla dev w kontenerze, `docs/dev-setup.md`
+- [x] 0.6 CI
+- [x] 0.7 Pętla dev w kontenerze, `docs/dev-setup.md`
 
 ### Etap 1 — Release i autoupdate
-- [ ] 1.1 electron-builder
-- [ ] 1.2 Updater
-- [ ] 1.3 Skrypty i workflow
+- [x] 1.1 electron-builder
+- [x] 1.2 Updater
+- [x] 1.3 Skrypty i workflow
 - [ ] 1.4 Wydania v0.1.0 i v0.1.1
 
 ### Etap 2 — Silnik
@@ -44,7 +44,7 @@ Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka no
 - [ ] 3.5 Pliki i dysk
 - [ ] 3.6 Nawigacja, Ustawienia, kreator
 - [ ] 3.7 Okno i zasobnik
-- [ ] 3.8 Logger
+- [x] 3.8 Logger (zrobiony w etapie 1, bo potrzebuje go updater; IPC `app:openLogsFolder` też)
 
 ### Etap 4 — Katalog TMDB
 - [ ] 4.1 Weryfikacja API, fixtures
@@ -110,6 +110,8 @@ Uzupełnić w etapie 0 (i przy każdej zmianie).
 - **Środowisko dev (etap 0.7):** pętla dev działa na Windows właściciela (Node 24.11), a silnik C++ budowany jest w WSL Ubuntu 26.04 (libtorrent 2.0.12 z apt, preset `linux-system`). Lokalnie brak MSVC/vcpkg; binarka Windows powstaje tylko w CI.
 - **Wygląd (prośba właściciela 15.10.2026):** Adrenaline wizualnie należy do rodziny Oxytocin: te same neutralne kolory, typografia (Inter + JetBrains Mono, dołączone przez `@fontsource-variable/*`, bo CSP blokuje zewnętrzne fonty), etykiety mono uppercase, własny pasek tytułu 36 px (`titleBarStyle: hidden` + overlay). Akcent pomarańczowy z logo zamiast niebieskiego. Nadal CSS Modules + zmienne CSS bez Tailwinda (D-21).
 - **Preload:** sandboxowany preload nie może ładować modułów npm, więc nazwy kanałów są w osobnym pliku bez Zod (`src/shared/contracts/channels.ts`), a schematy w `ipc.ts`.
+- **Ikony:** `lucide-react` (ta sama biblioteka ikon co w Oxytocin). To biblioteka ikon, nie komponentów, więc D-21 pozostaje spełnione.
+- **Pakowanie lokalne:** `npm run pack:win` działa na Windows właściciela (instalator NSIS + `latest.yml` + blockmap); spakowana aplikacja startuje i pokazuje stan aktualizacji.
 - **Audyt npm:** `npm audit --omit=dev` = 0 podatności; ostrzeżenia dotyczą tylko narzędzi deweloperskich (electron-builder → app-builder-lib). Do przeglądu w etapie 8.6.
 
 ## Pomiary

@@ -1,0 +1,41 @@
+name: Release
+on:
+  push:
+    tags: ['v*.*.*']
+permissions:
+  contents: write # electron-builder creates the Release in this repo
+concurrency:
+  group: release
+  cancel-in-progress: false
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - run: node scripts/check-version-tag.mjs "${{ github.ref_name }}"
+      - run: npm run check
+      - run: npm run build
+      - run: npm run test:smoke
+
+  # etap 2: engine
+
+  package:
+    needs: [test]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      # etap 5: jackett (node scripts/fetch-jackett.mjs)
+      - run: npm run build
+      - name: Package and publish
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_NAME}" == *-* ]]; then TYPE=prerelease; else TYPE=release; fi
+          npx electron-builder --win --x64 --publish always -c.publish.releaseType=$TYPE
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

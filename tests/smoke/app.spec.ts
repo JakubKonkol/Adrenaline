@@ -18,7 +18,10 @@ test('app starts with an isolated renderer', async () => {
     const page = await app.firstWindow();
     await expect(page).toHaveTitle(/Adrenaline/);
     await expect(page.getByTestId('titlebar')).toBeVisible();
+    await expect(page.getByTestId('screen-home')).toBeVisible();
+    await page.getByRole('link', { name: 'O aplikacji' }).click();
     await expect(page.getByTestId('app-version')).toContainText(/\d+\.\d+\.\d+/);
+    await expect(page.getByTestId('updater-status')).toContainText('wyłączone');
 
     // NFR07: no Node in the renderer.
     const leaks = await page.evaluate(() => {

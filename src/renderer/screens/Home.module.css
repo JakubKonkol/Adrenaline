@@ -1,13 +1,7 @@
-.shell {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.content {
-  flex: 1;
+.home {
   display: grid;
   place-items: center;
+  height: 100%;
   padding: 24px;
 }
 
