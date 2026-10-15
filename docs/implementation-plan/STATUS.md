@@ -2,7 +2,7 @@
 
 Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka notatka, jeśli coś odbiega od planu). Zadania odpowiadają numeracji w `etapy/`.
 
-**Bieżący etap:** 4 — katalog TMDB (kontynuacja Codex, 15.10.2026; etap 1: czeka v0.1.1 i test ręczny; etap 2: poprawka zgodności libtorrent 2.1, do ponownego odbioru Windows)
+**Bieżący etap:** 5 zakończony w kodzie (czeka wydanie v0.5.0 i ręczne testy właściciela); następny: 6 — pobieranie. Etap 1: czeka v0.1.1 i test aktualizacji.
 **Ostatnie wydanie:** v0.1.0 (15.10.2026; electron-builder utworzył 2 Release dla jednego taga — scalone ręcznie, workflow poprawiony: najpierw draft)
 
 ## Blokady wymagające właściciela
@@ -36,7 +36,7 @@ Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka no
 - [x] 2.2 Implementacja silnika (dodatkowo `--resume-interval` dla testu i `min_reconnect_time = 5 s`, patrz Odstępstwa)
 - [x] 2.3 Klient w Electron
 - [x] 2.4 Test swarm (Linux/WSL: 4/4; Windows: w `engine-ci.yml`)
-- [ ] 2.5 Pakowanie i CI
+- [x] 2.5 Pakowanie i CI — `engine-ci.yml` zielony na Windows (libtorrent 2.1.2, swarm 4/4, `dumpbin`: tylko KERNEL32, WS2_32, MSWSOCK, CRYPT32, ADVAPI32, USER32, SHELL32); `release.yml` pakuje silnik.
 - [x] 2.6 Diagnostyka w UI
 
 ### Etap 3 — Rdzeń aplikacji
@@ -58,11 +58,11 @@ Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka no
 
 ### Etap 5 — Źródła
 - [x] 5.1 Spike Jackett (decyzje D-56, D-57, D-58) — `scripts/jackett-spike.mjs` 13/13 na Windows 11 bez admina; workflow `jackett-spike.yml` (ręczny); Windows Sandbox do potwierdzenia przez Jakuba (`docs/manual-tests.md`).
-- [ ] 5.2 JackettManager
-- [ ] 5.3 Adapter Torznab
-- [ ] 5.4 Domena wydań
-- [ ] 5.5 Serwis wyszukiwania
-- [ ] 5.6 UI
+- [x] 5.2 JackettManager — test live z prawdziwym Jackett: start bez admina, YTS przez API, wyszukiwanie Torznab.
+- [x] 5.3 Adapter Torznab
+- [x] 5.4 Domena wydań — parser 48 nazw, magnet, deduplikacja, dopasowanie i ranking.
+- [x] 5.5 Serwis wyszukiwania — test live 15.10.2026: YTS, The Pirate Bay i LimeTorrents odpowiedziały (3/5), Torrent Downloads i zepsute źródło własne zwróciły błąd, 81 wydań, całość 3,5 s.
+- [x] 5.6 UI — ekran wydań, Ustawienia → Źródła, krok źródeł w kreatorze. Wybór wydania prowadzi na `/download-setup` (placeholder do etapu 6).
 
 ### Etap 6 — Pobieranie
 - [ ] 6.1 Domena zadań
@@ -124,6 +124,10 @@ Uzupełnić w etapie 0 (i przy każdej zmianie).
 - **Silnik — ponowne łączenie z peerami:** domyślne `min_reconnect_time` libtorrent (60 s) powodowało minutę przestoju po pauzie oraz po metadanych magnetu (przed `selectFiles` wszystkie priorytety = 0, torrent jest „finished” i rozłącza seedów). Ustawione na 5 s. Zdarzenie `ready` i wynik `hello` zawierają też `listenPort` (potrzebne testom).
 - **Silnik — tryb testowy:** `--test-mode` dodatkowo obejmuje peery lokalne limitami prędkości (domyślnie libtorrent ich nie dławi), a `--resume-interval <s>` skraca okres zapisu resume (domyślnie 60 s) — test „kill w połowie” zabija proces tuż po zapisie.
 - **Silnik — stan przed wyborem plików:** dopóki main nie wyśle `selectFiles`, silnik nie raportuje `downloaded/seeding` (torrent z zerowymi priorytetami jest dla libtorrent „finished”). Po restarcie main zawsze ponawia `selectFiles` z bazy.
+- **Silnik — backend dysku (15.10.2026):** libtorrent 2.1 na Windows domyślnie używa eksperymentalnego `pread_disk_io`, którego bufor zapisu nie jest opróżniany przez `save_resume_data(flush_disk_cache)`. Skutek: plik zgłoszony jako gotowy miał chwilowo zera, a po zabiciu procesu resume wyprzedzało dysk (wykryte przez swarm na Windows). Silnik wymusza `mmap_disk_io` (domyślny w 2.0). Dodatkowo „gotowe” liczy się z postępu wybranych plików, a `fileCompleted`/`downloaded` wychodzą dopiero po zrzucie na dysk.
+- **Silnik — test-mode tylko na 127.0.0.1:** przy porcie 0 gniazda IPv4/IPv6 dostawały na Windows różne porty.
+- **Testy bez okien (prośba właściciela 15.10.2026):** testy z interfejsem Electrona (smoke, zrzuty) uruchamiam w WSL pod `xvfb`, nie na pulpicie. Silnik i Jackett to ukryte procesy konsolowe na loopback. Na Linuksie bez magazynu kluczy smoke sprawdza fallback sekretów z 3.3 (klucz tylko na sesję), na Windows ich trwałość.
+- **Wyszukiwanie wydań:** linki do pobrania (z kluczem API Jackett) zostają w main; renderer dostaje wydania bez linków i wskazuje wybór przez `sessionId` + `releaseId`. Dokumenty Torznab z DTD są odrzucane, a dekodowane są tylko standardowe encje XML.
 - **Audyt npm:** `npm audit --omit=dev` = 0 podatności; ostrzeżenia dotyczą tylko narzędzi deweloperskich (electron-builder → app-builder-lib). Do przeglądu w etapie 8.6.
 
 ## Notatka dla kolejnego agenta — Codex, 15.10.2026
@@ -138,4 +142,4 @@ Uzupełnić w etapie 0 (i przy każdej zmianie).
 
 ## Pomiary
 
-Brak.
+- **NFR03 (15.10.2026, live, 4 indeksatory + 1 zepsute źródło):** pierwsze wyniki w zdarzeniu `releases:update` po odpowiedzi pierwszego źródła; pełna sesja 3,5 s (limit 20 s).

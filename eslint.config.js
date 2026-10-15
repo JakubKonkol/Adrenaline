@@ -41,7 +41,8 @@ export default tseslint.config(
     ...tseslint.configs.disableTypeChecked,
   },
   {
-    files: ['scripts/**/*.{js,mjs}'],
+    // Scripts and manual live tests report to the console.
+    files: ['scripts/**/*.{js,mjs}', '**/*.live.test.ts'],
     rules: { 'no-console': 'off' },
   },
   {
