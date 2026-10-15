@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { AppErrorShape } from '../errors';
 import { engineStatusSchema, updaterStatusSchema } from './app';
 import type { ChannelName, EventName } from './channels';
+import { appSettingsSchema, secretsStatusSchema, settingsPatchSchema, userSecretNameSchema } from './settings';
 
 export type { ChannelName, EventName } from './channels';
 
@@ -22,6 +23,17 @@ export const ipcChannels = {
   'app:openLogsFolder': { input: z.void(), output: z.void() },
   'app:engineStatus': { input: z.void(), output: engineStatusSchema },
   'app:restartEngine': { input: z.void(), output: engineStatusSchema },
+  'settings:get': { input: z.void(), output: appSettingsSchema },
+  'settings:update': { input: settingsPatchSchema, output: appSettingsSchema },
+  'settings:chooseFolder': {
+    input: z.object({ defaultPath: z.string().max(400).optional() }).strict(),
+    output: z.string().nullable(),
+  },
+  'settings:secretsStatus': { input: z.void(), output: secretsStatusSchema },
+  'settings:setSecret': {
+    input: z.object({ name: userSecretNameSchema, value: z.string().max(2000).nullable() }).strict(),
+    output: secretsStatusSchema,
+  },
 } as const satisfies Record<ChannelName, ChannelSchema>;
 
 /** Events sent from main to the renderer (`webContents.send`). */

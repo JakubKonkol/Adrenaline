@@ -1,0 +1,56 @@
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 860px;
+}
+
+.folderRow {
+  display: flex;
+  gap: 8px;
+  max-width: 560px;
+}
+
+.folderRow input {
+  flex: 1;
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--accent-text);
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.saveBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.savedText {
+  color: var(--success);
+  font-size: var(--font-size-small);
+}
+
+.warning {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+  color: var(--text-primary);
+}
+
+.placeholder {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.narrow {
+  max-width: 140px;
+}

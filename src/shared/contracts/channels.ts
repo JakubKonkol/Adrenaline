@@ -10,6 +10,11 @@ export const IPC_CHANNEL_NAMES = [
   'app:openLogsFolder',
   'app:engineStatus',
   'app:restartEngine',
+  'settings:get',
+  'settings:update',
+  'settings:chooseFolder',
+  'settings:secretsStatus',
+  'settings:setSecret',
 ] as const;
 
 export const IPC_EVENT_NAMES = ['updater:status', 'engine:status'] as const;

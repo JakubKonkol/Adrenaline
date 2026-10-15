@@ -2,12 +2,13 @@
 
 Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka notatka, jeśli coś odbiega od planu). Zadania odpowiadają numeracji w `etapy/`.
 
-**Bieżący etap:** 2 (etap 1 czeka na wydania i test ręczny)
-**Ostatnie wydanie:** brak
+**Bieżący etap:** 3 (etap 1: wydano v0.1.0, czeka v0.1.1 i test ręczny; etap 2: czeka zielony `engine-ci.yml` na Windows)
+**Ostatnie wydanie:** v0.1.0 (15.10.2026; electron-builder utworzył 2 Release dla jednego taga — scalone ręcznie, workflow poprawiony: najpierw draft)
 
 ## Blokady wymagające właściciela
 
 - [x] Wybór źródła aktualizacji (D-07): upublicznienie `Adrenaline`, Releases w tym samym repo (decyzja 15.10.2026).
+- [ ] Test ręczny etapu 1 (do potwierdzenia przez Jakuba): instalacja 0.1.0 → baner aktualizacji do 0.1.1 → restart w 0.1.1.
 - [ ] Zmiana widoczności repo `JakubKonkol/Adrenaline` na publiczną. Potrzebne przed etapem 1.4.
 - [ ] Klucz TMDB i konto/klucz OpenSubtitles w `.env` do testów live (etapy 4 i 7).
 
@@ -37,13 +38,13 @@ Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka no
 - [x] 2.6 Diagnostyka w UI
 
 ### Etap 3 — Rdzeń aplikacji
-- [ ] 3.1 Baza
-- [ ] 3.2 Ustawienia
-- [ ] 3.3 Sekrety
-- [ ] 3.4 IPC
-- [ ] 3.5 Pliki i dysk
-- [ ] 3.6 Nawigacja, Ustawienia, kreator
-- [ ] 3.7 Okno i zasobnik
+- [x] 3.1 Baza (schemat kompletny; repozytoria media/jobs/subtitles/sources dojdą w etapach 4–7)
+- [x] 3.2 Ustawienia
+- [x] 3.3 Sekrety
+- [x] 3.4 IPC
+- [x] 3.5 Pliki i dysk
+- [x] 3.6 Nawigacja, Ustawienia, kreator
+- [x] 3.7 Okno i zasobnik
 - [x] 3.8 Logger (zrobiony w etapie 1, bo potrzebuje go updater; IPC `app:openLogsFolder` też)
 
 ### Etap 4 — Katalog TMDB

@@ -1,0 +1,41 @@
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--danger) 8%, var(--bg-card));
+}
+
+.compact {
+  padding: 8px 10px;
+}
+
+.icon {
+  flex: none;
+  margin-top: 1px;
+  color: var(--danger);
+}
+
+.text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.message {
+  color: var(--text-primary);
+}
+
+.action {
+  color: var(--text-secondary);
+  font-size: var(--font-size-small);
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+  align-self: center;
+}

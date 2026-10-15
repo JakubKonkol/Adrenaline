@@ -1,0 +1,33 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.text {
+  flex: 1;
+}
+
+.danger {
+  background: color-mix(in srgb, var(--danger) 12%, var(--bg-app));
+}
+
+.danger svg {
+  color: var(--danger);
+}
+
+.info {
+  background: color-mix(in srgb, var(--info) 10%, var(--bg-app));
+}
+
+.spin {
+  animation: spin 1.2s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

@@ -1,4 +1,4 @@
-import { Info, Search } from 'lucide-react';
+import { Download, Info, Search, Settings } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { NavLink } from 'react-router';
 import { t } from '../i18n/t';
@@ -15,6 +15,8 @@ interface Item {
 export function Sidebar() {
   const items: Item[] = [
     { to: '/', label: t('nav.search'), icon: <Search size={15} />, end: true },
+    { to: '/downloads', label: t('nav.downloads'), icon: <Download size={15} /> },
+    { to: '/settings', label: t('nav.settings'), icon: <Settings size={15} /> },
     { to: '/about', label: t('nav.about'), icon: <Info size={15} /> },
   ];
   return (
