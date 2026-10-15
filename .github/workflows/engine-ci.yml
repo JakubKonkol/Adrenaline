@@ -11,7 +11,9 @@ jobs:
   engine:
     runs-on: windows-latest
     env:
-      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\vcpkg-bincache
+      # Same commit as builtin-baseline in native/engine/vcpkg.json.
+      VCPKG_COMMIT: 20ceb8adbf0504d4b0d5e4058a32f9d4fc896391
+      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}\vcpkg-bincache,readwrite
       ENGINE_EXE: ${{ github.workspace }}\native\engine\build\windows-release\adrenaline-engine.exe
     steps:
       - uses: actions/checkout@v4
@@ -23,22 +25,33 @@ jobs:
         run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
       - name: Binary cache directory
         shell: pwsh
-        run: New-Item -ItemType Directory -Force "$env:VCPKG_DEFAULT_BINARY_CACHE" | Out-Null
-      - uses: actions/cache@v4
+        run: New-Item -ItemType Directory -Force vcpkg-bincache | Out-Null
+      - name: Restore vcpkg binary cache
+        id: vcpkg-cache
+        uses: actions/cache/restore@v4
         with:
           path: vcpkg-bincache
           key: vcpkg-x64-windows-static-${{ hashFiles('native/engine/vcpkg.json') }}
           restore-keys: vcpkg-x64-windows-static-
       - uses: ilammy/msvc-dev-cmd@v1
       - uses: lukka/get-cmake@latest
-      - uses: lukka/run-vcpkg@v11
-        with:
-          # Same commit as builtin-baseline in native/engine/vcpkg.json.
-          vcpkgGitCommitId: 20ceb8adbf0504d4b0d5e4058a32f9d4fc896391
-          vcpkgJsonGlob: native/engine/vcpkg.json
-      - name: Configure
+      - name: vcpkg
+        shell: pwsh
+        run: |
+          git clone --filter=blob:none https://github.com/microsoft/vcpkg "$env:RUNNER_TEMP\vcpkg"
+          git -C "$env:RUNNER_TEMP\vcpkg" checkout $env:VCPKG_COMMIT
+          & "$env:RUNNER_TEMP\vcpkg\bootstrap-vcpkg.bat" -disableMetrics
+          "VCPKG_ROOT=$env:RUNNER_TEMP\vcpkg" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+      - name: Configure (builds dependencies with vcpkg)
         working-directory: native/engine
-        run: cmake --preset windows-release -DADRENALINE_VERSION=${{ steps.ver.outputs.version }}
+        shell: pwsh
+        run: cmake --preset windows-release "-DADRENALINE_VERSION=${{ steps.ver.outputs.version }}"
+      - name: Save vcpkg binary cache
+        if: steps.vcpkg-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: vcpkg-bincache
+          key: vcpkg-x64-windows-static-${{ hashFiles('native/engine/vcpkg.json') }}
       - name: Build
         working-directory: native/engine
         run: cmake --build --preset windows-release

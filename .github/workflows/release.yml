@@ -37,10 +37,23 @@ jobs:
           path: resources/engine
       # etap 5: jackett (node scripts/fetch-jackett.mjs)
       - run: npm run build
-      - name: Package and publish
+      # The release is created as a draft first: electron-builder uploads files in parallel and, without an
+      # existing release, may create two releases for one tag. The draft is published once all files are there.
+      - name: Create draft release
+        shell: bash
+        run: gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "${GITHUB_REF_NAME#v}" --notes "Adrenaline ${GITHUB_REF_NAME#v}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Package and upload
+        shell: bash
+        run: npx electron-builder --win --x64 --publish always -c.publish.releaseType=draft
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish release
         shell: bash
         run: |
-          if [[ "${GITHUB_REF_NAME}" == *-* ]]; then TYPE=prerelease; else TYPE=release; fi
-          npx electron-builder --win --x64 --publish always -c.publish.releaseType=$TYPE
+          gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets[].name'
+          if [[ "${GITHUB_REF_NAME}" == *-* ]]; then PRE=--prerelease; else PRE=--latest; fi
+          gh release edit "$GITHUB_REF_NAME" --draft=false $PRE
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
