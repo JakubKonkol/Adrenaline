@@ -34,6 +34,17 @@
   flex-wrap: wrap;
 }
 
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: var(--font-size-small);
+}
+
 .footer {
   color: var(--text-muted);
   font-size: var(--font-size-small);

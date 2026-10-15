@@ -119,7 +119,7 @@ describe('resolveEnginePath', () => {
     expect(
       resolveEnginePath({
         env: { ADRENALINE_ENGINE_PATH: '/x/engine' },
-        isPackaged: true,
+        isPackaged: false,
         resourcesPath: '/r',
         appRoot: '/a',
       }),

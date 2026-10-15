@@ -8,9 +8,11 @@ export const IPC_CHANNEL_NAMES = [
   'app:checkForUpdates',
   'app:installUpdate',
   'app:openLogsFolder',
+  'app:engineStatus',
+  'app:restartEngine',
 ] as const;
 
-export const IPC_EVENT_NAMES = ['updater:status'] as const;
+export const IPC_EVENT_NAMES = ['updater:status', 'engine:status'] as const;
 
 export type ChannelName = (typeof IPC_CHANNEL_NAMES)[number];
 export type EventName = (typeof IPC_EVENT_NAMES)[number];

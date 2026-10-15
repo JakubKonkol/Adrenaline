@@ -10,7 +10,8 @@ files:
   - package.json
 asar: true
 extraResources:
-  # etap 2: engine (resources/engine/adrenaline-engine.exe → engine/adrenaline-engine.exe)
+  - from: resources/engine/adrenaline-engine.exe
+    to: engine/adrenaline-engine.exe
   # etap 5: jackett (vendor/jackett → jackett)
   - from: resources/licenses
     to: licenses

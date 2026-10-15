@@ -2,6 +2,8 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { app, type BrowserWindow, ipcMain, shell } from 'electron';
 import electronUpdater from 'electron-updater';
+import type { EngineStatus } from '@shared/contracts/app';
+import { setupEngine } from './engine/setup';
 import { createEventSender } from './events';
 import { createIpcRegistry } from './ipc/register';
 import { createLifecycle } from './lifecycle';
@@ -33,7 +35,25 @@ if (!app.requestSingleInstanceLock()) {
   });
   const send = createEventSender(() => mainWindow);
   const lifecycle = createLifecycle({ log: log.child('shutdown') });
-  lifecycle.addStep('log', () => log.flush(), 2_000);
+
+  const engine = setupEngine({
+    userDataDir: app.getPath('userData'),
+    isPackaged: app.isPackaged,
+    resourcesPath: process.resourcesPath,
+    appRoot: app.getAppPath(),
+    env: process.env,
+    clientVersion: __ADRENALINE_VERSION__,
+    listenPort: () => 0,
+    log,
+  });
+  const engineStatus = (): EngineStatus =>
+    engine.supervisor
+      ? { ...engine.supervisor.status, ...(engine.fake ? { fake: true } : {}) }
+      : { state: 'unavailable', message: 'ENGINE_UNAVAILABLE' };
+  engine.supervisor?.on('status', () => send('engine:status', engineStatus()));
+
+  lifecycle.addStep('engine', () => engine.supervisor?.stop(), 13_000);
+  lifecycle.addStep('log', () => log.flush(), 1_000);
 
   const updater = createUpdater({
     updater: app.isPackaged ? electronUpdater.autoUpdater : null,
@@ -69,8 +89,14 @@ if (!app.requestSingleInstanceLock()) {
     ipc.handle('app:openLogsFolder', async () => {
       await shell.openPath(logsDir);
     });
+    ipc.handle('app:engineStatus', () => engineStatus());
+    ipc.handle('app:restartEngine', async () => {
+      await engine.supervisor?.restart();
+      return engineStatus();
+    });
     updater.start();
     showWindow();
+    void engine.supervisor?.start();
   });
 
   // Every quit path (window close, updater, tray "Quit") goes through the shared shutdown first.

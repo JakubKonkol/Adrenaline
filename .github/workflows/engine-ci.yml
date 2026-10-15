@@ -1,0 +1,59 @@
+name: Engine
+on:
+  push:
+    branches: [main]
+    paths: ['native/**', 'src/shared/contracts/engine.ts', 'src/main/engine/**', '.github/workflows/engine-ci.yml']
+  workflow_dispatch:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  engine:
+    runs-on: windows-latest
+    env:
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\vcpkg-bincache
+      ENGINE_EXE: ${{ github.workspace }}\native\engine\build\windows-release\adrenaline-engine.exe
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - name: Engine version (package.json)
+        id: ver
+        shell: bash
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Binary cache directory
+        shell: pwsh
+        run: New-Item -ItemType Directory -Force "$env:VCPKG_DEFAULT_BINARY_CACHE" | Out-Null
+      - uses: actions/cache@v4
+        with:
+          path: vcpkg-bincache
+          key: vcpkg-x64-windows-static-${{ hashFiles('native/engine/vcpkg.json') }}
+          restore-keys: vcpkg-x64-windows-static-
+      - uses: ilammy/msvc-dev-cmd@v1
+      - uses: lukka/get-cmake@latest
+      - uses: lukka/run-vcpkg@v11
+        with:
+          # Same commit as builtin-baseline in native/engine/vcpkg.json.
+          vcpkgGitCommitId: 20ceb8adbf0504d4b0d5e4058a32f9d4fc896391
+          vcpkgJsonGlob: native/engine/vcpkg.json
+      - name: Configure
+        working-directory: native/engine
+        run: cmake --preset windows-release -DADRENALINE_VERSION=${{ steps.ver.outputs.version }}
+      - name: Build
+        working-directory: native/engine
+        run: cmake --build --preset windows-release
+      - name: Dependencies (system DLLs only)
+        shell: pwsh
+        run: |
+          dumpbin /dependents "$env:ENGINE_EXE"
+          & "$env:ENGINE_EXE" --version
+      - run: npm ci
+      - name: Swarm test
+        run: npm run test:engine
+        env:
+          ADRENALINE_ENGINE_PATH: ${{ env.ENGINE_EXE }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: adrenaline-engine
+          path: native/engine/build/windows-release/adrenaline-engine.exe
+          if-no-files-found: error

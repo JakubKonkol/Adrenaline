@@ -2,7 +2,7 @@
 
 Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka notatka, jeśli coś odbiega od planu). Zadania odpowiadają numeracji w `etapy/`.
 
-**Bieżący etap:** 1
+**Bieżący etap:** 2 (etap 1 czeka na wydania i test ręczny)
 **Ostatnie wydanie:** brak
 
 ## Blokady wymagające właściciela
@@ -29,12 +29,12 @@ Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka no
 - [ ] 1.4 Wydania v0.1.0 i v0.1.1
 
 ### Etap 2 — Silnik
-- [ ] 2.1 Budowanie C++
-- [ ] 2.2 Implementacja silnika
-- [ ] 2.3 Klient w Electron
-- [ ] 2.4 Test swarm
+- [x] 2.1 Budowanie C++
+- [x] 2.2 Implementacja silnika (dodatkowo `--resume-interval` dla testu i `min_reconnect_time = 5 s`, patrz Odstępstwa)
+- [x] 2.3 Klient w Electron
+- [x] 2.4 Test swarm (Linux/WSL: 4/4; Windows: w `engine-ci.yml`)
 - [ ] 2.5 Pakowanie i CI
-- [ ] 2.6 Diagnostyka w UI
+- [x] 2.6 Diagnostyka w UI
 
 ### Etap 3 — Rdzeń aplikacji
 - [ ] 3.1 Baza
@@ -101,8 +101,8 @@ Uzupełnić w etapie 0 (i przy każdej zmianie).
 | Zod / fast-xml-parser | 4.6.7 / 5.11.2 |
 | Vitest / Playwright | 5.0.5 / 1.64.1 |
 | ESLint / typescript-eslint / Prettier | 10.12.0 / 8.71.2 / 3.9.10 |
-| vcpkg baseline | |
-| libtorrent | |
+| vcpkg baseline | `20ceb8adbf0504d4b0d5e4058a32f9d4fc896391` (15.10.2026) |
+| libtorrent | 2.1.2 (vcpkg, Windows) / 2.0.12 (Ubuntu 26.04, dev) |
 | Jackett | |
 
 ## Odstępstwa od planu
@@ -112,6 +112,9 @@ Uzupełnić w etapie 0 (i przy każdej zmianie).
 - **Preload:** sandboxowany preload nie może ładować modułów npm, więc nazwy kanałów są w osobnym pliku bez Zod (`src/shared/contracts/channels.ts`), a schematy w `ipc.ts`.
 - **Ikony:** `lucide-react` (ta sama biblioteka ikon co w Oxytocin). To biblioteka ikon, nie komponentów, więc D-21 pozostaje spełnione.
 - **Pakowanie lokalne:** `npm run pack:win` działa na Windows właściciela (instalator NSIS + `latest.yml` + blockmap); spakowana aplikacja startuje i pokazuje stan aktualizacji.
+- **Silnik — ponowne łączenie z peerami:** domyślne `min_reconnect_time` libtorrent (60 s) powodowało minutę przestoju po pauzie oraz po metadanych magnetu (przed `selectFiles` wszystkie priorytety = 0, torrent jest „finished” i rozłącza seedów). Ustawione na 5 s. Zdarzenie `ready` i wynik `hello` zawierają też `listenPort` (potrzebne testom).
+- **Silnik — tryb testowy:** `--test-mode` dodatkowo obejmuje peery lokalne limitami prędkości (domyślnie libtorrent ich nie dławi), a `--resume-interval <s>` skraca okres zapisu resume (domyślnie 60 s) — test „kill w połowie” zabija proces tuż po zapisie.
+- **Silnik — stan przed wyborem plików:** dopóki main nie wyśle `selectFiles`, silnik nie raportuje `downloaded/seeding` (torrent z zerowymi priorytetami jest dla libtorrent „finished”). Po restarcie main zawsze ponawia `selectFiles` z bazy.
 - **Audyt npm:** `npm audit --omit=dev` = 0 podatności; ostrzeżenia dotyczą tylko narzędzi deweloperskich (electron-builder → app-builder-lib). Do przeglądu w etapie 8.6.
 
 ## Pomiary

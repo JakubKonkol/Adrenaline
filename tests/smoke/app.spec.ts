@@ -22,6 +22,7 @@ test('app starts with an isolated renderer', async () => {
     await page.getByRole('link', { name: 'O aplikacji' }).click();
     await expect(page.getByTestId('app-version')).toContainText(/\d+\.\d+\.\d+/);
     await expect(page.getByTestId('updater-status')).toContainText('wyłączone');
+    await expect(page.getByTestId('engine-status')).toContainText('Działa');
 
     // NFR07: no Node in the renderer.
     const leaks = await page.evaluate(() => {

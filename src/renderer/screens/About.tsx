@@ -3,6 +3,7 @@ import type { UpdaterStatus } from '@shared/contracts/app';
 import logoDark from '../assets/brand/adrenaline-logo-on-dark.svg';
 import logoLight from '../assets/brand/adrenaline-logo-on-light.svg';
 import { api } from '../api/bridge';
+import { useEngineStatus, useRestartEngine } from '../api/engine';
 import { useAppVersion, useCheckForUpdates, useUpdaterStatus } from '../api/updater';
 import { t } from '../i18n/t';
 import { Button } from '../ui/Button';
@@ -28,6 +29,8 @@ export function About() {
   const { data: status } = useUpdaterStatus();
   const check = useCheckForUpdates();
   const busy = check.isPending || status?.state === 'checking' || status?.state === 'downloading';
+  const { data: engine } = useEngineStatus();
+  const restartEngine = useRestartEngine();
 
   return (
     <Page label={t('nav.about')} title={t('about.title')} testId="screen-about">
@@ -56,6 +59,25 @@ export function About() {
                 <RefreshCw size={12} aria-hidden />
                 {t('updater.check')}
               </Button>
+            ) : null}
+          </dd>
+
+          <dt className="label">{t('about.engineLabel')}</dt>
+          <dd className={styles.stack} data-testid="engine-status">
+            <span className={styles.row}>
+              <span>{engine ? t(`engine.state.${engine.state}`) : t('app.loading')}</span>
+              {engine?.state === 'crashed' ? (
+                <Button size="sm" disabled={restartEngine.isPending} onClick={() => restartEngine.mutate()}>
+                  {t('engine.restart')}
+                </Button>
+              ) : null}
+            </span>
+            {engine?.engineVersion ? (
+              <span className={`mono ${styles.muted}`}>
+                {engine.fake
+                  ? t('engine.fake')
+                  : t('engine.versions', { engine: engine.engineVersion, libtorrent: engine.libtorrent ?? '?' })}
+              </span>
             ) : null}
           </dd>
 

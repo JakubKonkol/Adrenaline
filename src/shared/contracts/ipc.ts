@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { AppErrorShape } from '../errors';
-import { updaterStatusSchema } from './app';
+import { engineStatusSchema, updaterStatusSchema } from './app';
 import type { ChannelName, EventName } from './channels';
 
 export type { ChannelName, EventName } from './channels';
@@ -20,11 +20,14 @@ export const ipcChannels = {
   'app:checkForUpdates': { input: z.void(), output: updaterStatusSchema },
   'app:installUpdate': { input: z.void(), output: z.boolean() },
   'app:openLogsFolder': { input: z.void(), output: z.void() },
+  'app:engineStatus': { input: z.void(), output: engineStatusSchema },
+  'app:restartEngine': { input: z.void(), output: engineStatusSchema },
 } as const satisfies Record<ChannelName, ChannelSchema>;
 
 /** Events sent from main to the renderer (`webContents.send`). */
 export const ipcEvents = {
   'updater:status': updaterStatusSchema,
+  'engine:status': engineStatusSchema,
 } as const satisfies Record<EventName, z.ZodType>;
 
 export type ChannelInput<C extends ChannelName> = z.input<(typeof ipcChannels)[C]['input']>;

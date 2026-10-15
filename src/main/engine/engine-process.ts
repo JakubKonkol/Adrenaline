@@ -74,7 +74,7 @@ export function resolveEnginePath(opts: {
 }): string | null {
   const exe = (opts.platform ?? process.platform) === 'win32' ? 'adrenaline-engine.exe' : 'adrenaline-engine';
   const fromEnv = opts.env['ADRENALINE_ENGINE_PATH'];
-  if (fromEnv) return fromEnv;
+  if (fromEnv && !opts.isPackaged) return fromEnv;
   if (opts.isPackaged) {
     const p = join(opts.resourcesPath, 'engine', 'adrenaline-engine.exe');
     return existsSync(p) ? p : null;
