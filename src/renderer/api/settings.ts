@@ -24,8 +24,10 @@ export function useSecretsStatus() {
 /** Whether an OpenSubtitles account is fully saved (API key, username, password); undefined while loading. */
 export function useSubtitleAccountReady(): boolean | undefined {
   const { data: settings } = useSettings();
-  const { data: secrets } = useSecretsStatus();
-  if (!settings || !secrets) return undefined;
+  const { data: secrets, isError } = useSecretsStatus();
+  if (!settings) return undefined;
+  // Unknown secrets status (IPC error) counts as "no account": subtitles then start switched off.
+  if (!secrets) return isError ? false : undefined;
   return (
     settings.opensubtitlesUsername.trim() !== '' &&
     secrets.set['opensubtitles.apiKey'] === true &&
