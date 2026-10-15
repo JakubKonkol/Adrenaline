@@ -312,6 +312,10 @@ json JobManager::op_select_files(Job& j, const json& args) {
   }
   j.handle.prioritize_files(prios);
   j.hasSelection = true;
+  j.selectedFiles.clear();
+  for (std::size_t i = 0; i < prios.size(); ++i)
+    if (prios[i] != lt::dont_download) j.selectedFiles.push_back(static_cast<int>(i));
+  j.doneFlushed = false;
   save_resume(j, lt::torrent_handle::save_info_dict);
   update_state(j);
   return json{{"ok", true}};
@@ -449,7 +453,8 @@ std::pair<std::string, std::string> JobManager::compute_state(const Job& j, cons
 void JobManager::update_state(Job& j) { update_state(j, j.handle.status()); }
 
 void JobManager::update_state(Job& j, const lt::torrent_status& st) {
-  const bool complete = st.state == lt::torrent_status::finished || st.state == lt::torrent_status::seeding;
+  const bool complete =
+      (st.state == lt::torrent_status::finished || st.state == lt::torrent_status::seeding) && selected_complete(j);
   if (!complete) {
     j.doneFlushed = false;
   } else if (j.hasSelection && !j.doneFlushed && !j.flushForDone) {
@@ -531,6 +536,20 @@ void JobManager::save_resume(Job& j, lt::resume_data_flags_t flags) {
   j.handle.save_resume_data(flags | lt::torrent_handle::flush_disk_cache);
 }
 
+bool JobManager::selected_complete(const Job& j) const {
+  if (!j.hasSelection || j.selectedFiles.empty()) return false;
+  auto ti = j.handle.torrent_file();
+  if (!ti) return false;
+  std::vector<std::int64_t> progress;
+  j.handle.file_progress(progress);
+  const auto& fs = file_layout(*ti);
+  for (int index : j.selectedFiles) {
+    auto idx = static_cast<std::size_t>(index);
+    if (idx >= progress.size() || progress[idx] < fs.file_size(lt::file_index_t{index})) return false;
+  }
+  return true;
+}
+
 void JobManager::on_save_finished(Job& j) {
   if (j.saveOutstanding > 0) --j.saveOutstanding;
   if (j.saveOutstanding > 0) return;
@@ -539,7 +558,8 @@ void JobManager::on_save_finished(Job& j) {
   if (j.flushForDone) {
     j.flushForDone = false;
     auto st = j.handle.status();
-    j.doneFlushed = st.state == lt::torrent_status::finished || st.state == lt::torrent_status::seeding;
+    j.doneFlushed =
+        (st.state == lt::torrent_status::finished || st.state == lt::torrent_status::seeding) && selected_complete(j);
     update_state(j, st);
   }
 }

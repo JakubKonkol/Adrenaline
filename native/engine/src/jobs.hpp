@@ -38,6 +38,9 @@ struct Job {
   bool flushForDone = false;
   bool doneFlushed = false;
   std::vector<int> pendingFiles;  // fileCompleted events waiting for the flush
+  // Indices selected by main. Completion is measured on these files: right after prioritize_files() libtorrent
+  // may still report the old "finished" state of the all-zero priorities (the change is applied asynchronously).
+  std::vector<int> selectedFiles;
   std::string lastState;
   std::string lastReason;
   std::deque<std::pair<Clock::time_point, std::int64_t>> samples;  // selected done bytes, for ETA
@@ -93,6 +96,7 @@ class JobManager {
   void update_state(Job& j);
   void save_resume(Job& j, lt::resume_data_flags_t flags);
   void on_save_finished(Job& j);
+  bool selected_complete(const Job& j) const;
   void check_seed_policy();
   void connect_test_peers(Job& j, bool force);
 
