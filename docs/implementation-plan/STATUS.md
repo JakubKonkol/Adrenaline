@@ -10,7 +10,8 @@ Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka no
 - [x] Wybór źródła aktualizacji (D-07): upublicznienie `Adrenaline`, Releases w tym samym repo (decyzja 15.10.2026).
 - [ ] Test ręczny etapu 1 (do potwierdzenia przez Jakuba): instalacja 0.1.0 → baner aktualizacji do 0.1.1 → restart w 0.1.1.
 - [ ] Zmiana widoczności repo `JakubKonkol/Adrenaline` na publiczną. Potrzebne przed etapem 1.4.
-- [ ] Klucz TMDB i konto/klucz OpenSubtitles w `.env` do testów live (etapy 4 i 7).
+- [x] Klucz TMDB w `.env` (15.10.2026).
+- [ ] Konto/klucz OpenSubtitles w `.env` do testów live (etap 7).
 
 ## Etapy
 
@@ -48,7 +49,7 @@ Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka no
 - [x] 3.8 Logger (zrobiony w etapie 1, bo potrzebuje go updater; IPC `app:openLogsFolder` też)
 
 ### Etap 4 — Katalog TMDB
-- [ ] 4.1 Weryfikacja API, fixtures — dokumentacja sprawdzona, syntetyczne fixtures i `scripts/live/tmdb.mjs` gotowe; zapis odpowiedzi live czeka na `TMDB_TOKEN` w `.env`.
+- [x] 4.1 Weryfikacja API, fixtures — test live 15.10.2026 z kluczem v3 właściciela: wyszukiwanie (1968 i 1990 rozróżnione), szczegóły z IMDb ID, serial/sezon/odcinki, 401. Klient aplikacji parsuje zapisane odpowiedzi (`tmdb-live-fixtures.test.ts`, uruchamiany tylko lokalnie). Pełna ścieżka w aplikacji sprawdzona: wyniki, plakaty z `image.tmdb.org`, szczegóły po polsku. Odpowiedzi live nie są commitowane (dane TMDB), w repo zostają syntetyczne fixtures.
 - [x] 4.2 Klient — Bearer/klucz v3, timeout 10 s, walidacja Zod, limit odpowiedzi 5 MiB, stabilne błędy, jedno ponowienie 429, fallback opisu en-US; testy kontraktowe offline.
 - [x] 4.3 Serwis i IPC — `catalog:search/details/season/select`, `settings:testTmdb`, cache SQLite 15 min/24 h, scalenie wg popularności. Media/odcinek zapisują się dopiero przy wyborze, na podstawie danych main.
 - [x] 4.4 UI — wyszukiwanie z debounce 350 ms i filtrami, karty, szczegóły, sezony/odcinki, stany błędów i brak klucza, test klucza w Ustawieniach, oficjalne logo i atrybucja TMDB. Testy komponentowe obejmują nawigację i awarię katalogu.
