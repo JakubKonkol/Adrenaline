@@ -1,0 +1,8 @@
+out/
+dist/
+vendor/
+native/engine/build/
+package-lock.json
+docs/
+tests/fixtures/
+*.md

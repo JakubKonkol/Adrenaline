@@ -1,0 +1,13 @@
+node_modules/
+out/
+dist/
+resources/engine/
+vendor/
+native/engine/build/
+.env
+*.log
+test-results/
+playwright-report/
+coverage/
+*.tsbuildinfo
+Adrenaline-logo.zip

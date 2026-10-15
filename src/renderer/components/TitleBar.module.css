@@ -1,0 +1,38 @@
+.bar {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  height: var(--titlebar-height);
+  padding-left: 12px;
+  /* Leaves room for the Windows window controls overlay. */
+  padding-right: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw));
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-app);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.name {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.title {
+  position: absolute;
+  inset-inline: 0;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-small);
+  color: var(--text-muted);
+  pointer-events: none;
+}

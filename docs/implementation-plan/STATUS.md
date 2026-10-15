@@ -2,7 +2,7 @@
 
 Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka notatka, jeśli coś odbiega od planu). Zadania odpowiadają numeracji w `etapy/`.
 
-**Bieżący etap:** 0 (nie rozpoczęty)
+**Bieżący etap:** 0
 **Ostatnie wydanie:** brak
 
 ## Blokady wymagające właściciela
@@ -14,11 +14,11 @@ Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka no
 ## Etapy
 
 ### Etap 0 — Szkielet
-- [ ] 0.1 Inicjalizacja projektu
-- [ ] 0.2 electron-vite + TypeScript
-- [ ] 0.3 Minimalna aplikacja
-- [ ] 0.4 Skrypty npm
-- [ ] 0.5 Testy (Vitest, smoke)
+- [x] 0.1 Inicjalizacja projektu
+- [x] 0.2 electron-vite + TypeScript
+- [x] 0.3 Minimalna aplikacja
+- [x] 0.4 Skrypty npm
+- [x] 0.5 Testy (Vitest, smoke)
 - [ ] 0.6 CI
 - [ ] 0.7 Pętla dev w kontenerze, `docs/dev-setup.md`
 
@@ -92,19 +92,25 @@ Uzupełnić w etapie 0 (i przy każdej zmianie).
 
 | Składnik | Wersja |
 |---|---|
-| Electron | |
-| Node (w Electronie) | |
-| React | |
-| TypeScript | |
-| electron-vite / Vite | |
-| electron-builder / electron-updater | |
+| Electron | 44.7.2 |
+| Node (w Electronie) | 24.21 (lokalnie Node 24.11) |
+| React | 19.3.1 (react-router 8.4.0, TanStack Query 5.104.3) |
+| TypeScript | 6.0.3 |
+| electron-vite / Vite | 6.0.0 / 8.3.4 (`@vitejs/plugin-react` 6.1.2) |
+| electron-builder / electron-updater | 26.15.3 / 6.8.9 |
+| Zod / fast-xml-parser | 4.6.7 / 5.11.2 |
+| Vitest / Playwright | 5.0.5 / 1.64.1 |
+| ESLint / typescript-eslint / Prettier | 10.12.0 / 8.71.2 / 3.9.10 |
 | vcpkg baseline | |
 | libtorrent | |
 | Jackett | |
 
 ## Odstępstwa od planu
 
-Brak.
+- **Środowisko dev (etap 0.7):** pętla dev działa na Windows właściciela (Node 24.11), a silnik C++ budowany jest w WSL Ubuntu 26.04 (libtorrent 2.0.12 z apt, preset `linux-system`). Lokalnie brak MSVC/vcpkg; binarka Windows powstaje tylko w CI.
+- **Wygląd (prośba właściciela 15.10.2026):** Adrenaline wizualnie należy do rodziny Oxytocin: te same neutralne kolory, typografia (Inter + JetBrains Mono, dołączone przez `@fontsource-variable/*`, bo CSP blokuje zewnętrzne fonty), etykiety mono uppercase, własny pasek tytułu 36 px (`titleBarStyle: hidden` + overlay). Akcent pomarańczowy z logo zamiast niebieskiego. Nadal CSS Modules + zmienne CSS bez Tailwinda (D-21).
+- **Preload:** sandboxowany preload nie może ładować modułów npm, więc nazwy kanałów są w osobnym pliku bez Zod (`src/shared/contracts/channels.ts`), a schematy w `ipc.ts`.
+- **Audyt npm:** `npm audit --omit=dev` = 0 podatności; ostrzeżenia dotyczą tylko narzędzi deweloperskich (electron-builder → app-builder-lib). Do przeglądu w etapie 8.6.
 
 ## Pomiary
 

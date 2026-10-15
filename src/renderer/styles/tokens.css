@@ -1,0 +1,111 @@
+/*
+ * Design tokens: the only place colors are defined. Neutrals, typography and shapes follow Oxytocin (same family);
+ * the accent comes from the Adrenaline logo (orange atoms, red tip, yellow subtitle lines). Theme = system (D-21).
+ */
+:root {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --bg-app: #0b0d10;
+  --bg-surface: #111418;
+  --bg-card: #151a20;
+  --bg-card-hover: #1a2028;
+  --bg-elevated: #1c222b;
+  --bg-input: #0f1318;
+  --bg-focus-tint: #2a1a10;
+
+  /* Borders */
+  --border-subtle: #232932;
+  --border-default: #2c333d;
+  --border-strong: #3a4350;
+  --border-focus: #ffa057;
+
+  /* Text */
+  --text-primary: #e6e8eb;
+  --text-secondary: #a8b0bb;
+  --text-muted: #6e7682;
+  --text-inverse: #0b0d10;
+
+  /* Brand accent (logo: #ff7a3d / #ffa057 atoms, #ff3d5e tip, #facc15 subtitle lines) */
+  --accent: #ff7a3d;
+  --accent-hover: #ff8f5a;
+  --accent-text: #ffa057;
+  --accent-on: #0b0d10;
+  --accent-muted: #3a1f12;
+  --brand-tip: #ff3d5e;
+  --subs: #facc15;
+
+  /* States */
+  --success: #22c55e;
+  --warning: #f5a524;
+  --danger: #ef4444;
+  --info: #38bdf8;
+
+  /* Typography */
+  --font-ui: 'Inter Variable', 'Inter', system-ui, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', 'Cascadia Mono', Consolas, monospace;
+  --font-size-ui: 13px;
+  --font-size-small: 11px;
+  --font-size-title: 20px;
+
+  /* Shapes */
+  --radius-card: 10px;
+  --radius-control: 6px;
+  --radius-badge: 4px;
+  --gap-layout: 8px;
+  --shadow-elevated: 0 8px 24px rgb(0 0 0 / 0.45);
+
+  /* Sizes */
+  --titlebar-height: 36px;
+  --sidebar-width: 208px;
+
+  /* Motion */
+  --motion-fast: 120ms;
+  --motion-normal: 200ms;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+
+    --bg-app: #e9ecf0;
+    --bg-surface: #f1f3f6;
+    --bg-card: #ffffff;
+    --bg-card-hover: #f3f6fa;
+    --bg-elevated: #ffffff;
+    --bg-input: #f5f7fa;
+    --bg-focus-tint: #fff1e6;
+
+    --border-subtle: #e2e6eb;
+    --border-default: #cfd5dc;
+    --border-strong: #b1bac5;
+    --border-focus: #c2410c;
+
+    --text-primary: #1b1f24;
+    --text-secondary: #4b5563;
+    --text-muted: #6f7782;
+    --text-inverse: #ffffff;
+
+    --accent: #c2410c;
+    --accent-hover: #ea580c;
+    --accent-text: #c2410c;
+    --accent-on: #ffffff;
+    --accent-muted: #ffedd5;
+    --brand-tip: #e11d48;
+    --subs: #a16207;
+
+    --success: #16a34a;
+    --warning: #b7791f;
+    --danger: #d93636;
+    --info: #0b87c2;
+
+    --shadow-elevated: 0 8px 24px rgb(15 23 42 / 0.16);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0ms;
+    --motion-normal: 0ms;
+  }
+}

@@ -1,0 +1,36 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.content {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  max-width: 520px;
+  text-align: center;
+}
+
+.logo {
+  width: 72px;
+  height: 72px;
+}
+
+.title {
+  font-size: var(--font-size-title);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.subtitle {
+  color: var(--text-secondary);
+}
