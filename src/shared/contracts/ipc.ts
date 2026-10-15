@@ -2,7 +2,14 @@ import { z } from 'zod';
 import type { AppErrorShape } from '../errors';
 import { engineStatusSchema, updaterStatusSchema } from './app';
 import type { ChannelName, EventName } from './channels';
-import { appSettingsSchema, secretsStatusSchema, settingsPatchSchema, userSecretNameSchema } from './settings';
+import {
+  appSettingsSchema,
+  secretsStatusSchema,
+  settingsPatchSchema,
+  userSecretNameSchema,
+  languageCodeSchema,
+} from './settings';
+import { subtitleAccountSchema } from './subtitles';
 import {
   catalogItemSchema,
   catalogSelectionSchema,
@@ -35,6 +42,28 @@ interface ChannelSchema {
  * The preload API, the main handlers and the renderer types are all derived from this table (01-architektura.md).
  */
 export const ipcChannels = {
+  'settings:testSubtitles': { input: z.void(), output: subtitleAccountSchema },
+  'settings:logoutSubtitles': { input: z.void(), output: z.void() },
+  'subtitles:retry': {
+    input: z.object({ jobId: z.string().max(64), taskId: z.number().int().positive() }).strict(),
+    output: z.void(),
+  },
+  'subtitles:choose': {
+    input: z
+      .object({ jobId: z.string().max(64), taskId: z.number().int().positive(), fileId: z.number().int().positive() })
+      .strict(),
+    output: z.void(),
+  },
+  'subtitles:language': {
+    input: z
+      .object({
+        jobId: z.string().max(64),
+        language: languageCodeSchema.nullable(),
+        fallback: languageCodeSchema.nullable(),
+      })
+      .strict(),
+    output: z.void(),
+  },
   'catalog:search': {
     input: z.object({ query: z.string().trim().max(300), type: mediaTypeSchema.optional() }).strict(),
     output: z.array(catalogItemSchema),

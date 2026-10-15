@@ -73,7 +73,7 @@ Wersje sprawdzone w npm 15.10.2026. Etap 0 przypina je dokładnie w `package.jso
 | ID | Decyzja | Status |
 |---|---|---|
 | D-60 | TMDB API v3, własny cienki klient `fetch`, autoryzacja tokenem „API Read Access Token” (`Authorization: Bearer`) lub kluczem v3 (`api_key`). Język `pl-PL`, fallback `en-US`. Cache: wyszukiwanie 15 min, szczegóły 24 h. | przyjęta |
-| D-61 | OpenSubtitles.com REST API (`https://api.opensubtitles.com/api/v1`), nagłówki `Api-Key` i `User-Agent: Adrenaline v<wersja>`, logowanie użytkownika po token. Dokładny schemat zweryfikować z aktualną dokumentacją na początku etapu 7 i zapisać przykładowe odpowiedzi jako fixtures. | do weryfikacji w etapie 7 |
+| D-61 | OpenSubtitles.com REST API (`https://api.opensubtitles.com/api/v1`), `Api-Key`, `User-Agent: Adrenaline v<wersja>`, Bearer po logowaniu. Oficjalny OpenAPI zweryfikowany 15.10.2026: `base_url` API lub VIP API, limity konta przez `/infos/user`, `/download` zużywa limit i zwraca tymczasowy link oraz `remaining/reset_time_utc`. Udane `remaining=0` nadal pozwala pobrać zwrócony plik. Fixtures syntetyczne; live czeka na konto. | zweryfikowana dokumentacja; live otwarty |
 | D-62 | Napisy: jeden język podstawowy + opcjonalny fallback. Nazwa pliku `<nazwa_bazowa_wideo>.<kod ISO 639-1>.<srt|ass>`. Brak muxowania do MKV. | przyjęta |
 
 ## Zachowanie produktu (domyślne z dokumentów)

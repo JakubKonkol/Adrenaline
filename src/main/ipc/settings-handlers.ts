@@ -10,6 +10,7 @@ export interface SettingsHandlerDeps {
   settings: SettingsService;
   secrets: Secrets;
   window: () => BrowserWindow | null;
+  onSubtitleCredentialsChanged?: () => void;
 }
 
 export function secretsStatus(secrets: Secrets): SecretsStatus {
@@ -45,6 +46,7 @@ export function registerSettingsHandlers(ipc: IpcRegistry, deps: SettingsHandler
 
   ipc.handle('settings:setSecret', ({ name, value }) => {
     deps.secrets.set(name, value);
+    if (name.startsWith('opensubtitles.')) deps.onSubtitleCredentialsChanged?.();
     return secretsStatus(deps.secrets);
   });
 }

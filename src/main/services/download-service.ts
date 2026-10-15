@@ -16,6 +16,7 @@ import { jobFolder, numberedVariant } from '../fs/job-folder';
 import { isPathTooLong, resolveInside } from '../fs/safe-path';
 import type { Logger } from '../logger';
 import type { JobRow, JobsRepository } from '../persistence/repositories/jobs';
+import type { SubtitlesRepository } from '../persistence/repositories/subtitles';
 import { readBodyLimited } from '../providers/http';
 import { isAllowedDownloadUrl } from '../providers/torznab/torznab-client';
 import { Emitter } from '../util/emitter';
@@ -38,6 +39,8 @@ export interface DownloadServiceDeps {
   fetch?: typeof fetch;
   shell?: { showItemInFolder(path: string): void; openPath(path: string): Promise<string> };
   now?: () => number;
+  subtitles?: SubtitlesRepository;
+  beforeRemove?: (jobId: string) => Promise<void>;
 }
 
 export type DownloadEvents = {
@@ -109,7 +112,7 @@ export class DownloadService extends Emitter<DownloadEvents> {
       seedTimeLimitMin: job.seedTimeLimitMin,
       subtitleLang: job.subtitleLang,
       subtitleFallbackLang: job.subtitleFallbackLang,
-      subtitles: [],
+      subtitles: this.deps.subtitles?.list(job.id) ?? [],
       createdAt: job.createdAt,
       completedAt: job.completedAt,
     };
@@ -133,7 +136,7 @@ export class DownloadService extends Emitter<DownloadEvents> {
     return job;
   }
 
-  private emitJob(id: string) {
+  emitJob(id: string) {
     const job = this.deps.jobs.get(id);
     if (job) this.emit('changed', this.toDto(job));
   }
@@ -689,6 +692,7 @@ export class DownloadService extends Emitter<DownloadEvents> {
   /** FR13: by default files stay; with deleteFiles only this job's files are removed, then empty folders. */
   async remove(jobId: string, deleteFiles: boolean): Promise<void> {
     const job = this.require(jobId);
+    await this.deps.beforeRemove?.(jobId);
     if (this.inEngine.has(jobId)) {
       await this.deps.engine.request('remove', { deleteFiles }, jobId, { timeoutMs: 15_000 });
       this.inEngine.delete(jobId);

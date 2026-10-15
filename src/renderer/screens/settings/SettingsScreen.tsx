@@ -12,6 +12,7 @@ import { changedSecrets, type DraftErrors, fromDraft, type SettingsDraft, toDraf
 import { type DraftSetter, FolderField, OpenSubtitlesFields, rangeError, SubtitleFields, TmdbField } from './fields';
 import styles from './Settings.module.css';
 import { SourcesSection } from './SourcesSection';
+import { SubtitleAccount } from './SubtitleAccount';
 
 export function SettingsScreen() {
   const { data: settings } = useSettings();
@@ -172,6 +173,13 @@ function SettingsForm({ settings }: { settings: AppSettings }) {
           {testTmdb.isSuccess ? <p role="status">{t('catalog.testSuccess')}</p> : null}
           {testTmdb.error ? <ErrorNotice error={testTmdb.error} /> : null}
           <OpenSubtitlesFields {...group} {...(secrets ? { status: secrets } : {})} />
+          <SubtitleAccount
+            unsaved={
+              !!draft.secrets['opensubtitles.apiKey'] ||
+              !!draft.secrets['opensubtitles.password'] ||
+              draft.opensubtitlesUsername !== settings.opensubtitlesUsername
+            }
+          />
         </Section>
 
         <Section title={t('settings.sources.title')}>

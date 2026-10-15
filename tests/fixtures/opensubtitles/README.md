@@ -1,0 +1,3 @@
+# OpenSubtitles fixtures
+
+Syntetyczne odpowiedzi w kształcie z oficjalnej specyfikacji OpenAPI (`https://opensubtitles.stoplight.io/api/v1/projects/opensubtitles/opensubtitles-api/nodes/open_api.json`, pobrana 15.10.2026): `POST /login` (`token`, `base_url`, `user.allowed_downloads`), `GET /subtitles` (`data[].attributes` z `language`, `release`, `hearing_impaired`, `foreign_parts_only`, `download_count`, `ratings`, `files[].file_id`, `feature_details`; `moviehash_match` tylko przy zapytaniu z `moviehash`), `POST /download` (`link`, `file_name`, `remaining`, `reset_time_utc`). Nazwy wydań i identyfikatory są wymyślone. Odpowiedzi live (po dodaniu konta do `.env`) trafią do ignorowanego `live/`.

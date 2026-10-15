@@ -24,6 +24,7 @@ import { ProgressBar } from '../../ui/ProgressBar';
 import { StatusBadge } from './StatusBadge';
 import { episodeLabel, jobView } from './job-view';
 import styles from './JobDetails.module.css';
+import { SubtitlePanel } from './SubtitlePanel';
 
 export function JobDetails() {
   const { jobId = '' } = useParams();
@@ -169,6 +170,7 @@ function Details({ job }: { job: DownloadJob }) {
         </details>
       </Card>
 
+      <SubtitlePanel key={`${job.id}:${job.subtitleLang}:${job.subtitleFallbackLang}`} job={job} />
       <Dialog
         open={confirm}
         title={t('downloads.removeTitle')}

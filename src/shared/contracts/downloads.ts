@@ -3,6 +3,7 @@ import { JOB_STATES, PAUSE_REASONS } from '../domain/job-state';
 import { SUBTITLE_STATES } from '../domain/job-status';
 import { searchTargetSchema } from '../domain/search-target';
 import { languageCodeSchema } from './settings';
+import { rankedSubtitleSchema } from './subtitles';
 
 export const jobFileSchema = z.object({
   index: z.number().int().nonnegative(),
@@ -22,6 +23,7 @@ export const subtitleTaskSchema = z.object({
   errorCode: z.string().nullable(),
   quotaResetAt: z.number().nullable(),
   targetPath: z.string().nullable(),
+  candidates: z.array(rankedSubtitleSchema).default([]),
 });
 export type SubtitleTaskDto = z.infer<typeof subtitleTaskSchema>;
 

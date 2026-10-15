@@ -93,6 +93,11 @@ function JobRow({ job }: { job: DownloadJob }) {
           </Link>
           <StatusBadge status={status} />
           {status.seeding ? <span className={styles.seedBadge}>{t('downloads.seeding')}</span> : null}
+          <span className={styles.seedBadge} role="status">
+            {job.subtitles.length
+              ? [...new Set(job.subtitles.map((s) => t(`subtitles.state.${s.state}`)))].join(' · ')
+              : t(job.subtitleLang ? 'subtitles.state.pending' : 'subtitles.state.disabled')}
+          </span>
         </div>
         <p className={`mono ${styles.release}`} title={job.releaseName}>
           {job.releaseName}

@@ -1,0 +1,31 @@
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: end;
+  margin: 16px 0;
+}
+.task {
+  padding: 16px 0;
+  border-top: 1px solid var(--border-default);
+  overflow-wrap: anywhere;
+}
+.task h3 {
+  font-size: 13px;
+}
+.candidates {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.candidates li {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+}
+.candidates button {
+  justify-self: start;
+}

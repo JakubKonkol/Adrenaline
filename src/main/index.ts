@@ -13,6 +13,9 @@ import { registerSourcesHandlers } from './ipc/sources-handlers';
 import { registerDownloadsHandlers } from './ipc/downloads-handlers';
 import { JobsRepository } from './persistence/repositories/jobs';
 import { DownloadService } from './services/download-service';
+import { SubtitleService } from './services/subtitle-service';
+import { SubtitlesRepository } from './persistence/repositories/subtitles';
+import { OpenSubtitlesClient } from './providers/opensubtitles/opensubtitles-client';
 import { JackettManager } from './jackett/jackett-manager';
 import { SourcesRepository } from './persistence/repositories/sources';
 import { TorznabClient } from './providers/torznab/torznab-client';
@@ -95,10 +98,6 @@ if (!app.requestSingleInstanceLock()) {
     if (patch.downloadLimitKBps !== undefined || patch.uploadLimitKBps !== undefined) applyEngineLimits();
   });
 
-  lifecycle.addStep('engine', () => engine.supervisor?.stop(), 13_000);
-  lifecycle.addStep('database', () => db.close(), 1_000);
-  lifecycle.addStep('log', () => log.flush(), 1_000);
-
   const updater = createUpdater({
     updater: app.isPackaged ? electronUpdater.autoUpdater : null,
     send: (status) => send('updater:status', status),
@@ -151,7 +150,30 @@ if (!app.requestSingleInstanceLock()) {
       await engine.supervisor?.restart();
       return engineStatus();
     });
-    registerSettingsHandlers(ipc, { settings, secrets, window: () => mainWindow });
+    const subtitlesClient = new OpenSubtitlesClient({
+      apiKey: () => secrets.get('opensubtitles.apiKey'),
+      username: () => settings.get().opensubtitlesUsername,
+      password: () => secrets.get('opensubtitles.password'),
+      session: {
+        get: () => secrets.get('opensubtitles.token'),
+        set: (value) => secrets.set('opensubtitles.token', value),
+      },
+      userAgent: `Adrenaline v${__ADRENALINE_VERSION__}`,
+    });
+    registerSettingsHandlers(ipc, {
+      settings,
+      secrets,
+      window: () => mainWindow,
+      onSubtitleCredentialsChanged: () => subtitlesClient.invalidate(),
+    });
+    settings.on('changed', ({ patch }) => {
+      if (patch.opensubtitlesUsername !== undefined) subtitlesClient.invalidate();
+    });
+    ipc.handle('settings:testSubtitles', () => subtitlesClient.test());
+    ipc.handle('settings:logoutSubtitles', async () => {
+      await subtitlesClient.logout();
+      secrets.set('opensubtitles.password', null);
+    });
     const tmdb = new TmdbClient({ token: () => secrets.get('tmdb.token') });
     const catalog = new CatalogService(tmdb, new CacheRepository(db), new MediaRepository(db));
     registerCatalogHandlers(ipc, catalog, tmdb);
@@ -188,9 +210,32 @@ if (!app.requestSingleInstanceLock()) {
     registerSourcesHandlers(ipc, { sources, search: releaseSearch, jackett });
 
     // Downloads (etap 6). The service follows the engine (restores jobs on every engine start).
+    // Subtitle actions remain available even when the torrent helper cannot start.
+    const jobs = new JobsRepository(db);
+    const subtitleTasks = new SubtitlesRepository(db);
+    const subtitles = new SubtitleService({
+      jobs,
+      tasks: subtitleTasks,
+      client: subtitlesClient,
+      changed: (id) => downloadService?.emitJob(id),
+    });
+    ipc.handle('subtitles:retry', ({ jobId, taskId }) => subtitles.retry(jobId, taskId));
+    ipc.handle('subtitles:choose', ({ jobId, taskId, fileId }) => subtitles.retry(jobId, taskId, fileId));
+    ipc.handle('subtitles:language', ({ jobId, language, fallback }) => subtitles.language(jobId, language, fallback));
+    lifecycle.addStep(
+      'subtitles',
+      async () => {
+        subtitles.stop();
+        subtitlesClient.close();
+        await subtitles.idle();
+      },
+      2_000,
+    );
     if (engine.supervisor) {
       const downloads = new DownloadService({
-        jobs: new JobsRepository(db),
+        jobs,
+        subtitles: subtitleTasks,
+        beforeRemove: (id) => subtitles.cancel(id),
         engine: engine.supervisor,
         settings,
         releaseInfo: (sessionId, releaseId) => releaseSearch.downloadInfo(sessionId, releaseId),
@@ -199,7 +244,11 @@ if (!app.requestSingleInstanceLock()) {
         shell,
       });
       downloadService = downloads;
-      downloads.on('changed', (job) => send('downloads:changed', job));
+      downloads.on('changed', (job) => {
+        send('downloads:changed', job);
+        subtitles.sync(job.id);
+      });
+      downloads.on('fileCompleted', ({ jobId, index }) => subtitles.complete(jobId, index));
       downloads.on('progress', (p) => send('downloads:progress', p));
       registerDownloadsHandlers(ipc, downloads, { devApi: !app.isPackaged && engine.fake !== null });
       settings.on('changed', ({ patch }) => {
@@ -216,6 +265,7 @@ if (!app.requestSingleInstanceLock()) {
       }, 2_000);
       lifecycle.addStep('tooltip', () => clearInterval(tooltip), 100);
     }
+    subtitles.restore();
 
     lifecycle.addStep('jackett', () => jackett.stop(), 6_000);
     // Started in the background shortly after launch when a built-in source is enabled, otherwise on demand.
@@ -230,6 +280,9 @@ if (!app.requestSingleInstanceLock()) {
       quit: () => app.quit(),
     });
     lifecycle.addStep('tray', () => tray?.destroy(), 500);
+    lifecycle.addStep('engine', () => engine.supervisor?.stop(), 13_000);
+    lifecycle.addStep('database', () => db.close(), 1_000);
+    lifecycle.addStep('log', () => log.flush(), 1_000);
 
     updater.start();
     showWindow();

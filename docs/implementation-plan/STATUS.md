@@ -2,8 +2,8 @@
 
 Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka notatka, jeśli coś odbiega od planu). Zadania odpowiadają numeracji w `etapy/`.
 
-**Bieżący etap:** 6 zakończony w kodzie (czeka zielony Engine CI, wydanie i test ręczny właściciela); następny: 7 — napisy (wymaga konta OpenSubtitles w `.env`). Etap 1: czeka test aktualizacji.
-**Ostatnie wydanie:** v0.1.0 (tag v0.5.0 nie został opublikowany: workflow zatrzymał się na niestabilnym teście swarm na Windows — bramka zadziałała; poprawione, następne wydanie z nowym numerem).
+**Bieżący etap:** 7.2–7.6 zakończone w kodzie; test OpenSubtitles live pozostaje otwarty (brak konta). Następny: 8 — dopracowanie bety. Etap 1: czeka test aktualizacji.
+**Ostatnie wydanie:** [v0.6.0](https://github.com/JakubKonkol/Adrenaline/releases/tag/v0.6.0) — [Release 38786238007](https://github.com/JakubKonkol/Adrenaline/actions/runs/38786238007) zakończony sukcesem: test aplikacji, silnik i swarm Windows, pakowanie, publikacja instalatora + blockmap + latest.yml. Starsze błędy swarmu poprawiono przed tym wydaniem (m.in. `6e3f2b0`: pomiar wznowienia po zapisie resume).
   v0.1.0 (15.10.2026): electron-builder utworzył 2 Release dla jednego taga — scalone ręcznie, workflow poprawiony: najpierw draft)
 
 ## Blokady wymagające właściciela
@@ -74,12 +74,12 @@ Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka no
 - [x] 6.6 Smoke z restartem — zadanie przez ukryte API (tylko FakeEngine), postęp, pauza, restart, wznowienie.
 
 ### Etap 7 — Napisy
-- [ ] 7.1 Weryfikacja API, fixtures
-- [ ] 7.2 Hash
-- [ ] 7.3 Klient
-- [ ] 7.4 Pipeline
-- [ ] 7.5 Ponowienie i ręczny wybór
-- [ ] 7.6 UI
+- [ ] 7.1 Weryfikacja API, fixtures — oficjalny OpenAPI odczytany 15.10.2026, fixtures syntetyczne, skrypt `scripts/live/opensubtitles.mjs` gotowy; rzeczywisty test wymaga konta. Dane live ignorowane przez git.
+- [x] 7.2 Hash — BigInt, 2 × 64 KiB, pliki <128 KiB bez hasha; 5 testów.
+- [x] 7.3 Klient — szyfrowana sesja, host API/VIP z allowlisty, bezpieczne przekierowania GET, relogin raz, limity/reset, brak powtórzenia POST po timeout; testy kontraktowe.
+- [x] 7.4 Pipeline — zadania SQLite na wybrane wideo, hash i ranking, fallback tylko po pustym wyniku, walidacja/dekodowanie/ZIP/gzip, zapis bez nadpisywania, częściowy sukces. Po awarii podczas pobierania napisów wymagane ręczne ponowienie (ochrona limitu).
+- [x] 7.5 Ponowienie i ręczny wybór — walidowane IPC `subtitles:retry/choose/language`, kandydat tylko z zapisanej listy zadania; serwis nie zależy od silnika.
+- [x] 7.6 UI — status napisów na liście, panel szczegółów z kandydatami/SDH/forced/pewnością, język i fallback, test konta/limity/wylogowanie w Ustawieniach.
 
 ### Etap 8 — Beta
 - [ ] 8.1 Sytuacje wyjątkowe
@@ -111,6 +111,10 @@ Uzupełnić w etapie 0 (i przy każdej zmianie).
 
 ## Odstępstwa od planu
 
+- **Etap 7 → 8 (Codex, 15.10.2026):** kontynuacja dopracowania jest niezależna od niedostępnego testu konta OpenSubtitles. Nie oznaczamy 7.1 ani ręcznego odbioru jako zaliczone. Oficjalny OpenAPI: `https://opensubtitles.stoplight.io/api/v1/projects/opensubtitles/opensubtitles-api/nodes/open_api.json`. `remaining=0` w udanej odpowiedzi `/download` oznacza ostatnie dozwolone pobranie; jego link jest używany. Dopiero błąd limitu daje `SUBS_QUOTA`.
+- **Archiwa i zapis napisów (15.10.2026):** ZIP/gzip rozpakowywane w pamięci z limitem 5 MiB, bez tworzenia ścieżek z archiwum. ZIP musi zawierać dokładnie jeden plik napisów; odrzucamy symlinki, traversal, szyfrowanie, ZIP64, pliki wykonywalne i niezgodne CRC/rozmiary. Zapis UTF-8: plik tymczasowy + fsync + hardlink z wyłącznością (atomowy na NTFS). FAT/exFAT: kopiowanie z COPYFILE_EXCL, bez gwarancji atomowej widoczności, ale bez nadpisania istniejących danych. Każde ponowienie zachowuje poprzedni sidecar.
+- **Zamykanie (15.10.2026):** usunięto błąd kolejności lifecycle: baza i logger zamykają się po serwisach i silniku, a nie przed zapisem postępu pobrań. Napisy są zatrzymywane przed końcem procesu; anulowane zadanie nie rozpoczyna zapisu po usunięciu.
+
 - **Kontynuacja od etapu 4 (15.10.2026):** etap 3 jest zakończony. Otwarte odbiory 1.4/2.5 nie blokują niezależnej implementacji katalogu. Przy przejęciu CI aplikacji było zielone, build Engine [38765947897](https://github.com/JakubKonkol/Adrenaline/actions/runs/38765947897) nadal trwał; repo jest prywatne, jedyne wydanie to v0.1.0. Nie uznajemy aktualizacji ani silnika Windows za odebrane.
 - **TMDB 4.1:** brak `.env` podczas przejęcia. Dokumentacja API sprawdzona w oficjalnym serwisie; fixtures offline są danymi syntetycznymi zgodnymi z kontraktem, wyraźnie opisanymi jako takie. Skrypt live pozwoli później zapisać rzeczywiste odpowiedzi. Test live i wydanie v0.4.0 pozostają oddzielnymi kryteriami odbioru.
 - **TMDB — granice żądań:** limit odpowiedzi 5 MiB obejmuje także strumień bez `Content-Length`. Przy `Retry-After` do 10 s klient ponawia raz; przy dłuższym czasie od razu zwraca `TMDB_RATE_LIMITED`, bez przedwczesnego ponowienia. Brak dostępności opcjonalnego angielskiego opisu nie ukrywa pobranych polskich szczegółów. Skrypt live nie wywołuje celowo lawiny żądań dla 429 — ten przypadek testujemy syntetycznie.
@@ -131,7 +135,7 @@ Uzupełnić w etapie 0 (i przy każdej zmianie).
 - **Wyszukiwanie wydań:** linki do pobrania (z kluczem API Jackett) zostają w main; renderer dostaje wydania bez linków i wskazuje wybór przez `sessionId` + `releaseId`. Dokumenty Torznab z DTD są odrzucane, a dekodowane są tylko standardowe encje XML.
 - **Audyt npm:** `npm audit --omit=dev` = 0 podatności; ostrzeżenia dotyczą tylko narzędzi deweloperskich (electron-builder → app-builder-lib). Do przeglądu w etapie 8.6.
 
-## Notatka dla kolejnego agenta — Codex, 15.10.2026
+## Historyczna notatka po etapie 4 — zastąpiona przez bieżący status powyżej
 
 - Zaimplementowane zadania **4.2–4.5**. Kod: `src/main/providers/tmdb/`, `src/main/services/catalog-service.ts`, `src/main/persistence/repositories/{cache,media}.ts`, `src/main/ipc/catalog-handlers.ts`; kontrakty w `src/shared/contracts/catalog.ts`, model w `src/shared/domain/search-target.ts`; UI w `src/renderer/screens/catalog/`, `Home.tsx` i hooki `api/catalog.ts`.
 - **4.1 częściowo:** dokumentacja i schematy zweryfikowane, fixtures syntetyczne (opis pochodzenia w `tests/fixtures/tmdb/README.md`), skrypt live gotowy. Do zakończenia: dodać klucz lokalnie, uruchomić `node scripts/live/tmdb.mjs`, zweryfikować i ewentualnie przenieść przycięte odpowiedzi z ignorowanego `tests/fixtures/tmdb/live/`. `.env` nie jest automatycznie używany przez aplikację — klucz zapisuje się przez Ustawienia.
