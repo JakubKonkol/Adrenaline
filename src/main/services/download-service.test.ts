@@ -257,3 +257,14 @@ describe('DownloadService restart without resume data', () => {
     expect(second.svc.get(job.id).files.filter((f) => f.selected)).toHaveLength(1);
   });
 });
+
+describe('DownloadService event order', () => {
+  it('the last emitted job state carries the chosen files', async () => {
+    const { svc, add, changes } = await setup({ rate: 1 });
+    const job = await add(release(7));
+    await until(() => svc.get(job.id).state === 'downloading');
+    await new Promise((r) => setTimeout(r, 50));
+    const last = changes.filter((c) => c.id === job.id).at(-1)!;
+    expect(last.files.filter((f) => f.selected)).toHaveLength(1);
+  });
+});

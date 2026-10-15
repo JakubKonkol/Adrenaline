@@ -68,7 +68,17 @@ describe.skipIf(!ENGINE || process.platform !== 'win32')('engine memory (NFR11)'
         for (let off = 0; off < SIZE; off += 16 * MiB) writeSync(fd, randomBytes(16 * MiB));
         closeSync(fd);
         execFileSync(ENGINE!, ['--make-torrent', file, '--out', join(root, `f${i}.torrent`)], { windowsHide: true });
-        torrents.push(execFileSync('powershell', ['-NoProfile', '-Command', `[Convert]::ToBase64String([IO.File]::ReadAllBytes('${join(root, `f${i}.torrent`)}'))`], { encoding: 'utf8', maxBuffer: 64 * MiB, windowsHide: true }).trim());
+        torrents.push(
+          execFileSync(
+            'powershell',
+            [
+              '-NoProfile',
+              '-Command',
+              `[Convert]::ToBase64String([IO.File]::ReadAllBytes('${join(root, `f${i}.torrent`)}'))`,
+            ],
+            { encoding: 'utf8', maxBuffer: 64 * MiB, windowsHide: true },
+          ).trim(),
+        );
       }
       const seeder = start(join(root, 'seed-data'));
       const hello = await seeder.client.hello('mem');

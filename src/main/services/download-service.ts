@@ -58,13 +58,16 @@ export class DownloadService extends Emitter<DownloadEvents> {
   private progress = new Map<string, JobProgress>();
   private lastSave = new Map<string, number>();
   private scheduling = false;
+  /** Engine events are handled one at a time, in order (a handler may await engine requests). */
+  private eventChain: Promise<void> = Promise.resolve();
 
   constructor(private readonly deps: DownloadServiceDeps) {
     super();
-    deps.engine.on(
-      'event',
-      (e) => void this.onEngineEvent(e).catch((err: unknown) => deps.log.error('engine event', err)),
-    );
+    deps.engine.on('event', (e) => {
+      this.eventChain = this.eventChain
+        .then(() => this.onEngineEvent(e))
+        .catch((err: unknown) => deps.log.error('engine event', err));
+    });
     deps.engine.on(
       'ready',
       () => void this.onEngineReady().catch((err: unknown) => deps.log.error('restore jobs', err)),
@@ -523,6 +526,8 @@ export class DownloadService extends Emitter<DownloadEvents> {
     const fresh = this.deps.jobs.get(job.id)!;
     if (fresh.state === 'awaiting_file_selection' || fresh.state === 'fetching_metadata' || fresh.state === 'queued') {
       this.setState(fresh, 'downloading');
+    } else {
+      this.emitJob(job.id); // the selection changed even if the state did not
     }
   }
 
