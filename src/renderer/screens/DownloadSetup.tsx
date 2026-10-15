@@ -5,12 +5,12 @@ import type { AppSettings } from '@shared/contracts/settings';
 import { SUBTITLE_LANGUAGES, type LanguageCode } from '@shared/domain/languages';
 import { searchTargetSchema } from '@shared/domain/search-target';
 import { useCreateDownload, usePreflight } from '../api/downloads';
-import { chooseFolder, useSettings } from '../api/settings';
+import { chooseFolder, useSettings, useSubtitleAccountReady } from '../api/settings';
 import { formatBytes } from '../format';
 import { t } from '../i18n/t';
 import { Button } from '../ui/Button';
 import { ErrorNotice } from '../ui/ErrorNotice';
-import { Field, Section, Select, TextInput } from '../ui/Form';
+import { Field, Section, Select, TextInput, Toggle } from '../ui/Form';
 import { Card, Page } from '../ui/Page';
 import styles from './DownloadSetup.module.css';
 
@@ -26,7 +26,8 @@ export function DownloadSetup() {
   const state = (location.state ?? {}) as SetupState;
   const target = searchTargetSchema.safeParse(state.target);
   const { data: settings } = useSettings();
-  if (!target.success || !state.sessionId || !state.releaseId || !settings) {
+  const accountReady = useSubtitleAccountReady();
+  if (!target.success || !state.sessionId || !state.releaseId || !settings || accountReady === undefined) {
     return (
       <Page label={t('downloadSetup.title')} title={t('downloadSetup.title')} testId="screen-download-setup">
         <Card>{t('downloadSetup.missing')}</Card>
@@ -36,6 +37,7 @@ export function DownloadSetup() {
   return (
     <SetupForm
       settings={settings}
+      accountReady={accountReady}
       sessionId={state.sessionId}
       releaseId={state.releaseId}
       releaseName={state.releaseName ?? ''}
@@ -46,12 +48,14 @@ export function DownloadSetup() {
 
 function SetupForm({
   settings,
+  accountReady,
   sessionId,
   releaseId,
   releaseName,
   back,
 }: {
   settings: AppSettings;
+  accountReady: boolean;
   sessionId: string;
   releaseId: string;
   releaseName: string;
@@ -60,7 +64,9 @@ function SetupForm({
   const navigate = useNavigate();
   const [saveDir, setSaveDir] = useState(settings.downloadDir);
   const [rename, setRename] = useState(false);
-  const [lang, setLang] = useState<LanguageCode | ''>(settings.subtitlesEnabled ? settings.subtitleLang : '');
+  // D-78: subtitles are asked for per download; pre-selected only when they can actually be downloaded.
+  const [wantSubtitles, setWantSubtitles] = useState(settings.subtitlesEnabled && accountReady);
+  const [lang, setLang] = useState<LanguageCode>(settings.subtitleLang);
   const [fallback, setFallback] = useState<LanguageCode | ''>(settings.subtitleFallbackLang ?? '');
   const [ratio, setRatio] = useState(settings.seedRatioLimit === null ? '' : String(settings.seedRatioLimit));
   const [minutes, setMinutes] = useState(settings.seedTimeLimitMin === null ? '' : String(settings.seedTimeLimitMin));
@@ -85,8 +91,8 @@ function SetupForm({
         ref,
         options: {
           saveDir,
-          subtitleLang: lang || null,
-          subtitleFallbackLang: lang && fallback && fallback !== lang ? fallback : null,
+          subtitleLang: wantSubtitles ? lang : null,
+          subtitleFallbackLang: wantSubtitles && fallback && fallback !== lang ? fallback : null,
           seedRatioLimit: parseNum(ratio, false),
           seedTimeLimitMin: parseNum(minutes, true),
           renameOnConflict: rename,
@@ -186,41 +192,51 @@ function SetupForm({
           ) : null}
         </Section>
 
-        <Section title={t('downloadSetup.subtitles')}>
-          <Field label={t('downloadSetup.subtitleLang')}>
-            {(a) => (
-              <Select
-                {...a}
-                value={lang}
-                onChange={(e) => setLang(e.target.value as LanguageCode | '')}
-                data-testid="download-sub-lang"
-              >
-                <option value="">{t('downloads.noSubtitles')}</option>
-                {SUBTITLE_LANGUAGES.map((l) => (
-                  <option key={l.code} value={l.code}>
-                    {l.name}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </Field>
-          <Field label={t('downloadSetup.fallback')} hint={t('settings.subtitles.fallbackHint')}>
-            {(a) => (
-              <Select
-                {...a}
-                value={fallback}
-                disabled={!lang}
-                onChange={(e) => setFallback(e.target.value as LanguageCode | '')}
-              >
-                <option value="">{t('common.none')}</option>
-                {SUBTITLE_LANGUAGES.filter((l) => l.code !== lang).map((l) => (
-                  <option key={l.code} value={l.code}>
-                    {l.name}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </Field>
+        <Section title={t('downloadSetup.subtitles')} description={t('downloadSetup.subtitlesHint')}>
+          <Toggle
+            label={t('downloadSetup.subtitlesEnabled')}
+            checked={wantSubtitles}
+            onChange={setWantSubtitles}
+            testId="download-sub-enabled"
+          />
+          {wantSubtitles && !accountReady ? (
+            <div className={styles.conflict} data-testid="download-sub-no-account">
+              <Warn text={t('subtitles.noAccount')} />
+              <Link to="/settings">{t('subtitles.noAccountAction')}</Link>
+            </div>
+          ) : null}
+          {wantSubtitles ? (
+            <>
+              <Field label={t('downloadSetup.subtitleLang')}>
+                {(a) => (
+                  <Select
+                    {...a}
+                    value={lang}
+                    onChange={(e) => setLang(e.target.value as LanguageCode)}
+                    data-testid="download-sub-lang"
+                  >
+                    {SUBTITLE_LANGUAGES.map((l) => (
+                      <option key={l.code} value={l.code}>
+                        {l.name}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
+              <Field label={t('downloadSetup.fallback')} hint={t('settings.subtitles.fallbackHint')}>
+                {(a) => (
+                  <Select {...a} value={fallback} onChange={(e) => setFallback(e.target.value as LanguageCode | '')}>
+                    <option value="">{t('common.none')}</option>
+                    {SUBTITLE_LANGUAGES.filter((l) => l.code !== lang).map((l) => (
+                      <option key={l.code} value={l.code}>
+                        {l.name}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
+            </>
+          ) : null}
         </Section>
 
         <Section title={t('downloadSetup.seeding')} description={t('downloadSetup.seedingHint')}>

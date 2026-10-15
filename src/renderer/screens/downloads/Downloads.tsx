@@ -1,7 +1,19 @@
-import { ArrowDown, ArrowUp, Download, FolderOpen, Info, Pause, Play, RotateCcw, Search, Users } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  Download,
+  FolderOpen,
+  Info,
+  Pause,
+  Play,
+  RotateCcw,
+  Search,
+  SkipForward,
+  Users,
+} from 'lucide-react';
 import { Link, useNavigate } from 'react-router';
 import type { DownloadJob } from '@shared/contracts/downloads';
-import { openJobFolder, useDownloads, useJobProgress, usePause, useResume } from '../../api/downloads';
+import { openJobFolder, useDownloads, useJobProgress, usePause, useResume, useSetSubtitles } from '../../api/downloads';
 import { formatBytes, formatDuration, formatRate } from '../../format';
 import { t } from '../../i18n/t';
 import { Button } from '../../ui/Button';
@@ -67,7 +79,10 @@ function JobRow({ job }: { job: DownloadJob }) {
   const progress = useJobProgress(job.id);
   const pause = usePause();
   const resume = useResume();
+  const subtitles = useSetSubtitles();
   const { status, total, done, percent } = jobView(job, progress);
+  // D-78: the movie is done and only subtitles keep the download from being ready — offer to skip them.
+  const canSkipSubtitles = status.kind === 'subtitles_in_progress' || status.kind === 'ready_subtitles_attention';
   const ep = episodeLabel(job);
   const canPause = [
     'queued',
@@ -94,9 +109,7 @@ function JobRow({ job }: { job: DownloadJob }) {
           <StatusBadge status={status} />
           {status.seeding ? <span className={styles.seedBadge}>{t('downloads.seeding')}</span> : null}
           <span className={styles.seedBadge} role="status">
-            {job.subtitles.length
-              ? [...new Set(job.subtitles.map((s) => t(`subtitles.state.${s.state}`)))].join(' · ')
-              : t(job.subtitleLang ? 'subtitles.state.pending' : 'subtitles.state.disabled')}
+            {subtitleSummary(job)}
           </span>
         </div>
         <p className={`mono ${styles.release}`} title={job.releaseName}>
@@ -168,6 +181,18 @@ function JobRow({ job }: { job: DownloadJob }) {
             {job.state === 'error' ? t('downloads.retry') : t('downloads.resume')}
           </Button>
         ) : null}
+        {canSkipSubtitles ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={subtitles.isPending}
+            onClick={() => subtitles.mutate({ jobId: job.id, language: null, fallback: null })}
+            aria-label={`${t('subtitles.skip')}: ${job.target.title}`}
+            data-testid="job-skip-subtitles"
+          >
+            <SkipForward size={13} aria-hidden /> {t('subtitles.skip')}
+          </Button>
+        ) : null}
         <Button
           size="sm"
           variant="ghost"
@@ -186,4 +211,10 @@ function JobRow({ job }: { job: DownloadJob }) {
       </div>
     </li>
   );
+}
+
+function subtitleSummary(job: DownloadJob): string {
+  if (!job.subtitleLang) return t('subtitles.state.disabled');
+  const states = job.subtitles.filter((s) => s.state !== 'disabled').map((s) => t(`subtitles.state.${s.state}`));
+  return states.length ? [...new Set(states)].join(' · ') : t('subtitles.state.pending');
 }

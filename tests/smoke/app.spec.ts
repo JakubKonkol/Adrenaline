@@ -127,9 +127,23 @@ test('first run, onboarding, settings kept after restart, isolated renderer', as
     await expect(releaseRow).toBeVisible();
     await releaseRow.press('Enter');
     await expect(page.getByTestId('download-start')).toBeEnabled();
+    // D-78: without an OpenSubtitles account subtitles start switched off; turning them on explains why they
+    // cannot work yet, and the download goes ahead without them.
+    const wantSubtitles = page.getByTestId('download-sub-enabled');
+    await expect(wantSubtitles).toHaveAttribute('aria-checked', 'false');
+    await wantSubtitles.click();
+    await expect(page.getByTestId('download-sub-no-account')).toBeVisible();
+    await expect(page.getByTestId('download-sub-lang')).toHaveValue('en');
+    await wantSubtitles.click();
+    await expect(page.getByTestId('download-sub-lang')).toHaveCount(0);
     await page.getByTestId('download-start').press('Enter');
     await expect(page.getByTestId('screen-job')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Subtitles', exact: true })).toBeVisible();
+    // Subtitles can be fetched later and skipped again at any time.
+    await page.getByTestId('subtitles-get').click();
+    await expect(page.getByTestId('subtitles-skip')).toBeVisible();
+    await page.getByTestId('subtitles-skip').click();
+    await expect(page.getByTestId('subtitles-get')).toBeVisible();
     // Explorer calls are replaced in main: exercise the action without opening another window.
     await app.evaluate(({ shell }) => {
       shell.openPath = () => Promise.resolve('');

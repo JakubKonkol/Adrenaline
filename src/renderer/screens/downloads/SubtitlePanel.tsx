@@ -1,10 +1,14 @@
 import { useMutation } from '@tanstack/react-query';
+import { AlertTriangle, Captions, SkipForward } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router';
 import type { DownloadJob, SubtitleTaskDto } from '@shared/contracts/downloads';
 import { languageCodeSchema } from '@shared/contracts/settings';
 import { LANGUAGE_CODES, languageName } from '@shared/domain/languages';
 import { isAppErrorCode } from '@shared/errors';
 import { api, ApiError, unwrap } from '../../api/bridge';
+import { useSetSubtitles } from '../../api/downloads';
+import { useSettings, useSubtitleAccountReady } from '../../api/settings';
 import { t } from '../../i18n/t';
 import { Button } from '../../ui/Button';
 import { ErrorNotice } from '../../ui/ErrorNotice';
@@ -13,27 +17,40 @@ import { Card } from '../../ui/Page';
 import styles from './SubtitlePanel.module.css';
 
 export function SubtitlePanel({ job }: { job: DownloadJob }) {
-  const [language, setLanguage] = useState(job.subtitleLang ?? '');
+  const { data: settings } = useSettings();
+  const accountReady = useSubtitleAccountReady();
+  const enabled = job.subtitleLang !== null;
+  const [language, setLanguage] = useState(job.subtitleLang ?? settings?.subtitleLang ?? 'en');
   const [fallback, setFallback] = useState(job.subtitleFallbackLang ?? '');
-  const change = useMutation({
-    mutationFn: () =>
-      unwrap(
-        api().subtitles.language({
-          jobId: job.id,
-          language: language ? languageCodeSchema.parse(language) : null,
-          fallback: fallback ? languageCodeSchema.parse(fallback) : null,
-        }),
-      ),
-  });
+  const change = useSetSubtitles();
+  const apply = (lang: string | null) =>
+    change.mutate({
+      jobId: job.id,
+      language: lang ? languageCodeSchema.parse(lang) : null,
+      fallback: lang && fallback && fallback !== lang ? languageCodeSchema.parse(fallback) : null,
+    });
+  const unchanged = language === (job.subtitleLang ?? '') && fallback === (job.subtitleFallbackLang ?? '');
   return (
     <Card>
-      <h2>{t('subtitles.title')}</h2>
-      <p>{t('subtitles.hint')}</p>
+      <div className={styles.header}>
+        <h2>{t('subtitles.title')}</h2>
+        {enabled ? (
+          <Button variant="ghost" disabled={change.isPending} onClick={() => apply(null)} data-testid="subtitles-skip">
+            <SkipForward size={14} aria-hidden /> {change.isPending ? t('subtitles.skipping') : t('subtitles.skip')}
+          </Button>
+        ) : null}
+      </div>
+      <p>{enabled ? t('subtitles.hint') : t('subtitles.off')}</p>
+      {accountReady === false ? (
+        <p className={styles.warn} data-testid="subtitles-no-account">
+          <AlertTriangle size={13} aria-hidden /> {t('subtitles.noAccount')}{' '}
+          <Link to="/settings">{t('subtitles.noAccountAction')}</Link>
+        </p>
+      ) : null}
       <div className={styles.options}>
         <Field label={t('subtitles.language')}>
           {(a) => (
             <Select {...a} value={language} onChange={(e) => setLanguage(e.target.value)}>
-              <option value="">{t('subtitles.state.disabled')}</option>
               {LANGUAGE_CODES.map((l) => (
                 <option key={l} value={l}>
                   {languageName(l)}
@@ -46,7 +63,7 @@ export function SubtitlePanel({ job }: { job: DownloadJob }) {
           {(a) => (
             <Select {...a} value={fallback} onChange={(e) => setFallback(e.target.value)}>
               <option value="">{t('subtitles.noFallback')}</option>
-              {LANGUAGE_CODES.map((l) => (
+              {LANGUAGE_CODES.filter((l) => l !== language).map((l) => (
                 <option key={l} value={l}>
                   {languageName(l)}
                 </option>
@@ -54,24 +71,30 @@ export function SubtitlePanel({ job }: { job: DownloadJob }) {
             </Select>
           )}
         </Field>
-        <Button
-          disabled={
-            change.isPending || (language === (job.subtitleLang ?? '') && fallback === (job.subtitleFallbackLang ?? ''))
-          }
-          onClick={() => change.mutate()}
-        >
-          {t('subtitles.change')}
-        </Button>
+        {enabled ? (
+          <Button disabled={change.isPending || unchanged} onClick={() => apply(language)}>
+            {t('subtitles.change')}
+          </Button>
+        ) : (
+          <Button
+            variant="primary"
+            disabled={change.isPending}
+            onClick={() => apply(language)}
+            data-testid="subtitles-get"
+          >
+            <Captions size={14} aria-hidden /> {change.isPending ? t('subtitles.getting') : t('subtitles.get')}
+          </Button>
+        )}
       </div>
       {change.error ? <ErrorNotice error={change.error} /> : null}
       <div aria-live="polite">
-        {job.subtitles.length === 0 ? (
-          <p>{t(job.subtitleLang ? 'subtitles.state.pending' : 'subtitles.state.disabled')}</p>
-        ) : null}
+        {enabled && job.subtitles.every((s) => s.state === 'disabled') ? <p>{t('subtitles.state.pending')}</p> : null}
       </div>
-      {job.subtitles.map((task) => (
-        <Task key={task.id} job={job} task={task} />
-      ))}
+      {enabled
+        ? job.subtitles
+            .filter((task) => task.state !== 'disabled')
+            .map((task) => <Task key={task.id} job={job} task={task} />)
+        : null}
       <p>{t('subtitles.attribution')}</p>
     </Card>
   );
