@@ -15,3 +15,18 @@
   min-width: 0;
   overflow-y: auto;
 }
+
+.skip {
+  position: fixed;
+  top: 40px;
+  left: 8px;
+  z-index: 100;
+  padding: 8px 12px;
+  transform: translateY(-200px);
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+  border: 2px solid var(--border-focus);
+}
+.skip:focus-visible {
+  transform: none;
+}

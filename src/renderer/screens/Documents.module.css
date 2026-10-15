@@ -1,0 +1,13 @@
+.document {
+  max-width: 85ch;
+  line-height: 1.7;
+}
+.document pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: inherit;
+}
+.document p,
+.document h2 {
+  margin-bottom: 16px;
+}

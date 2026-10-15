@@ -35,7 +35,7 @@ export function StatusBadge({ status }: { status: DerivedJobStatus }) {
                 : (['busy', 'info'] as const);
   const Icon = ICONS[icon];
   return (
-    <span className={`${styles.badge} ${styles[tone]}`} data-testid="job-status">
+    <span className={`${styles.badge} ${styles[tone]}`} data-testid="job-status" role="status">
       <Icon size={11} aria-hidden />
       {t(`downloads.status.${k}`)}
     </span>

@@ -17,13 +17,13 @@
   /* Borders */
   --border-subtle: #232932;
   --border-default: #2c333d;
-  --border-strong: #3a4350;
+  --border-strong: #737f8f;
   --border-focus: #ffa057;
 
   /* Text */
   --text-primary: #e6e8eb;
   --text-secondary: #a8b0bb;
-  --text-muted: #6e7682;
+  --text-muted: #919aa6;
   --text-inverse: #0b0d10;
 
   /* Brand accent (logo: #ff7a3d / #ffa057 atoms, #ff3d5e tip, #facc15 subtitle lines) */
@@ -38,8 +38,8 @@
   /* States */
   --success: #22c55e;
   --warning: #f5a524;
-  --danger: #ef4444;
-  --danger-on: #ffffff;
+  --danger: #ff7070;
+  --danger-on: #0b0d10;
   --info: #38bdf8;
 
   /* Typography */
@@ -79,26 +79,27 @@
 
     --border-subtle: #e2e6eb;
     --border-default: #cfd5dc;
-    --border-strong: #b1bac5;
+    --border-strong: #707b89;
     --border-focus: #c2410c;
 
     --text-primary: #1b1f24;
     --text-secondary: #4b5563;
-    --text-muted: #6f7782;
+    --text-muted: #596370;
     --text-inverse: #ffffff;
 
     --accent: #c2410c;
-    --accent-hover: #ea580c;
-    --accent-text: #c2410c;
+    --accent-hover: #9a3412;
+    --accent-text: #9a3412;
     --accent-on: #ffffff;
     --accent-muted: #ffedd5;
     --brand-tip: #e11d48;
     --subs: #a16207;
 
-    --success: #16a34a;
-    --warning: #b7791f;
-    --danger: #d93636;
-    --info: #0b87c2;
+    --success: #166534;
+    --warning: #854d0e;
+    --danger: #b91c1c;
+    --danger-on: #ffffff;
+    --info: #075985;
 
     --shadow-elevated: 0 8px 24px rgb(15 23 42 / 0.16);
   }

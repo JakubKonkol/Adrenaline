@@ -1,8 +1,11 @@
 import { FolderOpen, RefreshCw } from 'lucide-react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router';
 import type { UpdaterStatus } from '@shared/contracts/app';
 import logoDark from '../assets/brand/adrenaline-logo-on-dark.svg';
 import logoLight from '../assets/brand/adrenaline-logo-on-light.svg';
-import { api } from '../api/bridge';
+import { api, unwrap } from '../api/bridge';
+import { ErrorNotice } from '../ui/ErrorNotice';
 import { TmdbAttribution } from '../components/TmdbAttribution';
 import { useEngineStatus, useRestartEngine } from '../api/engine';
 import { useAppVersion, useCheckForUpdates, useUpdaterStatus } from '../api/updater';
@@ -26,6 +29,12 @@ export function updaterStatusText(s: UpdaterStatus | undefined): string {
 }
 
 export function About() {
+  const { data: diagnostics } = useQuery({
+    queryKey: ['diagnostics'],
+    queryFn: () => unwrap(api().app.diagnostics()),
+    refetchInterval: 5000,
+  });
+  const copy = useMutation({ mutationFn: () => unwrap(api().app.copyDiagnostics()) });
   const { data: version } = useAppVersion();
   const { data: status } = useUpdaterStatus();
   const check = useCheckForUpdates();
@@ -89,7 +98,31 @@ export function About() {
               {t('about.openLogs')}
             </Button>
           </dd>
+          <dt className="label">{t('about.runtime')}</dt>
+          <dd className="mono">
+            {diagnostics
+              ? `Electron ${diagnostics.versions.electron ?? '—'} · Node ${diagnostics.versions.node ?? '—'}`
+              : t('app.loading')}
+          </dd>
+          <dt className="label">{t('about.jackett')}</dt>
+          <dd>
+            {diagnostics
+              ? `${diagnostics.versions.jackett ?? '—'} · ${t(`sources.jackettState.${diagnostics.jackett}`)}`
+              : t('app.loading')}
+          </dd>
         </dl>
+      </Card>
+      <Card>
+        <p>{t('about.diagnosticsHint')}</p>
+        <Button disabled={copy.isPending} onClick={() => copy.mutate()}>
+          {t('about.copyDiagnostics')}
+        </Button>
+        {copy.isSuccess ? <p role="status">{t('about.copied')}</p> : null}
+        {copy.error ? <ErrorNotice error={copy.error} /> : null}
+        <p>
+          <Link to="/guide">{t('about.guide')}</Link> · <Link to="/licenses">{t('about.licenses')}</Link>
+        </p>
+        <p>{t('subtitles.attribution')}</p>
       </Card>
 
       <p className={styles.footer}>{t('about.author')}</p>

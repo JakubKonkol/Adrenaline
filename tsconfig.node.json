@@ -5,6 +5,7 @@
     "types": ["node"],
     "paths": { "@shared/*": ["./src/shared/*"] }
   },
+  "exclude": ["tests/smoke/**"],
   "include": [
     "electron.vite.config.ts",
     "vitest.config.ts",

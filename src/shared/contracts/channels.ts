@@ -4,6 +4,8 @@
  */
 export const IPC_CHANNEL_NAMES = [
   'app:version',
+  'app:diagnostics',
+  'app:copyDiagnostics',
   'app:updaterStatus',
   'app:checkForUpdates',
   'app:installUpdate',

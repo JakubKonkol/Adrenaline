@@ -185,6 +185,7 @@ export const pl = {
     onboardingBody: 'Włącz źródła, w których Adrenaline ma szukać wydań. Możesz to zmienić później w Ustawieniach.',
   },
   app: {
+    skipToContent: 'Przejdź do treści',
     name: 'Adrenaline',
     version: 'Wersja {version}',
     loading: 'Ładowanie…',
@@ -392,6 +393,13 @@ export const pl = {
     restart: 'Uruchom ponownie',
   },
   about: {
+    runtime: 'Środowisko aplikacji',
+    jackett: 'Jackett',
+    guide: 'Instrukcja użytkownika',
+    licenses: 'Licencje składników',
+    copyDiagnostics: 'Kopiuj diagnostykę',
+    copied: 'Diagnostyka skopiowana',
+    diagnosticsHint: 'Wersje, stan procesów, liczba zadań i kody błędów — bez tytułów, ścieżek i sekretów.',
     title: 'O aplikacji',
     tagline: 'Film i napisy w jednym folderze.',
     versionLabel: 'Wersja',

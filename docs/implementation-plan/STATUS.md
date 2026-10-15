@@ -2,7 +2,9 @@
 
 Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka notatka, jeśli coś odbiega od planu). Zadania odpowiadają numeracji w `etapy/`.
 
-**Bieżący etap:** 7.2–7.6 zakończone w kodzie; test OpenSubtitles live pozostaje otwarty (brak konta). Następny: 8 — dopracowanie bety. Etap 1: czeka test aktualizacji.
+**Bieżący etap:** 7.2–7.6 zakończone w kodzie; 8.1, 8.3, 8.4 zaimplementowane, 8.2/8.6 częściowo zweryfikowane. Test OpenSubtitles live, odbiór Windows i autoupdate pozostają otwarte. Prace domykane na prośbę właściciela; nie wydano v0.9.0.
+
+**Przekazanie Codex → Claude:** [../current-progress.md](../current-progress.md). Końcowy check 15.10.2026: **342 testy zaliczone, 3 pominięte**, lint i typecheck zielone; build i rozszerzony smoke w WSL/xvfb przechodzą. Etap 7 w `2f05349`, wersja v0.7.0 w `0cf9e0d`; CI obu zielone. [Release v0.7.0](https://github.com/JakubKonkol/Adrenaline/actions/runs/38789174329): testy aplikacji i Windows engine/swarm zielone, przy ostatnim sprawdzeniu trwało pakowanie. Zmiany etapu 8 nie są częścią taga v0.7.0.
 **Ostatnie wydanie:** [v0.6.0](https://github.com/JakubKonkol/Adrenaline/releases/tag/v0.6.0) — [Release 38786238007](https://github.com/JakubKonkol/Adrenaline/actions/runs/38786238007) zakończony sukcesem: test aplikacji, silnik i swarm Windows, pakowanie, publikacja instalatora + blockmap + latest.yml. Starsze błędy swarmu poprawiono przed tym wydaniem (m.in. `6e3f2b0`: pomiar wznowienia po zapisie resume).
   v0.1.0 (15.10.2026): electron-builder utworzył 2 Release dla jednego taga — scalone ręcznie, workflow poprawiony: najpierw draft)
 
@@ -82,13 +84,13 @@ Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka no
 - [x] 7.6 UI — status napisów na liście, panel szczegółów z kandydatami/SDH/forced/pewnością, język i fallback, test konta/limity/wylogowanie w Ustawieniach.
 
 ### Etap 8 — Beta
-- [ ] 8.1 Sytuacje wyjątkowe
-- [ ] 8.2 Dostępność i UX
-- [ ] 8.3 O aplikacji i diagnostyka
-- [ ] 8.4 Dokumentacja użytkownika
-- [ ] 8.5 Instalator i aktualizacja (checklista ręczna)
-- [ ] 8.6 Przegląd bezpieczeństwa
-- [ ] 8.7 Wydanie beta v0.9.0
+- [x] 8.1 Sytuacje wyjątkowe — tabela §10 w `docs/manual-tests.md`: kod/stan, akcja w UI i test lub jawnie otwarta próba ręczna.
+- [ ] 8.2 Dostępność i UX — poprawiony kontrast (badane teksty min. 5,62:1 ciemny / 5,15:1 jasny), skip-link, aria-live statusów i postępu. Smoke obejmuje aktywację klawiaturą wydania/pobrania/folderu/dokumentów. NFR01 p95 52,7 ms przy 3 pobraniach, 20 próbek WSL/xvfb. Pełny przegląd kolejności Tab/czytnika pozostaje otwarty.
+- [x] 8.3 O aplikacji i diagnostyka — wersje Electron/Node/silnik/libtorrent/Jackett; kopia diagnostyki w schowku tylko z allowlisty danych (test prywatności). Dokumenty dostępne offline; zestawienie i teksty licencji npm wygenerowane `license-checker-rseidelsohn@5.0.1 --production` (dwa fallbacki README opisane w briefie; do audytu 8.6). Engine CI zbiera licencje natywne do artefaktu i instalatora — wymaga potwierdzenia nowego uruchomienia.
+- [x] 8.4 Dokumentacja użytkownika — `docs/user-guide.md`, dostępna z O aplikacji, konta, źródła, seedowanie, statusy napisów, dane i odinstalowanie.
+- [ ] 8.5 Instalator i aktualizacja — checklista dopisana do `docs/manual-tests.md`; prób na czystym Windows nie wykonano.
+- [ ] 8.6 Przegląd bezpieczeństwa — `npm audit --omit=dev` = 0 podatności; przejrzane CSP/IPC/hosty/archiwa/diagnostyka. Końcowy przegląd logów/nasłuchów i całej listy bezpieczeństwa pozostaje otwarty.
+- [ ] 8.7 Wydanie beta v0.9.0 — nie wydano. Uzupełnić mapę wymagań po odbiorach. Workflow ma opis „beta” dla v0.9.0, możliwość ponowienia pakowania istniejącego draftu i kontrolę trzech plików przed publikacją.
 
 ## Przypięte wersje
 
@@ -146,6 +148,8 @@ Uzupełnić w etapie 0 (i przy każdej zmianie).
 - Następne prace: zakończyć odbiory powyżej, potem **5.1 — spike Jackett** według `etapy/etap-5-zrodla-jackett.md`. Przejście do etapu 5 bez testu live wymaga jawnego uzasadnienia w Odstępstwach zgodnie z README planu.
 
 ## Pomiary
+
+- **NFR01 (Codex, 15.10.2026, WSL/xvfb):** 3 aktywne pobrania FakeEngine, 20 przełączeń pauza/wznów, kliknięcie → zmiana DOM → dwie klatki: p95 **52,7 ms**. Test w istniejącym `tests/smoke/app.spec.ts`, załącznik `ui-response.json`. Nie jest to pomiar czystej instalacji Windows.
 
 - **NFR11 (15.10.2026, silnik Windows, lokalny seeder, przed limitem working setu):** 1 × 256 MiB — pamięć prywatna 6 MiB, working set 272 MiB; 3 × 256 MiB — prywatna 13 MiB, working set 787 MiB. Working set rósł liniowo przez mmap → limit 512 MiB (D-44).
 - **NFR11 po limicie (silnik z CI 4d0bb86):** 1 × 256 MiB — prywatna 6 MiB, working set 273 MiB, 6 s; 3 × 256 MiB — prywatna 9 MiB, working set 512 MiB (limit), 8 s. Pamięć nie rośnie już liniowo z rozmiarem; skrypt: `scripts/dev/memory.test.ts`.

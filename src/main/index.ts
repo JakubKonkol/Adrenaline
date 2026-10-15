@@ -1,6 +1,7 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { app, type BrowserWindow, ipcMain, nativeTheme, Notification, safeStorage, shell } from 'electron';
+import { app, type BrowserWindow, clipboard, ipcMain, nativeTheme, Notification, safeStorage, shell } from 'electron';
+import { diagnostics } from './services/diagnostics';
 import electronUpdater from 'electron-updater';
 import type { EngineStatus } from '@shared/contracts/app';
 import { setupEngine } from './engine/setup';
@@ -213,6 +214,21 @@ if (!app.requestSingleInstanceLock()) {
     // Subtitle actions remain available even when the torrent helper cannot start.
     const jobs = new JobsRepository(db);
     const subtitleTasks = new SubtitlesRepository(db);
+    const getDiagnostics = () =>
+      diagnostics({
+        app: __ADRENALINE_VERSION__,
+        electron: process.versions.electron,
+        node: process.versions.node,
+        engine: engineStatus(),
+        jackett: jackett.status,
+        jobs: jobs.active(),
+        subtitleErrors: jobs.active().flatMap((j) => subtitleTasks.list(j.id).map((t) => t.errorCode)),
+        sourceErrors: sources.list().map((s) => s.healthCode),
+      });
+    ipc.handle('app:diagnostics', getDiagnostics);
+    ipc.handle('app:copyDiagnostics', async () => {
+      await clipboard.writeText(JSON.stringify(getDiagnostics(), null, 2));
+    });
     const subtitles = new SubtitleService({
       jobs,
       tasks: subtitleTasks,

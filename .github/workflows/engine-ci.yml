@@ -60,6 +60,22 @@ jobs:
         run: |
           dumpbin /dependents "$env:ENGINE_EXE"
           & "$env:ENGINE_EXE" --version
+      - name: Collect dependency licenses
+        shell: pwsh
+        run: |
+          $licenseRoot = 'native/engine/build/windows-release/vcpkg_installed/x64-windows-static/share'
+          $licenseOutput = 'resources/licenses/engine'
+          New-Item -ItemType Directory -Force $licenseOutput | Out-Null
+          $licenseFiles = @(Get-ChildItem -LiteralPath $licenseRoot -Filter copyright -Recurse -File)
+          if ($licenseFiles.Count -eq 0) { throw 'No dependency licenses found' }
+          foreach ($licenseFile in $licenseFiles) {
+            Copy-Item -LiteralPath $licenseFile.FullName -Destination (Join-Path $licenseOutput ($licenseFile.Directory.Name + '.txt'))
+          }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: engine-licenses
+          path: resources/licenses/engine
+          if-no-files-found: error
       # Uploaded before the test so a failing swarm run can be reproduced locally; the release job only
       # packages it when this whole job succeeded.
       - uses: actions/upload-artifact@v4

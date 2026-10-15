@@ -36,12 +36,23 @@ jobs:
           name: adrenaline-engine
           path: resources/engine
       - run: node scripts/fetch-jackett.mjs
+      - uses: actions/download-artifact@v4
+        with:
+          name: engine-licenses
+          path: resources/licenses/engine
       - run: npm run build
       # The release is created as a draft first: electron-builder uploads files in parallel and, without an
       # existing release, may create two releases for one tag. The draft is published once all files are there.
       - name: Create draft release
         shell: bash
-        run: gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "${GITHUB_REF_NAME#v}" --notes "Adrenaline ${GITHUB_REF_NAME#v}"
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --json isDraft > release-state.json; then
+            node -e "if(!require('./release-state.json').isDraft) process.exit(1)"
+          else
+            LABEL="Adrenaline ${GITHUB_REF_NAME#v}"
+            if [[ "$GITHUB_REF_NAME" == "v0.9.0" ]]; then LABEL="$LABEL — beta (testy odbiorcze w docs/manual-tests.md)"; fi
+            gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "${GITHUB_REF_NAME#v}" --notes "$LABEL"
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Package and upload
@@ -52,7 +63,8 @@ jobs:
       - name: Publish release
         shell: bash
         run: |
-          gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets[].name'
+          gh release view "$GITHUB_REF_NAME" --json assets > release-assets.json
+          node scripts/check-release-assets.mjs release-assets.json "$GITHUB_REF_NAME"
           if [[ "${GITHUB_REF_NAME}" == *-* ]]; then PRE=--prerelease; else PRE=--latest; fi
           gh release edit "$GITHUB_REF_NAME" --draft=false $PRE
         env:

@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { _electron as electron, type ElectronApplication, expect, test } from '@playwright/test';
@@ -7,6 +7,11 @@ import series from '../fixtures/tmdb/search-tv.json' with { type: 'json' };
 import movie from '../fixtures/tmdb/movie.json' with { type: 'json' };
 import show from '../fixtures/tmdb/tv.json' with { type: 'json' };
 import season from '../fixtures/tmdb/season.json' with { type: 'json' };
+const caps = readFileSync('tests/fixtures/torznab/caps.xml', 'utf8');
+const releases = `<?xml version="1.0"?><rss version="2.0" xmlns:torznab="http://torznab.com/schemas/2015/feed"><channel><item>
+<title>Przygody.Adrenaliny.S01E02.1080p.WEB-DL.x264-SMOKE</title><guid>smoke-release</guid><size>104857600</size>
+<torznab:attr name="seeders" value="5"/><torznab:attr name="magneturl" value="magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&amp;dn=Smoke.Episode.S01E02"/>
+</item></channel></rss>`;
 
 const launch = (userData: string) =>
   electron.launch({
@@ -57,6 +62,12 @@ test('first run, onboarding, settings kept after restart, isolated renderer', as
     await page.getByTestId('onboarding-skip').click();
     await next.click();
     await expect(page.getByTestId('screen-home')).toBeVisible();
+    await page.evaluate(
+      async (downloadDir) => {
+        await window.adrenaline.settings.update({ downloadDir });
+      },
+      join(userData, 'Downloads'),
+    );
 
     // Stage 4: real preload/IPC/SQLite, provider HTTP replaced only in the test process.
     await page.route('https://image.tmdb.org/**', (route) => route.abort());
@@ -64,6 +75,12 @@ test('first run, onboarding, settings kept after restart, isolated renderer', as
       (_electron, fixtures) => {
         globalThis.fetch = (input) => {
           const url = new URL(input instanceof Request ? input.url : input.toString());
+          if (url.hostname === 'smoke.invalid')
+            return Promise.resolve(
+              new Response(url.searchParams.get('t') === 'caps' ? fixtures.caps : fixtures.releases, {
+                headers: { 'Content-Type': 'application/xml' },
+              }),
+            );
           if (url.hostname !== 'api.themoviedb.org')
             return Promise.reject(new Error('Unexpected network request in smoke'));
           const body =
@@ -81,7 +98,7 @@ test('first run, onboarding, settings kept after restart, isolated renderer', as
           return Promise.resolve(Response.json(body, { status: body ? 200 : 404 }));
         };
       },
-      { movies, series, movie, show, season },
+      { movies, series, movie, show, season, caps, releases },
     );
     await page.getByRole('searchbox').fill('Night of the Living Dead');
     await page.getByRole('searchbox').press('Enter');
@@ -97,11 +114,48 @@ test('first run, onboarding, settings kept after restart, isolated renderer', as
       .click();
     await expect(page.getByTestId('screen-releases')).toContainText('Sezon 1 · Odcinek 2');
     await expect(page.getByTestId('screen-releases')).toContainText('Nie masz włączonych źródeł');
+    const source = await page.evaluate(() =>
+      window.adrenaline.sources.addCustom({
+        name: 'Smoke source',
+        endpoint: 'https://smoke.invalid/torznab',
+        apiKey: null,
+      }),
+    );
+    expect(source.ok).toBe(true);
+    await page.getByRole('button', { name: 'Odśwież', exact: true }).press('Enter');
+    const releaseRow = page.getByRole('row').filter({ hasText: 'Przygody.Adrenaliny.S01E02' });
+    await expect(releaseRow).toBeVisible();
+    await releaseRow.press('Enter');
+    await expect(page.getByTestId('download-start')).toBeEnabled();
+    await page.getByTestId('download-start').press('Enter');
+    await expect(page.getByTestId('screen-job')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Napisy', exact: true })).toBeVisible();
+    // Explorer calls are replaced in main: exercise the action without opening another window.
+    await app.evaluate(({ shell }) => {
+      shell.openPath = () => Promise.resolve('');
+      shell.showItemInFolder = () => {};
+    });
+    await page.getByRole('button', { name: 'Otwórz folder', exact: true }).press('Enter');
+    const created = await page.evaluate(() => window.adrenaline.downloads.list());
+    expect(created.ok).toBe(true);
+    if (created.ok)
+      for (const job of created.data)
+        await page.evaluate((id) => window.adrenaline.downloads.remove({ jobId: id, deleteFiles: false }), job.id);
 
     await page.getByRole('link', { name: 'O aplikacji' }).click();
     await expect(page.getByTestId('app-version')).toContainText(/\d+\.\d+\.\d+/);
     await expect(page.getByTestId('updater-status')).toContainText('wyłączone');
     await expect(page.getByTestId('engine-status')).toContainText('Działa');
+    await page.getByRole('button', { name: 'Kopiuj diagnostykę' }).press('Enter');
+    await expect(page.getByText('Diagnostyka skopiowana')).toBeVisible();
+    const diagnostics = await app.evaluate(({ clipboard }) => clipboard.readText());
+    expect(diagnostics).not.toMatch(/smoke-test-token|Smoke|Przygody|magnet:|smoke.invalid|Downloads/);
+    expect(JSON.parse(diagnostics)).toHaveProperty('versions.electron');
+    await page.getByRole('link', { name: 'Instrukcja użytkownika' }).press('Enter');
+    await expect(page.getByRole('heading', { name: 'Pierwsze uruchomienie' })).toBeVisible();
+    await page.getByRole('link', { name: 'Wstecz', exact: true }).press('Enter');
+    await page.getByRole('link', { name: 'Licencje składników' }).press('Enter');
+    await expect(page.locator('article')).toContainText('react@19.3.1');
 
     // Etap 6.6: a job through the hidden test API (fake engine only) → progress → pause → kept after restart.
     const added = await page.evaluate(async () => {
@@ -174,6 +228,53 @@ test('first run, onboarding, settings kept after restart, isolated renderer', as
     await expect(restored).toHaveAttribute('data-state', 'paused');
     await restored.getByRole('button', { name: /Wznów/ }).click();
     await expect(restored).toHaveAttribute('data-state', 'downloading');
+    // NFR01: click-to-painted-state, 20 samples while two other jobs are transferring.
+    await page.evaluate(async () => {
+      await window.adrenaline.settings.update({ maxActiveDownloads: 3 });
+      await window.adrenaline.dev.addTestDownload({ name: 'Performance A' });
+      await window.adrenaline.dev.addTestDownload({ name: 'Performance B' });
+    });
+    await expect(page.locator('[data-state="downloading"]')).toHaveCount(3);
+    const samples: number[] = [];
+    for (let i = 0; i < 20; i++) {
+      const expected = i % 2 === 0 ? 'paused' : 'downloading';
+      samples.push(
+        await restored.evaluate(
+          (element, state) =>
+            new Promise<number>((resolve, reject) => {
+              const start = performance.now();
+              const timer = setTimeout(() => {
+                observer.disconnect();
+                reject(new Error('UI response timeout'));
+              }, 2000);
+              const observer = new MutationObserver(() => {
+                if (element.getAttribute('data-state') === state) {
+                  observer.disconnect();
+                  clearTimeout(timer);
+                  requestAnimationFrame(() => requestAnimationFrame(() => resolve(performance.now() - start)));
+                }
+              });
+              observer.observe(element, { attributes: true, attributeFilter: ['data-state'] });
+              const text = state === 'paused' ? 'Wstrzymaj' : 'Wznów';
+              const button = [...element.querySelectorAll('button')].find((b) => b.textContent?.includes(text));
+              if (!button) {
+                clearTimeout(timer);
+                observer.disconnect();
+                reject(new Error('Missing action'));
+                return;
+              }
+              button.click();
+            }),
+          expected,
+        ),
+      );
+    }
+    const p95 = [...samples].sort((a, b) => a - b)[Math.ceil(samples.length * 0.95) - 1]!;
+    process.stdout.write(`NFR01: 3 downloads, 20 samples, p95 ${p95.toFixed(1)} ms\n`);
+    await test
+      .info()
+      .attach('ui-response.json', { body: JSON.stringify({ samples, p95 }), contentType: 'application/json' });
+    expect(p95).toBeLessThan(200);
     await quit(app);
   } finally {
     rmSync(userData, { recursive: true, force: true });

@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.cache/tsbuildinfo/smoke.tsbuildinfo",
+    "lib": ["ES2024", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "paths": { "@shared/*": ["./src/shared/*"] }
+  },
+  "include": ["tests/smoke/**/*.ts", "tests/fixtures/**/*.json", "src/shared/**/*", "src/renderer/env.d.ts"]
+}

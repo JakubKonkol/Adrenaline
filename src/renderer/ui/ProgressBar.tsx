@@ -17,6 +17,7 @@ export function ProgressBar({
     <div
       className={`${styles.track} ${stale ? styles.stale : ''}`}
       role="progressbar"
+      aria-live="polite"
       aria-label={label}
       aria-valuemin={0}
       aria-valuemax={100}

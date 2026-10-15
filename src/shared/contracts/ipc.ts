@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { AppErrorShape } from '../errors';
-import { engineStatusSchema, updaterStatusSchema } from './app';
+import { engineStatusSchema, updaterStatusSchema, diagnosticsSchema } from './app';
 import type { ChannelName, EventName } from './channels';
 import {
   appSettingsSchema,
@@ -128,6 +128,8 @@ export const ipcChannels = {
   },
   'settings:testTmdb': { input: z.void(), output: z.boolean() },
   'app:version': { input: z.void(), output: z.string() },
+  'app:diagnostics': { input: z.void(), output: diagnosticsSchema },
+  'app:copyDiagnostics': { input: z.void(), output: z.void() },
   'app:updaterStatus': { input: z.void(), output: updaterStatusSchema },
   'app:checkForUpdates': { input: z.void(), output: updaterStatusSchema },
   'app:installUpdate': { input: z.void(), output: z.boolean() },
