@@ -1,7 +1,7 @@
 {
   "name": "adrenaline",
   "productName": "Adrenaline",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Wyszukaj film lub odcinek, wybierz wydanie i język napisów, pobierz i otwórz gotowy folder.",
   "private": true,
   "main": "out/main/index.js",
