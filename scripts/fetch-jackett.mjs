@@ -8,7 +8,7 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
-  renameSync,
+  cpSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -54,7 +54,8 @@ await extract(zip, { dir: unpacked });
 const inner = existsSync(join(unpacked, 'Jackett')) ? join(unpacked, 'Jackett') : unpacked;
 rmSync(target, { recursive: true, force: true });
 mkdirSync(dirname(target), { recursive: true });
-renameSync(inner, target);
+// cpSync, not rename: the temp folder may be on another drive (C: vs D: on GitHub runners).
+cpSync(inner, target, { recursive: true });
 
 // Updates come with Adrenaline (--NoUpdates); the updater and Windows service helpers are not shipped.
 for (const name of readdirSync(target)) {
