@@ -8,11 +8,27 @@ Zlecenie Jakuba (15.10.2026 wieczorem):
 Gałąź robocza sesji: `claude/finish-implementation-readme-e3hepr` (narzucona przez środowisko; do scalenia na `main`).
 
 Plan i postęp (aktualizowane na bieżąco):
-- [x] Engine CI na `d89d97a` padł na Windows (timeout „download complete” w teście paczki). Lokalnie (Ubuntu 24.04, libtorrent 2.0.10) swarm 4/4 wielokrotnie. Hipoteza: port 0 + ponowne otwarcie gniazd na Windows → nowy port seedera. Seeder dostaje teraz stały wolny port; przy timeoucie test wypisuje stan leechera i port seedera.
-- [ ] UI po angielsku (słownik `en.ts`, błędy, nazwy języków, formatowanie, zasobnik, TMDB `en-US`), decyzja D-xx w `00-decyzje.md`.
-- [ ] Napisy opcjonalne (setup: przełącznik; szczegóły i lista: „Skip subtitles” / „Get subtitles”), bez konta OpenSubtitles domyślnie wyłączone.
-- [ ] README po angielsku + zrzuty (`scripts/dev/screens.mjs` pod xvfb), `docs/user-guide.md` po angielsku.
-- [ ] STATUS.md, mapa wymagań, instrukcja wydania.
+- [x] Engine CI na `d89d97a` padł na Windows (timeout „download complete” w teście paczki; kolejne testy z tym samym seederem przeszły, krok licencji vcpkg przeszedł). Lokalnie (Ubuntu 24.04, libtorrent 2.0.10) swarm 4/4 w 10 przebiegach. Seeder dostał stały port (na wypadek ponownego otwarcia gniazd), a timeout wypisuje stan leechera i port seedera — przyczyna nadal niepotwierdzona (`74bf422`).
+- [x] UI po angielsku (`en.ts`, błędy, nazwy języków, formatowanie, zasobnik, TMDB `en-US`, foldery `Season NN`, instalator `en_US`), decyzja D-77 (`0b00b33`).
+- [x] Napisy opcjonalne: przełącznik w konfiguracji pobrania (domyślnie wł. tylko z kontem OpenSubtitles), „Skip subtitles” (lista + szczegóły), „Get subtitles” (szczegóły), D-78; testy serwisu, domeny, komponentu i smoke (`b9e59ce`).
+- [x] README po angielsku + zrzuty (`scripts/dev/readme-screenshots.mjs`), `docs/user-guide.md`, `docs/dev-setup.md`, README fixtures i komunikaty skryptów live po angielsku (`29cec0a`, `9423bad`).
+- [x] Licencje npm bez pliku LICENSE → tekst MIT; mapa wymagań z kolumną Status; STATUS i manual-tests zaktualizowane.
+- [ ] Odbiory ręczne Jakuba i wydanie v0.9.0 (poniżej).
+
+### Co zostało — dla Jakuba (rano)
+
+1. Scalić gałąź na `main` (fast-forward, gałąź wychodzi z `d89d97a`):
+   ```bash
+   git fetch origin
+   git checkout main && git pull
+   git merge --ff-only origin/claude/finish-implementation-readme-e3hepr
+   git push origin main
+   ```
+   Push na `main` uruchomi CI i Engine CI (Windows). Warto poczekać na zielone Engine CI (swarm) przed tagiem.
+2. Wydanie bety: `npm version 0.9.0 -m "Release v%s"` → `git push origin main --follow-tags`. Workflow Release opisze v0.9.0 jako betę. Jeśli swarm na Windows znów padnie: „Re-run failed jobs” w runie Release (log pokaże stan leechera).
+3. Odbiory z `docs/manual-tests.md` (instalacja/aktualizacja z v0.7.0, odinstalowanie, dyski, OpenSubtitles live, punkt 8 — napisy opcjonalne bez konta).
+
+Uwaga przy aktualizacji z ≤ v0.7.0: zapisane ustawienia zostają; jeśli język napisów nigdy nie był zmieniany, nowa wartość domyślna to angielski (D-77). Cache katalogu TMDB jest w nowym kluczu `en-US`, więc tytuły pobiorą się ponownie po angielsku.
 
 Środowisko w kontenerze: Node 24 przez `/opt/nvm` (`source /opt/nvm/nvm.sh && nvm use 24`), `npm ci`, `node node_modules/electron/install.js` jeśli brak `dist`. Silnik: `apt-get install libtorrent-rasterbar-dev nlohmann-json3-dev cmake ninja-build`, potem preset `linux-system`. Swarm wymaga `LANG=C.UTF-8` (polska nazwa pliku) i `ADRENALINE_SKIP_BIG=1` w kontenerze.
 

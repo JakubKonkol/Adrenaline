@@ -2,11 +2,17 @@
 
 Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka notatka, jeśli coś odbiega od planu). Zadania odpowiadają numeracji w `etapy/`.
 
-**Bieżący etap:** 7.2–7.6 zakończone w kodzie; 8.1, 8.3, 8.4 zaimplementowane, 8.2/8.6 częściowo zweryfikowane. Test OpenSubtitles live, odbiór Windows i autoupdate pozostają otwarte. Prace domykane na prośbę właściciela; nie wydano v0.9.0.
+**Bieżący etap:** 8 — kod gotowy do bety v0.9.0; otwarte są wyłącznie odbiory ręczne właściciela (live OpenSubtitles 7.1, czysty Windows/Sandbox 8.5, pełny przegląd Tab/czytnika 8.2, końcowe nasłuchy/logi 8.6) i samo wydanie 8.7.
 
-**Przekazanie Codex → Claude:** [../current-progress.md](../current-progress.md). Końcowy check 15.10.2026: **342 testy zaliczone, 3 pominięte**, lint i typecheck zielone; build i rozszerzony smoke w WSL/xvfb przechodzą. Etap 7 w `2f05349`, wersja v0.7.0 w `0cf9e0d`; CI obu zielone. [Release v0.7.0](https://github.com/JakubKonkol/Adrenaline/actions/runs/38789174329): testy aplikacji i Windows engine/swarm zielone, przy ostatnim sprawdzeniu trwało pakowanie. Zmiany etapu 8 nie są częścią taga v0.7.0.
-**Ostatnie wydanie:** [v0.6.0](https://github.com/JakubKonkol/Adrenaline/releases/tag/v0.6.0) — [Release 38786238007](https://github.com/JakubKonkol/Adrenaline/actions/runs/38786238007) zakończony sukcesem: test aplikacji, silnik i swarm Windows, pakowanie, publikacja instalatora + blockmap + latest.yml. Starsze błędy swarmu poprawiono przed tym wydaniem (m.in. `6e3f2b0`: pomiar wznowienia po zapisie resume).
-  v0.1.0 (15.10.2026): electron-builder utworzył 2 Release dla jednego taga — scalone ręcznie, workflow poprawiony: najpierw draft)
+**Sesja Claude 15/16.10.2026** (gałąź `claude/finish-implementation-readme-e3hepr`, do scalenia na `main`; szczegóły i kolejne kroki: [../current-progress.md](../current-progress.md)):
+- UI, instrukcja, README, instalator i dokumenty dla osób klonujących repo po angielsku (D-77). TMDB w `en-US`.
+- Napisy opcjonalne per pobranie: przełącznik w konfiguracji, „Skip subtitles” / „Get subtitles” (D-78). Naprawia problem z v0.7.0 (bez konta OpenSubtitles zadanie nigdy nie było „Ready”).
+- README ze zrzutami (`docs/screenshots`, skrypt `scripts/dev/readme-screenshots.mjs`).
+- Licencje npm: `@nodable/entities` i `lazy-val` mają tekst MIT zamiast README.
+- Końcowy check: **345 testów zaliczonych, 6 pominiętych**, lint i typecheck zielone; build + smoke (xvfb) zielone, NFR01 p95 56,9 ms; swarm silnika (Linux, libtorrent 2.0.10) 4/4 w 10 przebiegach.
+- **Engine CI na `d89d97a` (run 38790983921) padł na Windows:** timeout „download complete” w pierwszym teście swarmu (paczka, 12 MiB, 120 s); kolejne 3 testy z tym samym seederem przeszły; krok licencji vcpkg przeszedł. Kod silnika bez zmian od zielonego v0.7.0 → najpewniej flake. Seeder ma teraz stały port, a timeout wypisuje stan leechera i port seedera. Jeśli powtórzy się w Release: „Re-run failed jobs”, a log pokaże przyczynę.
+
+**Ostatnie wydanie:** [v0.7.0](https://github.com/JakubKonkol/Adrenaline/releases/tag/v0.7.0) — opublikowane 15.10.2026 19:05 UTC ([Release 38789174329](https://github.com/JakubKonkol/Adrenaline/actions/runs/38789174329) zielony). Wcześniej v0.6.0 i v0.1.0.
 
 ## Blokady wymagające właściciela
 
@@ -85,12 +91,12 @@ Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka no
 
 ### Etap 8 — Beta
 - [x] 8.1 Sytuacje wyjątkowe — tabela §10 w `docs/manual-tests.md`: kod/stan, akcja w UI i test lub jawnie otwarta próba ręczna.
-- [ ] 8.2 Dostępność i UX — poprawiony kontrast (badane teksty min. 5,62:1 ciemny / 5,15:1 jasny), skip-link, aria-live statusów i postępu. Smoke obejmuje aktywację klawiaturą wydania/pobrania/folderu/dokumentów. NFR01 p95 52,7 ms przy 3 pobraniach, 20 próbek WSL/xvfb. Pełny przegląd kolejności Tab/czytnika pozostaje otwarty.
-- [x] 8.3 O aplikacji i diagnostyka — wersje Electron/Node/silnik/libtorrent/Jackett; kopia diagnostyki w schowku tylko z allowlisty danych (test prywatności). Dokumenty dostępne offline; zestawienie i teksty licencji npm wygenerowane `license-checker-rseidelsohn@5.0.1 --production` (dwa fallbacki README opisane w briefie; do audytu 8.6). Engine CI zbiera licencje natywne do artefaktu i instalatora — wymaga potwierdzenia nowego uruchomienia.
-- [x] 8.4 Dokumentacja użytkownika — `docs/user-guide.md`, dostępna z O aplikacji, konta, źródła, seedowanie, statusy napisów, dane i odinstalowanie.
+- [ ] 8.2 Dostępność i UX — (16.10: smoke obejmuje też przełącznik napisów i „Get/Skip subtitles”) poprawiony kontrast (badane teksty min. 5,62:1 ciemny / 5,15:1 jasny), skip-link, aria-live statusów i postępu. Smoke obejmuje aktywację klawiaturą wydania/pobrania/folderu/dokumentów. NFR01 p95 52,7 ms przy 3 pobraniach, 20 próbek WSL/xvfb. Pełny przegląd kolejności Tab/czytnika pozostaje otwarty.
+- [x] 8.3 O aplikacji i diagnostyka — (16.10: fallbacki README w licencjach npm zastąpione tekstem MIT; krok licencji vcpkg w Engine CI potwierdzony) wersje Electron/Node/silnik/libtorrent/Jackett; kopia diagnostyki w schowku tylko z allowlisty danych (test prywatności). Dokumenty dostępne offline; zestawienie i teksty licencji npm wygenerowane `license-checker-rseidelsohn@5.0.1 --production` (dwa fallbacki README opisane w briefie; do audytu 8.6). Engine CI zbiera licencje natywne do artefaktu i instalatora — wymaga potwierdzenia nowego uruchomienia.
+- [x] 8.4 Dokumentacja użytkownika — `docs/user-guide.md` (od 16.10 po angielsku, z opisem opcjonalnych napisów), dostępna z O aplikacji, konta, źródła, seedowanie, statusy napisów, dane i odinstalowanie.
 - [ ] 8.5 Instalator i aktualizacja — checklista dopisana do `docs/manual-tests.md`; prób na czystym Windows nie wykonano.
-- [ ] 8.6 Przegląd bezpieczeństwa — `npm audit --omit=dev` = 0 podatności; przejrzane CSP/IPC/hosty/archiwa/diagnostyka. Końcowy przegląd logów/nasłuchów i całej listy bezpieczeństwa pozostaje otwarty.
-- [ ] 8.7 Wydanie beta v0.9.0 — nie wydano. Uzupełnić mapę wymagań po odbiorach. Workflow ma opis „beta” dla v0.9.0, możliwość ponowienia pakowania istniejącego draftu i kontrolę trzech plików przed publikacją.
+- [ ] 8.6 Przegląd bezpieczeństwa — `npm audit --omit=dev` = 0 podatności (ponownie 16.10); przejrzane CSP/IPC/hosty/archiwa/diagnostyka. Końcowy przegląd logów/nasłuchów i całej listy bezpieczeństwa pozostaje otwarty.
+- [ ] 8.7 Wydanie beta v0.9.0 — nie wydano (agent nie ma uprawnień do Actions/`main`; instrukcja w `current-progress.md`). Mapa wymagań uzupełniona 16.10 (kolumna Status); po odbiorach właściciela zaktualizować otwarte wiersze. Workflow ma opis „beta” dla v0.9.0, możliwość ponowienia pakowania istniejącego draftu i kontrolę trzech plików przed publikacją.
 
 ## Przypięte wersje
 
@@ -112,6 +118,9 @@ Uzupełnić w etapie 0 (i przy każdej zmianie).
 | Jackett | v0.24.2856 (.NET 9.0.21 w paczce, self-contained) |
 
 ## Odstępstwa od planu
+
+- **Gałąź (16.10.2026):** środowisko sesji Claude narzuciło gałąź `claude/finish-implementation-readme-e3hepr` zamiast pracy bezpośrednio na `main` (CLAUDE.md). Gałąź startuje z `d89d97a` (= `main`), więc scalenie jest fast-forward.
+- **Język (16.10.2026):** D-77 zastępuje D-73 — aplikacja po angielsku; dokumentacja implementacyjna zostaje po polsku.
 
 - **Etap 7 → 8 (Codex, 15.10.2026):** kontynuacja dopracowania jest niezależna od niedostępnego testu konta OpenSubtitles. Nie oznaczamy 7.1 ani ręcznego odbioru jako zaliczone. Oficjalny OpenAPI: `https://opensubtitles.stoplight.io/api/v1/projects/opensubtitles/opensubtitles-api/nodes/open_api.json`. `remaining=0` w udanej odpowiedzi `/download` oznacza ostatnie dozwolone pobranie; jego link jest używany. Dopiero błąd limitu daje `SUBS_QUOTA`.
 - **Archiwa i zapis napisów (15.10.2026):** ZIP/gzip rozpakowywane w pamięci z limitem 5 MiB, bez tworzenia ścieżek z archiwum. ZIP musi zawierać dokładnie jeden plik napisów; odrzucamy symlinki, traversal, szyfrowanie, ZIP64, pliki wykonywalne i niezgodne CRC/rozmiary. Zapis UTF-8: plik tymczasowy + fsync + hardlink z wyłącznością (atomowy na NTFS). FAT/exFAT: kopiowanie z COPYFILE_EXCL, bez gwarancji atomowej widoczności, ale bez nadpisania istniejących danych. Każde ponowienie zachowuje poprzedni sidecar.
