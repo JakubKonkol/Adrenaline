@@ -6,7 +6,7 @@ import { resolve } from 'node:path';
 if (existsSync('.env')) process.loadEnvFile('.env');
 const token = process.env.TMDB_TOKEN?.trim();
 if (!token) {
-  console.error('Ustaw TMDB_TOKEN w .env. Skrypt live nie został uruchomiony.');
+  console.error('Set TMDB_TOKEN in .env. The live script did not run.');
   process.exitCode = 1;
 } else {
   const output = resolve('tests/fixtures/tmdb/live');
@@ -17,7 +17,7 @@ if (!token) {
   const tvFields = [...common, 'name', 'original_name', 'first_air_date'];
   async function request(path, params = {}, credential = token) {
     const url = new URL(`https://api.themoviedb.org/3/${path}`);
-    url.search = new URLSearchParams({ language: 'pl-PL', ...params }).toString();
+    url.search = new URLSearchParams({ language: 'en-US', ...params }).toString();
     const headers = { Accept: 'application/json' };
     if (/^[a-f\d]{32}$/i.test(credential)) url.searchParams.set('api_key', credential);
     else headers.Authorization = `Bearer ${credential}`;
@@ -28,7 +28,7 @@ if (!token) {
   async function save(name, value) {
     const json = JSON.stringify(value, null, 2).split(token).join('[REDACTED]');
     await writeFile(resolve(output, `${name}.json`), json + '\n');
-    console.log(`Zapisano ${name}.json`);
+    console.log(`Saved ${name}.json`);
   }
   try {
     await mkdir(output, { recursive: true });
@@ -64,7 +64,7 @@ if (!token) {
     });
   } catch {
     console.error(
-      'Test live TMDB nie powiódł się. Sprawdź klucz i połączenie; częściowe odpowiedzi pozostają w katalogu live.',
+      'The live TMDB test failed. Check the key and the connection; partial responses stay in the live folder.',
     );
     process.exitCode = 1;
   }

@@ -30,10 +30,10 @@ async function request(path, body, method = body ? 'POST' : 'GET') {
 }
 async function save(name, value) {
   await writeFile(`${output}/${name}.json`, JSON.stringify(value, null, 2) + '\n');
-  console.log(`Zapisano ${name}.json (bez sekretów).`);
+  console.log(`Saved ${name}.json (no secrets).`);
 }
 if (!key || !username || !password) {
-  console.error('Ustaw OPENSUBTITLES_API_KEY, OPENSUBTITLES_USERNAME i OPENSUBTITLES_PASSWORD w .env.');
+  console.error('Set OPENSUBTITLES_API_KEY, OPENSUBTITLES_USERNAME and OPENSUBTITLES_PASSWORD in .env.');
   process.exitCode = 1;
 } else
   try {
@@ -75,7 +75,7 @@ if (!key || !username || !password) {
     await save('provenance', { capturedAt: new Date().toISOString(), tmdbId: tmdb, downloadRequests: id ? 1 : 0 });
   } catch {
     console.error(
-      'Test OpenSubtitles nie powiódł się. Sprawdź konto, klucz i połączenie. Sekrety nie zostały zapisane.',
+      'The OpenSubtitles test failed. Check the account, the key and the connection. No secrets were saved.',
     );
     process.exitCode = 1;
   } finally {
