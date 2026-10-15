@@ -137,9 +137,9 @@ try {
 
   await page.evaluate(
     async (dir) => {
-      await window.adrenaline.settings.update({ onboardingDone: true, theme: 'dark', downloadDir: dir });
-      await window.adrenaline.settings.setSecret({ name: 'tmdb.token', value: 'readme-token' });
-      await window.adrenaline.sources.addCustom({
+      await globalThis.adrenaline.settings.update({ onboardingDone: true, theme: 'dark', downloadDir: dir });
+      await globalThis.adrenaline.settings.setSecret({ name: 'tmdb.token', value: 'readme-token' });
+      await globalThis.adrenaline.sources.addCustom({
         name: 'Public Domain Archive',
         endpoint: 'https://readme.invalid/torznab',
         apiKey: null,
@@ -173,9 +173,9 @@ try {
   await page.getByTestId('screen-job').waitFor();
   await page.waitForTimeout(16_000);
   await page.evaluate(async () => {
-    await window.adrenaline.settings.update({ downloadLimitKBps: 4096 });
-    await window.adrenaline.dev.addTestDownload({ name: 'Metropolis' });
-    await window.adrenaline.dev.addTestDownload({ name: 'Nosferatu' });
+    await globalThis.adrenaline.settings.update({ downloadLimitKBps: 4096 });
+    await globalThis.adrenaline.dev.addTestDownload({ name: 'Metropolis' });
+    await globalThis.adrenaline.dev.addTestDownload({ name: 'Nosferatu' });
   });
   await page
     .getByRole('navigation')
