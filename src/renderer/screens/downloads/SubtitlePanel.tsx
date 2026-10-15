@@ -98,7 +98,7 @@ function Task({ job, task }: { job: DownloadJob; task: SubtitleTaskDto }) {
         {languageName(task.lang)} · {t(`subtitles.state.${task.state}`)}
       </p>
       {task.quotaResetAt ? (
-        <p>{t('subtitles.reset', { date: new Date(task.quotaResetAt).toLocaleString('pl-PL') })}</p>
+        <p>{t('subtitles.reset', { date: new Date(task.quotaResetAt).toLocaleString('en-US') })}</p>
       ) : null}
       {task.targetPath && task.state === 'ready' ? <p className="mono">{task.targetPath}</p> : null}
       {task.errorCode && isAppErrorCode(task.errorCode) ? (

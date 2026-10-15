@@ -18,7 +18,7 @@ describe('SettingsService', () => {
     const s = new SettingsService(db, defaults);
     expect(s.get()).toMatchObject({
       downloadDir: defaults.downloadDir,
-      subtitleLang: 'pl',
+      subtitleLang: 'en',
       maxActiveDownloads: 3,
       seedRatioLimit: 1,
       seedTimeLimitMin: 60,

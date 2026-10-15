@@ -33,18 +33,18 @@ await shot('02-onboarding-sources');
 await page.getByTestId('onboarding-skip').click();
 await next.click();
 const add = (name) => page.evaluate((n) => globalThis.adrenaline.dev.addTestDownload({ name: n }), name);
-await add('Noc żywych trupów');
+await add('Night of the Living Dead');
 await add('Metropolis');
 await add('Nosferatu');
 await page
   .getByRole('navigation')
-  .getByRole('link', { name: /Pobrane/ })
+  .getByRole('link', { name: /Downloads/ })
   .click();
 await page.waitForTimeout(2500);
 await shot('03-downloads');
 await page.locator('[data-testid^="job-"] a').first().click();
 await shot('04-job-details');
-await page.getByRole('navigation').getByRole('link', { name: 'Ustawienia', exact: true }).click();
+await page.getByRole('navigation').getByRole('link', { name: 'Settings', exact: true }).click();
 await page.getByTestId('sources-section').scrollIntoViewIfNeeded();
 await shot('05-settings-sources');
 await app.close();

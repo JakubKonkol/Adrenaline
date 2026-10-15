@@ -48,23 +48,21 @@ if (!key || !username || !password) {
     const tmdb = process.env.OPENSUBTITLES_TEST_TMDB_ID || '10331';
     if (!/^\d+$/.test(tmdb)) throw new Error('Invalid TMDB ID');
     const result = await request(`/subtitles?languages=pl&tmdb_id=${tmdb}`);
-    const data = result.data
-      .slice(0, 10)
-      .map((row) => ({
-        id: row.id,
-        attributes: pick(row.attributes, [
-          'language',
-          'release',
-          'hearing_impaired',
-          'foreign_parts_only',
-          'moviehash_match',
-          'download_count',
-          'ratings',
-          'from_trusted',
-          'machine_translated',
-          'files',
-        ]),
-      }));
+    const data = result.data.slice(0, 10).map((row) => ({
+      id: row.id,
+      attributes: pick(row.attributes, [
+        'language',
+        'release',
+        'hearing_impaired',
+        'foreign_parts_only',
+        'moviehash_match',
+        'download_count',
+        'ratings',
+        'from_trusted',
+        'machine_translated',
+        'files',
+      ]),
+    }));
     await save('search', { data });
     // Optional explicit file ID, one quota-consuming call, never retried. Temporary URL is never saved.
     const id = process.env.OPENSUBTITLES_TEST_FILE_ID;

@@ -11,13 +11,19 @@ import { TmdbClient } from './tmdb-client';
 const requestUrl = (input: Parameters<typeof fetch>[0]) => (input instanceof Request ? input.url : input.toString());
 const json = (value: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(value), { status, headers });
-function setup(responses: Response[], token = 'test-read-access-token') {
+function setup(responses: Response[], token = 'test-read-access-token', language?: string) {
   const fetch = vi
     .fn<typeof globalThis.fetch>()
     .mockImplementation(() => Promise.resolve(responses.shift() ?? json({}, 500)));
   const sleep = vi.fn<(ms: number) => Promise<void>>().mockResolvedValue();
   return {
-    client: new TmdbClient({ token: () => token, fetch, sleep, now: () => Date.UTC(2026, 9, 15) }),
+    client: new TmdbClient({
+      token: () => token,
+      fetch,
+      sleep,
+      now: () => Date.UTC(2026, 9, 15),
+      ...(language ? { language } : {}),
+    }),
     fetch,
     sleep,
   };
@@ -25,18 +31,18 @@ function setup(responses: Response[], token = 'test-read-access-token') {
 afterEach(() => vi.useRealTimers());
 
 describe('TMDB contract (synthetic fixtures)', () => {
-  it('distinguishes 1968/1990, maps movies and authenticates with Bearer in Polish', async () => {
+  it('distinguishes 1968/1990, maps movies and authenticates with Bearer in English', async () => {
     const { client, fetch } = setup([json(movies)]);
     const result = await client.search('Night of the Living Dead', 'movie');
     expect(result.map((item) => item.year)).toEqual([1968, 1990]);
     expect(result[0]?.posterPath).not.toBe(result[1]?.posterPath);
     expect(result[0]).toMatchObject({
       type: 'movie',
-      title: 'Noc żywych trupów',
+      title: 'Night of the Living Dead',
       originalTitle: 'Night of the Living Dead',
     });
     const [url, init] = fetch.mock.calls[0]!;
-    expect(requestUrl(url)).toContain('language=pl-PL');
+    expect(requestUrl(url)).toContain('language=en-US');
     expect(requestUrl(url)).not.toContain('test-read-access-token');
     expect(init?.headers).toMatchObject({ Authorization: 'Bearer test-read-access-token' });
     expect(init?.redirect).toBe('error');
@@ -81,21 +87,29 @@ describe('TMDB contract (synthetic fixtures)', () => {
     });
   });
 
-  it('falls back only for an empty overview while preserving Polish title and metadata', async () => {
-    const { client, fetch } = setup([
-      json({ ...film, overview: '' }),
-      json({ id: 10331, overview: 'English synopsis', title: 'English title' }),
-    ]);
+  it('in another catalog language, falls back only for an empty overview while preserving its title', async () => {
+    const { client, fetch } = setup(
+      [json({ ...film, overview: '' }), json({ id: 10331, overview: 'English synopsis', title: 'English title' })],
+      undefined,
+      'pl-PL',
+    );
     expect(await client.details('movie', 10331)).toMatchObject({
       title: film.title,
       overview: 'English synopsis',
       runtime: 96,
     });
+    expect(requestUrl(fetch.mock.calls[0]![0])).toContain('language=pl-PL');
     expect(requestUrl(fetch.mock.calls[1]![0])).toContain('language=en-US');
   });
 
+  it('does not ask again for an English overview in the default English catalog', async () => {
+    const { client, fetch } = setup([json({ ...film, overview: '' })]);
+    expect(await client.details('movie', 10331)).toMatchObject({ overview: '' });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps usable details if only the optional language fallback is unavailable', async () => {
-    const { client } = setup([json({ ...film, overview: '' }), json({}, 503)]);
+    const { client } = setup([json({ ...film, overview: '' }), json({}, 503)], undefined, 'pl-PL');
     expect(await client.details('movie', 10331)).toMatchObject({ title: film.title, overview: '' });
   });
 

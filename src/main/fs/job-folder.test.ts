@@ -33,7 +33,7 @@ describe('jobFolder (D-75)', () => {
         'Show.S03E01.WEB',
         W,
       ),
-    ).toBe(`${BASE}\\Przykładowy serial\\Sezon 03\\Show.S03E01.WEB`);
+    ).toBe(`${BASE}\\Przykładowy serial\\Season 03\\Show.S03E01.WEB`);
   });
 
   it('never produces unsafe names from release names', () => {

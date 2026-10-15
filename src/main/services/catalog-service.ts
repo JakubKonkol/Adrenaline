@@ -11,7 +11,7 @@ import type { SearchTarget } from '@shared/domain/search-target';
 import { AppError } from '@shared/errors';
 import type { CacheRepository } from '../persistence/repositories/cache';
 import type { MediaRepository } from '../persistence/repositories/media';
-import type { TmdbClient } from '../providers/tmdb/tmdb-client';
+import { CATALOG_LANGUAGE, type TmdbClient } from '../providers/tmdb/tmdb-client';
 
 const SEARCH_TTL = 15 * 60_000;
 const DETAILS_TTL = 24 * 60 * 60_000;
@@ -25,10 +25,10 @@ export class CatalogService {
 
   private async cached<T>(key: string, schema: z.ZodType<T>, ttl: number, fetch: () => Promise<T>): Promise<T> {
     this.client.requireToken();
-    const value = this.cache.get(`tmdb:v1:pl-PL:${key}`, schema);
+    const value = this.cache.get(`tmdb:v1:${CATALOG_LANGUAGE}:${key}`, schema);
     if (value !== undefined) return value;
     const result = await fetch();
-    this.cache.set(`tmdb:v1:pl-PL:${key}`, result, ttl);
+    this.cache.set(`tmdb:v1:${CATALOG_LANGUAGE}:${key}`, result, ttl);
     return result;
   }
 
@@ -39,7 +39,7 @@ export class CatalogService {
       const groups = await Promise.all(
         (type ? [type] : (['movie', 'tv'] as const)).map((t) => this.client.search(normalized, t)),
       );
-      return groups.flat().sort((a, b) => b.popularity - a.popularity || a.title.localeCompare(b.title, 'pl'));
+      return groups.flat().sort((a, b) => b.popularity - a.popularity || a.title.localeCompare(b.title, 'en'));
     });
   }
 

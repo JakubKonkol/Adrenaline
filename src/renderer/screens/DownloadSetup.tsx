@@ -62,9 +62,7 @@ function SetupForm({
   const [rename, setRename] = useState(false);
   const [lang, setLang] = useState<LanguageCode | ''>(settings.subtitlesEnabled ? settings.subtitleLang : '');
   const [fallback, setFallback] = useState<LanguageCode | ''>(settings.subtitleFallbackLang ?? '');
-  const [ratio, setRatio] = useState(
-    settings.seedRatioLimit === null ? '' : String(settings.seedRatioLimit).replace('.', ','),
-  );
+  const [ratio, setRatio] = useState(settings.seedRatioLimit === null ? '' : String(settings.seedRatioLimit));
   const [minutes, setMinutes] = useState(settings.seedTimeLimitMin === null ? '' : String(settings.seedTimeLimitMin));
   const [folderError, setFolderError] = useState<unknown>(null);
   const ref = { sessionId, releaseId };

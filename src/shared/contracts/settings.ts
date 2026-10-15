@@ -31,7 +31,7 @@ export type SettingsPatch = z.infer<typeof settingsPatchSchema>;
 
 export const STATIC_DEFAULTS: Omit<AppSettings, 'downloadDir' | 'listenPort'> = {
   subtitlesEnabled: true,
-  subtitleLang: 'pl',
+  subtitleLang: 'en',
   subtitleFallbackLang: null,
   maxActiveDownloads: 3,
   downloadLimitKBps: 0,

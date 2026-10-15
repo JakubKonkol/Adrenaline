@@ -2,7 +2,7 @@
   "name": "adrenaline",
   "productName": "Adrenaline",
   "version": "0.7.0",
-  "description": "Wyszukaj film lub odcinek, wybierz wydanie i język napisów, pobierz i otwórz gotowy folder.",
+  "description": "Find a movie or an episode, pick a release and a subtitle language, download it and open a ready folder.",
   "private": true,
   "main": "out/main/index.js",
   "author": "Jakub Konkol",

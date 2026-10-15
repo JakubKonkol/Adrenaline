@@ -45,7 +45,7 @@ Silnik C++ (`native/engine`): `cmake --preset linux-system && cmake --build --pr
 - `src/shared` — domena i kontrakty (Zod), bez importów Electron/Node.
 - `src/main` — lifecycle, IPC z walidacją, serwisy, providery HTTP, `node:sqlite`, klient silnika, menedżer Jackett, updater.
 - `src/preload` — wąskie API `window.adrenaline` przez `contextBridge`.
-- `src/renderer` — React, bez dostępu do Node, sekretów i systemu plików. Teksty UI przez `t()` (polski).
+- `src/renderer` — React, bez dostępu do Node, sekretów i systemu plików. Teksty UI przez `t()` — po angielsku (D-77); wszystko, co widzi użytkownik lub osoba klonująca repo, po angielsku.
 - `native/engine` — `adrenaline-engine` (libtorrent), protokół JSON Lines po stdin/stdout (`docs/implementation-plan/02-protokol-silnika.md`).
 
 Bezpieczeństwo renderera (`contextIsolation`, `sandbox`, brak `nodeIntegration`, CSP) i walidacja ścieżek (`src/main/fs/safe-path.ts`) są obowiązkowe; nie osłabiaj ich, żeby coś „zadziałało”.

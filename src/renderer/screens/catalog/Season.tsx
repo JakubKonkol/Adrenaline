@@ -52,7 +52,7 @@ export function Season() {
                   <h3>{episode.title}</h3>
                   <p className={styles.muted}>
                     {episode.airDate
-                      ? new Intl.DateTimeFormat('pl-PL', { timeZone: 'UTC' }).format(new Date(episode.airDate))
+                      ? new Intl.DateTimeFormat('en-US', { timeZone: 'UTC' }).format(new Date(episode.airDate))
                       : t('catalog.noAirDate')}
                   </p>
                   {episode.overview ? <p>{episode.overview}</p> : null}
