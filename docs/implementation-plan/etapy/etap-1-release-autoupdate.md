@@ -2,7 +2,7 @@
 
 **Cel:** od tego momentu każda wersja jest wydawana tak, jak docelowo: tag → testy → instalator → GitHub Release → aplikacja sama się aktualizuje.
 
-**Wymaga:** etap 0. Do publikacji: sekret `RELEASES_TOKEN` i repo `Adrenaline-releases` (D-07; kroki właściciela w `04-release-i-autoupdate.md`).
+**Wymaga:** etap 0. Do działania autoupdate: publiczne repo `Adrenaline` (D-07; zmienia właściciel). Publikacja używa `GITHUB_TOKEN`, bez dodatkowych sekretów.
 
 ## Zadania
 
@@ -21,9 +21,9 @@
 - `.github/workflows/release.yml` w wersji bez joba `engine` i bez `fetch-jackett` (zostaw komentarz `# etap 2: engine`, `# etap 5: jackett`).
 
 ### 1.4 Pierwsze wydania
-- `npm version 0.1.0` (ustaw dokładnie), push z tagiem. Sprawdź przez GitHub MCP (`list_releases` na `JakubKonkol/Adrenaline-releases` albo `actions_list`/`get_job_logs`), że workflow przeszedł i Release ma `Adrenaline-Setup-0.1.0.exe`, `.blockmap`, `latest.yml`.
+- `npm version 0.1.0` (ustaw dokładnie), push z tagiem. Sprawdź przez GitHub MCP (`list_releases` na `JakubKonkol/Adrenaline` albo `actions_list`/`get_job_logs`), że workflow przeszedł i Release ma `Adrenaline-Setup-0.1.0.exe`, `.blockmap`, `latest.yml`.
 - Wprowadź widoczną drobną zmianę (np. tekst w „O aplikacji”), wydaj `0.1.1`.
-- Jeśli brakuje `RELEASES_TOKEN`/repo: zostaw workflow gotowy, zapisz blokadę w `STATUS.md`, przejdź dalej (etap 2 nie zależy od publikacji).
+- Jeśli repo jest jeszcze prywatne: wydania i tak powstaną, ale test autoupdate czeka na upublicznienie; zapisz blokadę w `STATUS.md` i przejdź dalej (etap 2 nie zależy od publikacji).
 
 ## Kryteria odbioru
 - [ ] Push taga uruchamia testy, a job `package` ma `needs: [test]`, więc czerwone testy blokują publikację. Nie wydawaj celowo zepsutych wersji, żeby to sprawdzić.

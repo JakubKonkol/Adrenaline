@@ -7,8 +7,8 @@ Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka no
 
 ## Blokady wymagające właściciela
 
-- [ ] Wybór źródła aktualizacji (D-07): osobne publiczne repo `Adrenaline-releases` (domyślne) albo upublicznienie `Adrenaline`.
-- [ ] Repo `JakubKonkol/Adrenaline-releases` + sekret `RELEASES_TOKEN` (jeśli zostaje D-07 domyślne). Potrzebne od etapu 1.4.
+- [x] Wybór źródła aktualizacji (D-07): upublicznienie `Adrenaline`, Releases w tym samym repo (decyzja 15.10.2026).
+- [ ] Zmiana widoczności repo `JakubKonkol/Adrenaline` na publiczną. Potrzebne przed etapem 1.4.
 - [ ] Klucz TMDB i konto/klucz OpenSubtitles w `.env` do testów live (etapy 4 i 7).
 
 ## Etapy

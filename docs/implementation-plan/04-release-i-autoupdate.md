@@ -15,11 +15,10 @@ git push origin main --follow-tags
 
 ## Jednorazowa konfiguracja (właściciel)
 
-1. Utworzyć publiczne repo `JakubKonkol/Adrenaline-releases` z samym README („Instalatory Adrenaline. Kod źródłowy jest prywatny.”).
-2. Utworzyć fine-grained PAT: dostęp tylko do `Adrenaline-releases`, uprawnienie `Contents: Read and write`. Dodać jako sekret `RELEASES_TOKEN` w `JakubKonkol/Adrenaline` (Settings → Secrets and variables → Actions).
-3. Jeśli właściciel zdecyduje się upublicznić `Adrenaline` zamiast tego (alternatywa D-07): w `electron-builder.yml` ustawić `repo: Adrenaline`, w `release.yml` użyć `GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}` i `permissions: contents: write`. Kroki 1–2 odpadają.
+1. Zmienić widoczność repo `JakubKonkol/Adrenaline` na publiczną (D-07) przed pierwszym wydaniem. Bez tego aplikacja nie pobierze aktualizacji.
+2. Nic więcej: workflow publikuje wbudowanym `GITHUB_TOKEN`, nie trzeba tworzyć tokenów ani sekretów.
 
-Agent nie może wykonać tych kroków sam; jeśli sekretu brak, workflow kończy się błędem w kroku publikacji z czytelnym komunikatem, a agent zapisuje to w `STATUS.md` jako blokadę dla właściciela.
+Jeśli repo jest jeszcze prywatne, workflow i tak opublikuje Release (w prywatnym repo), ale autoupdate u użytkowników nie zadziała; agent zapisuje to w `STATUS.md` jako blokadę dla właściciela.
 
 ## `electron-builder.yml`
 
@@ -57,7 +56,7 @@ nsis:
 publish:
   provider: github
   owner: JakubKonkol
-  repo: Adrenaline-releases
+  repo: Adrenaline
   releaseType: release
 ```
 
@@ -150,7 +149,7 @@ on:
   push:
     tags: ['v*.*.*']
 permissions:
-  contents: read
+  contents: write   # electron-builder tworzy Release w tym repo
 concurrency:
   group: release
   cancel-in-progress: false
@@ -192,10 +191,10 @@ jobs:
           if [[ "${GITHUB_REF_NAME}" == *-* ]]; then TYPE=prerelease; else TYPE=release; fi
           npx electron-builder --win --x64 --publish always -c.publish.releaseType=$TYPE
         env:
-          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-Wynik: Release `vX.Y.Z` w `Adrenaline-releases` z plikami `Adrenaline-Setup-X.Y.Z.exe`, `Adrenaline-Setup-X.Y.Z.exe.blockmap`, `latest.yml`. Wersje z myślnikiem (`1.0.0-beta.1`) idą jako prerelease.
+Wynik: Release `vX.Y.Z` w `JakubKonkol/Adrenaline` z plikami `Adrenaline-Setup-X.Y.Z.exe`, `Adrenaline-Setup-X.Y.Z.exe.blockmap`, `latest.yml`. Wersje z myślnikiem (`1.0.0-beta.1`) idą jako prerelease.
 
 Do etapu 2 (zanim powstanie silnik) workflow release nie ma joba `engine`, a `extraResources` silnika i Jackett są dodawane w etapach 2 i 5. Etap 1 dostarcza wersję workflow bez nich.
 
