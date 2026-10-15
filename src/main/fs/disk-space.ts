@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { mkdir, statfs, unlink, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { AppError } from '@shared/errors';
 
 /** Free bytes available to the user on the volume of `dir` (nearest existing parent). */
@@ -11,6 +11,19 @@ export async function freeBytes(dir: string): Promise<number | null> {
   } catch {
     return null;
   }
+}
+
+/** Free bytes for a folder that may not exist yet: measured on its nearest existing parent. */
+export async function freeBytesNear(dir: string): Promise<number | null> {
+  let current = dir;
+  for (let i = 0; i < 64; i++) {
+    const free = await freeBytes(current);
+    if (free !== null) return free;
+    const parent = dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
+  return null;
 }
 
 /**
