@@ -1,6 +1,6 @@
 # Adrenaline 1.0.0 — desktop jako serwer, Android TV i Samsung Tizen
 
-Data researchu: **16.10.2026**. Status: **plan, bez implementacji TV**. Bazą jest lokalne wydanie `v0.9.0`. Nazwa katalogu zachowana dokładnie według polecenia właściciela (`1.0-andrenalive-tv`); nazwa produktu pozostaje Adrenaline.
+Data researchu: **16.10.2026**. Status: **plan, bez implementacji TV**. Bazą jest lokalne wydanie `v0.9.0`. Katalog pierwotnie nazywał się `1.0-andrenalive-tv` (literówka); 16.10.2026 przemianowany na `1.0-adrenaline-tv` po uwadze właściciela. Postęp implementacji: [STATUS.md](STATUS.md).
 
 ## Cel i najważniejszy wniosek
 

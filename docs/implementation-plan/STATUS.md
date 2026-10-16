@@ -16,7 +16,7 @@ Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka no
 
 ## Sesja Codex — wydanie i plan TV
 
-**Sesja Codex 16.10.2026 — plan 1.0.0:** [research i plan TV](../1.0-andrenalive-tv/README.md) gotowe: analiza kodu i oficjalnych źródeł Jellyfin/Android/Samsung, architektura/API, deploy/bundling, etapy P0–P7 i kryteria odbioru obu platform. D-79 zapisuje rozszerzenie zakresu na życzenie właściciela. Nie implementowano TV ani nie wykonano testów sprzętowych. Commit wydania 0.9.0: `122d45d`, lokalny anotowany tag `v0.9.0`; plan ma osobny commit po tagu. Niczego nie pushowano.
+**Sesja Codex 16.10.2026 — plan 1.0.0:** [research i plan TV](../1.0-adrenaline-tv/README.md) gotowe: analiza kodu i oficjalnych źródeł Jellyfin/Android/Samsung, architektura/API, deploy/bundling, etapy P0–P7 i kryteria odbioru obu platform. D-79 zapisuje rozszerzenie zakresu na życzenie właściciela. Nie implementowano TV ani nie wykonano testów sprzętowych. Commit wydania 0.9.0: `122d45d`, lokalny anotowany tag `v0.9.0`; plan ma osobny commit po tagu. Niczego nie pushowano.
 
 **Sesja Codex 16.10.2026 — przygotowanie 0.9.0:** wersja aplikacji i głównego pakietu lockfile podniesiona z 0.7.0 do 0.9.0. Wersje UI i silnika release są wyprowadzane z `package.json`. Lokalny commit wydania i anotowany tag `v0.9.0` przygotowywane na `main`; push oraz publikacja przez Actions pozostają po stronie właściciela zgodnie z jego poleceniem. `npm run check`: 345 testów zaliczonych, 6 pominiętych; lint i typecheck zaliczone. `npm audit --omit=dev`: 0 podatności. Odbiory ręczne i publikacja 8.7 nadal otwarte — przygotowanie taga nie oznacza ich zaliczenia.
 

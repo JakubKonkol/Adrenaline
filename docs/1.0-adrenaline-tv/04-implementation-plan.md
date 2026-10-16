@@ -17,7 +17,7 @@ Nie implementować etapów w ramach samego przygotowania tego dokumentu. Wszystk
 - [ ] Sprawdzić konkretny build FFmpeg: licencje/konfiguracja, H.264/AAC 1080p, remux, seek, RAM/CPU i rozmiar bundle.
 - [ ] Decyzja o transporcie i rzeczywistym minimum OS, podpisana jako nowy wpis D-xx. Zaktualizować wymagania wsparcia, bez usuwania jednej platformy.
 
-Artefakty: `docs/1.0-andrenalive-tv/spikes/` z wynikami, komendami bez sekretów, wersjami i tabelą kompatybilności; małe prototypy w `scripts/dev/tv-spike/` lub właściwych katalogach klientów. Dane prywatne/certyfikaty poza repo.
+Artefakty: `docs/1.0-adrenaline-tv/spikes/` z wynikami, komendami bez sekretów, wersjami i tabelą kompatybilności; małe prototypy w `scripts/dev/tv-spike/` lub właściwych katalogach klientów. Dane prywatne/certyfikaty poza repo.
 
 **Bramka:** na obu fizycznych urządzeniach powtarzalne install → start → API → play → upgrade. Negatywny wynik nie pozwala zaznaczyć P0; udokumentować zmianę planu, szczególnie TLS i warunki „bundled”. Nie budować pełnego UI w oczekiwaniu, że problem certyfikatów sam się rozwiąże.
 

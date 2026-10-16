@@ -1,6 +1,6 @@
 # Adrenaline — plan implementacji
 
-Plan kolejnej wersji **1.0.0 (Android TV i Samsung Tizen)**: [../1.0-andrenalive-tv/README.md](../1.0-andrenalive-tv/README.md). To osobny research i plan rozszerzenia po 0.9.0 (D-79), nie zadania wykonane w bieżącym MVP.
+Plan kolejnej wersji **1.0.0 (Android TV i Samsung Tizen)**: [../1.0-adrenaline-tv/README.md](../1.0-adrenaline-tv/README.md). To osobny research i plan rozszerzenia po 0.9.0 (D-79), nie zadania wykonane w bieżącym MVP.
 
 Ten katalog jest kompletną instrukcją dla agenta, który ma zbudować Adrenaline od pustego repozytorium do wydania beta. Polecenie „w tym katalogu masz plan, implementuj” oznacza: przeczytaj ten plik, potem pliki w kolejności poniżej, i realizuj etapy po kolei.
 
