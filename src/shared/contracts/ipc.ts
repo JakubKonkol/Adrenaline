@@ -27,6 +27,7 @@ import {
   preflightSchema,
   releaseRefSchema,
 } from './downloads';
+import { libraryItemIdSchema, libraryItemSchema } from './library';
 import { releaseSessionSchema } from './releases';
 import { addCustomSourceSchema, jackettStatusSchema, sourceIdSchema, sourceSchema } from './sources';
 
@@ -121,6 +122,13 @@ export const ipcChannels = {
   },
   'downloads:openFolder': { input: z.object({ jobId: z.string().max(64) }).strict(), output: z.void() },
   'downloads:recheck': { input: z.object({ jobId: z.string().max(64) }).strict(), output: downloadJobSchema },
+  'library:list': { input: z.void(), output: z.array(libraryItemSchema) },
+  'library:play': { input: z.object({ id: libraryItemIdSchema }).strict(), output: z.void() },
+  'library:showInFolder': { input: z.object({ id: libraryItemIdSchema }).strict(), output: z.void() },
+  'library:remove': {
+    input: z.object({ id: libraryItemIdSchema, deleteFiles: z.boolean() }).strict(),
+    output: z.void(),
+  },
   /** Hidden test API: only registered with the fake engine in an unpackaged app (03-testy.md, smoke). */
   'dev:addTestDownload': {
     input: z.object({ name: z.string().min(1).max(120) }).strict(),

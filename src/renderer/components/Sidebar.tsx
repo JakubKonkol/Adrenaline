@@ -1,4 +1,4 @@
-import { Download, Info, Search, Settings } from 'lucide-react';
+import { Clapperboard, Download, Info, Search, Settings } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { NavLink } from 'react-router';
 import { COMPLETE_STATES } from '@shared/domain/job-state';
@@ -37,6 +37,7 @@ export function Sidebar() {
           }
         : {}),
     },
+    { to: '/library', label: t('nav.library'), icon: <Clapperboard size={15} /> },
     { to: '/settings', label: t('nav.settings'), icon: <Settings size={15} /> },
     { to: '/about', label: t('nav.about'), icon: <Info size={15} /> },
   ];

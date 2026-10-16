@@ -4,6 +4,7 @@ import { About } from './screens/About';
 import { Documents } from './screens/Documents';
 import { Downloads } from './screens/downloads/Downloads';
 import { JobDetails } from './screens/downloads/JobDetails';
+import { Library } from './screens/library/Library';
 import { Home } from './screens/Home';
 import { Details } from './screens/catalog/Details';
 import { Season } from './screens/catalog/Season';
@@ -25,6 +26,7 @@ export function createRouter() {
         { path: '/download-setup', element: <DownloadSetup /> },
         { path: '/downloads', element: <Downloads /> },
         { path: '/downloads/:jobId', element: <JobDetails /> },
+        { path: '/library', element: <Library /> },
         { path: '/settings', element: <SettingsScreen /> },
         { path: '/about', element: <About /> },
         { path: '/guide', element: <Documents kind="guide" /> },

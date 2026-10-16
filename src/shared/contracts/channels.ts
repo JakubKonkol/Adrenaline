@@ -48,6 +48,10 @@ export const IPC_CHANNEL_NAMES = [
   'downloads:remove',
   'downloads:openFolder',
   'downloads:recheck',
+  'library:list',
+  'library:play',
+  'library:showInFolder',
+  'library:remove',
   'dev:addTestDownload',
 ] as const;
 

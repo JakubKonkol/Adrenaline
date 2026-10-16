@@ -4,6 +4,7 @@ import { app, type BrowserWindow, clipboard, ipcMain, nativeTheme, Notification,
 import { diagnostics } from './services/diagnostics';
 import electronUpdater from 'electron-updater';
 import type { EngineStatus } from '@shared/contracts/app';
+import { AppError } from '@shared/errors';
 import { setupEngine } from './engine/setup';
 import { createEventSender } from './events';
 import { mainText } from './i18n';
@@ -12,6 +13,8 @@ import { registerSettingsHandlers } from './ipc/settings-handlers';
 import { registerCatalogHandlers } from './ipc/catalog-handlers';
 import { registerSourcesHandlers } from './ipc/sources-handlers';
 import { registerDownloadsHandlers } from './ipc/downloads-handlers';
+import { registerLibraryHandlers } from './ipc/library-handlers';
+import { LibraryService } from './services/library-service';
 import { JobsRepository } from './persistence/repositories/jobs';
 import { DownloadService } from './services/download-service';
 import { SubtitleService } from './services/subtitle-service';
@@ -176,7 +179,8 @@ if (!app.requestSingleInstanceLock()) {
       secrets.set('opensubtitles.password', null);
     });
     const tmdb = new TmdbClient({ token: () => secrets.get('tmdb.token') });
-    const catalog = new CatalogService(tmdb, new CacheRepository(db), new MediaRepository(db));
+    const media = new MediaRepository(db);
+    const catalog = new CatalogService(tmdb, new CacheRepository(db), media);
     registerCatalogHandlers(ipc, catalog, tmdb);
 
     // Sources (etap 5): bundled Jackett (resources/jackett, dev: vendor/jackett) + user Torznab endpoints.
@@ -282,6 +286,18 @@ if (!app.requestSingleInstanceLock()) {
       lifecycle.addStep('tooltip', () => clearInterval(tooltip), 100);
     }
     subtitles.restore();
+    // Library (D-80): finished files of downloads; also served to TVs.
+    const library = new LibraryService({
+      jobs,
+      subtitles: subtitleTasks,
+      media,
+      shell,
+      removeJob: async (jobId, deleteFiles) => {
+        if (!downloadService) throw new AppError('ENGINE_UNAVAILABLE');
+        await downloadService.remove(jobId, deleteFiles);
+      },
+    });
+    registerLibraryHandlers(ipc, library);
 
     lifecycle.addStep('jackett', () => jackett.stop(), 6_000);
     // Started in the background shortly after launch when a built-in source is enabled, otherwise on demand.
