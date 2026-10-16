@@ -34,7 +34,8 @@ No separate torrent client, no .NET install, no browser tabs. Everything runs lo
 - **Clear release comparison.** Resolution, video source, codec, HDR, size, seeders and a match score with warnings such as *Different year*, *Season pack* or *Recorded in a cinema*.
 - **Built-in download engine.** A small native helper on top of [libtorrent](https://libtorrent.org/) downloads only the files you need (the movie, not the samples), pauses and resumes for real, survives app restarts and crashes, and handles full disks or disconnected drives.
 - **Subtitles when you want them.** Choose per download whether to fetch subtitles. Skip them at any time, or get them later. Matching uses the file hash first, so subtitles fit the exact release. Existing subtitle files are never overwritten.
-- **Sensible seeding.** Shares the file back for a while after downloading and stops at a ratio or time limit you choose.
+- **No sharing after the download.** A finished download leaves the engine at once: nothing keeps uploading in the background, and the movie lands in your **Library**.
+- **Watch on your TV.** Android TV / Google TV and Samsung (Tizen) apps, installed from the **TV** tab over your network: browse and search, start downloads on the PC and play your library from the sofa. Playback is negotiated like in Jellyfin — direct play when the TV can, otherwise remux, audio-only or GPU video conversion (NVENC/Quick Sync/AMF) with HDR/Dolby Vision tone mapping, by a bundled FFmpeg.
 - **Quiet in the background.** Keeps downloading from the system tray, shows speeds in the tray tooltip, and updates itself from GitHub Releases.
 - **Private by design.** No telemetry. Keys are encrypted with the Windows credential store, and “Copy diagnostics” never includes titles, paths or secrets.
 

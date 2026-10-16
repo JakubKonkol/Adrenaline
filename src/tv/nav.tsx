@@ -37,7 +37,7 @@ interface Nav {
   /** Replaces the whole stack (e.g. after starting a download → Library). */
   reset: (route: Route) => void;
   /** Changes the route of the current screen without a new history entry (tabs). */
-  replace: (route: Route) => void;
+  replace: (route: Route, focusKey?: string | null) => void;
   toast: string | null;
   showToast: (text: string) => void;
 }
@@ -69,7 +69,8 @@ export function NavProvider({ initial, children }: { initial: Route; children: R
   const pop = useCallback(() => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s)), []);
   const reset = useCallback((route: Route) => setStack([{ id: nextId++, route, focusKey: null }]), []);
   const replace = useCallback(
-    (route: Route) => setStack((s) => [...s.slice(0, -1), { ...s[s.length - 1]!, route, focusKey: null }]),
+    (route: Route, focusKey: string | null = null) =>
+      setStack((s) => [...s.slice(0, -1), { ...s[s.length - 1]!, route, focusKey }]),
     [],
   );
   const showToast = useCallback((text: string) => {

@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
+import android.view.ViewGroup
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -51,6 +53,14 @@ class MainActivity : ComponentActivity() {
             webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest) =
                     !request.url.toString().startsWith(APP_ROOT)
+
+                // The page's renderer died (low memory, a crash): rebuild the screen instead of closing the app.
+                override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+                    (view.parent as? ViewGroup)?.removeView(view)
+                    view.destroy()
+                    recreate()
+                    return true
+                }
             }
             addJavascriptInterface(AdrenalineBridge(this@MainActivity), "AdrenalineNative")
         }

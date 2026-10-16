@@ -31,6 +31,7 @@ import { SettingsService } from '../../src/main/services/settings-service';
 import type { SourcesService } from '../../src/main/services/sources-service';
 import { TvDevicesRepository } from '../../src/main/tv/devices';
 import { TvService } from '../../src/main/tv/tv-service';
+import { listAddresses } from '../../src/main/tv/network';
 import { resolveFfmpeg } from '../../src/main/media/ffmpeg-path';
 import { createMediaService } from '../../src/main/media/media-service';
 
@@ -216,7 +217,7 @@ it('serves the TV demo', async () => {
   const library = new LibraryService({ jobs, subtitles, media, removeJob: (id, del) => downloads.remove(id, del) });
 
   // Library: two films and three episodes, finished (real clips when ffmpeg is available).
-  const finished = async (target: JobRow['target'], n: number) => {
+  const finished = async (target: JobRow['target'], n: number, kind: 'mp4' | 'hdr' = 'mp4') => {
     const title = await catalog.select(
       target.kind === 'movie'
         ? { type: 'movie', tmdbId: target.tmdbId }
@@ -224,17 +225,29 @@ it('serves the TV demo', async () => {
     );
     const dir = join(base, 'Videos', `demo${n}`);
     mkdirSync(dir, { recursive: true });
-    const file = join(dir, `${title.title.replace(/\W+/g, '.')}.mp4`);
+    const file = join(dir, `${title.title.replace(/\W+/g, '.')}.${kind === 'hdr' ? 'mkv' : 'mp4'}`);
     try {
-      execFileSync('ffmpeg', [
-        ...['-v', 'error', '-y', '-f', 'lavfi', '-i', `testsrc2=size=1280x720:rate=25:duration=20`],
-        ...['-f', 'lavfi', '-i', 'sine=frequency=440:duration=20'],
-        ...['-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', file],
-      ]);
+      execFileSync(
+        'ffmpeg',
+        kind === 'hdr'
+          ? [
+              // 4K HEVC Main10 HDR10 + TrueHD 5.1 in MKV: needs conversion on most TVs (D-85 demo).
+              ...['-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc2=size=3840x2160:rate=24:duration=30'],
+              ...['-f', 'lavfi', '-i', 'sine=frequency=300:duration=30', '-c:v', 'libx265', '-pix_fmt', 'yuv420p10le'],
+              '-x265-params',
+              'hdr10=1:colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc:log-level=error',
+              ...['-c:a', 'truehd', '-strict', '-2', '-ac', '6', file],
+            ]
+          : [
+              ...['-v', 'error', '-y', '-f', 'lavfi', '-i', `testsrc2=size=1280x720:rate=25:duration=20`],
+              ...['-f', 'lavfi', '-i', 'sine=frequency=440:duration=20'],
+              ...['-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', file],
+            ],
+      );
     } catch {
       writeFileSync(file, Buffer.alloc(1024));
     }
-    const srt = file.replace(/\.mp4$/, '.en.srt');
+    const srt = file.replace(/\.(mp4|mkv)$/, '.en.srt');
     writeFileSync(
       srt,
       '1\n00:00:01,000 --> 00:00:06,000\nThis is a demo subtitle.\n\n2\n00:00:07,000 --> 00:00:12,000\nZażółć gęślą jaźń — Polish letters work.\n',
@@ -286,6 +299,7 @@ it('serves the TV demo', async () => {
   await finished(ep(0, 1), 3);
   await finished(ep(0, 2), 4);
   await finished(ep(2, 1), 5);
+  await finished(movie(6), 6, 'hdr');
   // Real sizes for the files (the rows above store 1 byte to keep the insert simple).
   for (const j of jobs.active()) {
     const f = jobs.files(j.id)[0]!;
@@ -313,7 +327,11 @@ it('serves the TV demo', async () => {
     settings,
     subtitleAccountReady: () => true,
     log,
-    addresses: () => [{ address: '127.0.0.1', interfaceName: 'loopback', private: true }],
+    // TV_DEMO_LAN=1: listen on the LAN address (Android emulator / real TVs), otherwise loopback only.
+    addresses: () =>
+      process.env['TV_DEMO_LAN']
+        ? listAddresses()
+        : [{ address: '127.0.0.1', interfaceName: 'loopback', private: true }],
   });
   tv.pairing.on('changed', () => {
     for (const p of tv.pairing.pending()) setTimeout(() => tv.approve(p.id), 1500);

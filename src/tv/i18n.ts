@@ -82,6 +82,7 @@ const en = {
     empty: 'Your library is empty',
     emptyBody: 'Find something in Discover. It downloads on your PC and shows up here.',
     missing: 'File missing on the PC',
+    episode: '1 episode',
     episodes: '{count} episodes',
     queued: 'Waiting',
     metadata: 'Getting file list',

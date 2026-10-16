@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'reac
 import type { TvSession } from '@shared/contracts/tv';
 import { Api, ApiError } from './api';
 import { clearCache } from './data';
-import { current, focusFirst, focusKey, move, select, setPendingFocus } from './focus';
+import { current, focus, focusFirst, focusKey, move, select, setPendingFocus } from './focus';
 import { t } from './i18n';
 import { keyAction } from './keys';
 import { NavProvider, runBackHandlers, runMediaHandler, useNav } from './nav';
@@ -132,7 +132,7 @@ function Screens() {
         return true;
       }
       if (route.name === 'home' && route.tab !== 'discover') {
-        nav.replace({ name: 'home', tab: 'discover' });
+        nav.replace({ name: 'home', tab: 'discover' }, 'tab-discover');
         return true;
       }
       return false;
@@ -181,6 +181,13 @@ let rootBack: (() => boolean) | null = null;
 function useRemote(outsideApp: boolean) {
   useEffect(() => {
     const onBack = (): boolean => {
+      // Android sends Back to the app, not to the text field: close the TV keyboard first.
+      const active = document.activeElement;
+      if (active instanceof HTMLInputElement) {
+        active.blur();
+        focus(active.closest<HTMLElement>('.focusable'));
+        return true;
+      }
       if (rootBack?.()) return true;
       if (outsideApp && runBackHandlers()) return true;
       return false;

@@ -66,3 +66,39 @@ Status wszystkich poniższych prób: **nie wykonano**. v0.9.0 jeszcze nie wydano
 - Licencje npm: dwa pakiety bez pliku LICENSE (`@nodable/entities`, `lazy-val`, oba MIT wg `package.json`) mają teraz tekst MIT z autorem z pakietu zamiast README (`scripts/generate-notices.mjs`).
 - Przejrzano izolację renderera/CSP/walidację IPC, allowlistę hostów OpenSubtitles, limit archiwów i ochronę ścieżek. Diagnostyka testowana na danych z sekretami/URL: wyłącznie wersje, liczniki i znane kody błędów.
 - Otwarte 8.6: końcowy przegląd całej listy z architektury, logów z rzeczywistego konta i nasłuchów na czystym Windows. Licencje natywne: krok „Collect dependency licenses” w Engine CI 38790983921 przeszedł (ścieżka vcpkg poprawna); ten sam run padł później na teście swarm (patrz STATUS).
+
+## 1.0 — TV i biblioteka (odbiór ręczny na sprzęcie)
+
+Zakres i progi: [docs/1.0-adrenaline-tv/05-acceptance-and-risks.md](1.0-adrenaline-tv/05-acceptance-and-risks.md) i [06-playback-negotiation.md](1.0-adrenaline-tv/06-playback-negotiation.md). Wynik każdego punktu wpisać z modelem TV, wersją firmware, wersją Adrenaline, siecią (Wi-Fi/Ethernet) i trybem odtwarzania z zakładki TV → Playback on TVs. Emulator/przeglądarka nie zamykają punktów sprzętowych.
+
+### Desktop (Windows, bez TV)
+
+1. Pobranie do końca: zadanie przechodzi w `completed`, upload spada do 0, torrent znika z silnika (brak ruchu w Menedżerze zasobów → Sieć dla `adrenaline-engine.exe`), film w zakładce Library.
+2. Profil z 0.9.0 z zadaniem seedującym: po aktualizacji do 1.0 zadanie jest `completed`, nic nie wysyła.
+3. Quit z zasobnika: po 15 s brak `adrenaline-engine.exe`, `JackettConsole.exe` i `ffmpeg.exe` w Menedżerze zadań. Zabicie `Adrenaline.exe` w Menedżerze zadań, ponowny start: pozostawiony Jackett/silnik zostaje zatrzymany (log „stopped a leftover…”).
+4. Library: Play (domyślny odtwarzacz), Show in folder, Remove (pliki zostają / z „Also delete the files”), plik usunięty ręcznie → „File missing”.
+5. TV → włączenie serwera: monit zapory Windows (Private), adres LAN w zakładce, port zajęty → `TV_PORT_IN_USE`, wyłączenie → port zamknięty (`netstat -ano | findstr 18790`).
+
+### Android TV (fizyczny, Android 9+)
+
+6. Deploy: debugowanie sieciowe (5555) i bezprzewodowe z kodem parowania (Android 11+); monit „Allow debugging” → instalacja → start z adresem PC → kod parowania na TV = kod w zakładce → Approve → stan „Installed and connected”.
+7. Ponowny Deploy tej samej wersji i nowszej: dane i parowanie zachowane. APK z innym podpisem → `DEPLOY_SIGNATURE_MISMATCH`, bez odinstalowania.
+8. Pilotem: Discover (hero, rzędy, wyszukiwarka z klawiaturą TV), szczegóły filmu i serialu (sezony/odcinki), wydania, „Download to PC” → pobranie widoczne na PC i w Library na TV; Back w każdym miejscu wraca do poprzedniej pozycji.
+9. Odtwarzanie (Media3): MP4 H.264 direct; MKV HEVC direct; napisy SRT obok pliku (polskie znaki); wybór ścieżki audio i napisów osadzonych (PGS w MKV direct play); wznowienie od zapisanej pozycji; Home w trakcie → pozycja zapisana.
+10. Passthrough przez AVR/soundbar (eARC): E-AC3 JOC (Atmos) i TrueHD Atmos jako bitstream (wskaźnik Atmos na AVR), DTS-HD MA → DTS-HD na AVR; bez AVR → transkod audio do E-AC3/AAC zgodnie z powodem w zakładce TV.
+11. Dolby Vision: P8.1 i P5 na TV z DV (direct, wskaźnik DV na TV); na TV bez DV: P8.1 jako HDR10, P5 → konwersja z tone mappingiem (poprawne kolory, bez zielono-fioletowego obrazu).
+
+### Samsung Tizen (fizyczny, najstarszy deklarowany rocznik i nowszy)
+
+12. Developer Mode z IP PC, Tizen Studio + Certificate Manager (profil z DUID z zakładki TV) → Deploy → instalacja WGT → uruchomienie (lub ręcznie z listy aplikacji) → parowanie.
+13. Ponowny Deploy po aktualizacji Adrenaline (ten sam profil): dane i parowanie zachowane. Inny profil autora → `DEPLOY_CERTIFICATE`.
+14. Pilotem jak w punkcie 8; klawisze mediów pilota (Play/Pause, FF/RW, Stop) w odtwarzaczu.
+15. AVPlay: MP4/MKV direct, HLS (remux MKV dla TV bez MKV — wymusić w profilu nie da się, więc sprawdzić plik z kontenerem AVI → konwersja), seek w obrębie i poza skonwertowaną częścią (nowa sesja od pozycji), zmiana ścieżki audio (direct: w pliku; HLS: nowa sesja), napisy WebVTT rysowane przez aplikację, standby TV w trakcie → powrót.
+16. HDR10/HDR10+ na Samsungu HDR (direct), na modelu bez HDR → tone mapping; E-AC3 JOC przez eARC do soundbara (Atmos).
+
+### Konwersja na PC (dowolny TV)
+
+17. NVENC / Quick Sync / AMF: dla każdej dostępnej karty ustawić „Conversion with” i odtworzyć 4K HDR → SDR 1080p; prędkość w zakładce TV ≥ 1,0×; użycie GPU w Menedżerze zadań. „Processor only” → libx264.
+18. Dwa TV jednocześnie: drugi transkod wideo → `TV_TRANSCODE_BUSY` na drugim TV, direct play działa równolegle.
+19. Stop/seek/revoke/Quit w trakcie konwersji: `ffmpeg.exe` znika w ≤ 2 s, katalog `%APPDATA%\adrenaline\transcode` pusty po Quit; limit miejsca (np. 5 GB) nie jest przekraczany przy długim remuxie 4K.
+20. PGS i ASS przy konwersji wideo: napisy wypalone, zsynchronizowane po seeku.

@@ -15,8 +15,8 @@ val (major, minor, patch) = match.destructured
 val pre = match.groupValues[4].ifEmpty { "99" }.toInt()
 val code = major.toInt() * 1_000_000 + minor.toInt() * 10_000 + patch.toInt() * 100 + pre
 
-// Release signing from CI secrets (never in the repo). Without them the build is signed with the debug key and is
-// marked as such in resources/tv/manifest.json.
+// Release signing from CI secrets (never in the repo). Without them the build is signed with the development key
+// (tv/android/debug.keystore) and marked as "debug" in resources/tv/manifest.json.
 val keystore = System.getenv("ADRENALINE_ANDROID_KEYSTORE")
 
 android {
@@ -32,6 +32,14 @@ android {
     }
 
     signingConfigs {
+        // A fixed development key kept in the repo (public, like Android's debug key): builds without the release
+        // secrets are still signed with the same key every time, so they update each other on a TV.
+        getByName("debug") {
+            storeFile = file("../debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
         if (keystore != null) {
             create("release") {
                 storeFile = file(keystore)

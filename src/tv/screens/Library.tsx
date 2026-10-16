@@ -171,7 +171,9 @@ export function Library() {
               <Picture className="card-image" src={image(show.posterPath, 'w342')} alt={show.title} />
               <div className="card-caption">
                 <span className="card-title">{show.title}</span>
-                <span className="card-meta">{t('library.episodes', { count: show.items.length })}</span>
+                <span className="card-meta">
+                  {show.items.length === 1 ? t('library.episode') : t('library.episodes', { count: show.items.length })}
+                </span>
               </div>
             </Focusable>
           ))}
