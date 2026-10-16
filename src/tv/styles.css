@@ -1142,10 +1142,30 @@ img {
   position: absolute;
   top: 5rem;
   right: var(--page-x);
-  width: 22rem;
+  display: flex;
+  max-height: 70vh;
   padding: 1.5rem;
   border-radius: var(--radius-large);
   background: rgba(26, 29, 35, 0.94);
+}
+
+.player-column {
+  width: 24rem;
+  overflow: hidden;
+  opacity: 0.55;
+}
+
+.player-column + .player-column {
+  margin-left: 1.5rem;
+}
+
+.player-column.is-active {
+  opacity: 1;
+}
+
+.player-mode {
+  color: var(--text-dim);
+  font-size: 1.1rem;
 }
 
 .player-menu h3 {

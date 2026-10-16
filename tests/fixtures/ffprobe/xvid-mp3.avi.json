@@ -1,0 +1,36 @@
+{
+  "streams": [
+    {
+      "index": 0,
+      "codec_name": "mpeg4",
+      "codec_type": "video",
+      "profile": "Advanced Simple Profile",
+      "width": 720,
+      "height": 400,
+      "pix_fmt": "yuv420p",
+      "avg_frame_rate": "25/1",
+      "disposition": {
+        "default": 0,
+        "forced": 0,
+        "attached_pic": 0
+      }
+    },
+    {
+      "index": 1,
+      "codec_name": "mp3",
+      "codec_type": "audio",
+      "channels": 2,
+      "disposition": {
+        "default": 0,
+        "forced": 0,
+        "attached_pic": 0
+      }
+    }
+  ],
+  "format": {
+    "format_name": "avi",
+    "duration": "5400.0",
+    "bit_rate": "1200000",
+    "size": "810000000"
+  }
+}

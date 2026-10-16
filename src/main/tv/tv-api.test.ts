@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import movieFixture from '../../../tests/fixtures/tmdb/movie.json';
 import searchFixture from '../../../tests/fixtures/tmdb/search-movie.json';
 import { FakeJackett } from '../../../tests/helpers/fake-jackett';
+import { PROFILE } from '../../../tests/helpers/tv-profile';
 import type { PairingCreated, PairingStatus, TvDownload, TvLibraryItem, TvPlayback } from '@shared/contracts/tv';
 import type { ReleaseSession } from '@shared/contracts/releases';
 import { EngineSupervisor } from '../engine/engine-process';
@@ -26,6 +27,7 @@ import { SettingsService } from '../services/settings-service';
 import type { SourcesService } from '../services/sources-service';
 import { TvDevicesRepository } from './devices';
 import { TvService } from './tv-service';
+import { createMediaService } from '../media/media-service';
 
 const MiB = 1024 * 1024;
 const HASH = 'ab'.repeat(20);
@@ -99,7 +101,16 @@ async function setup() {
     removeJob: (id, deleteFiles) => downloads.remove(id, deleteFiles),
   });
   const devices = new TvDevicesRepository(db);
+  const playback = createMediaService({
+    userData: base,
+    db,
+    library,
+    settings,
+    tools: null,
+    log: nullLogger,
+  });
   const tv = new TvService({
+    playback,
     version: '1.0.0-test',
     devices,
     catalog,
@@ -235,8 +246,13 @@ describe('TV API v1 on loopback (B7)', () => {
     expect(library.body[0]).toMatchObject({ title: 'Night of the Living Dead', available: true, resumeMs: null });
     expect(JSON.stringify(library.body)).not.toContain('Videos');
 
-    const playback = await call<TvPlayback>('POST', `/api/v1/playback/${library.body[0]!.id}`, { token });
-    expect(playback.body.mimeType).toBe('video/mp4');
+    const playback = await call<TvPlayback>('POST', `/api/v1/playback/${library.body[0]!.id}`, {
+      token,
+      body: { profile: PROFILE },
+    });
+    expect(playback.body).toMatchObject({ mimeType: 'video/mp4', mode: 'direct', offsetMs: 0 });
+    // No FFmpeg in this test: the file is sent as it is, and the reason says why.
+    expect(playback.body.reasons.join(' ')).toMatch(/FFmpeg is missing/);
     expect(playback.body.streamUrl.startsWith(`${url}/media/`)).toBe(true);
 
     const part = await fetch(playback.body.streamUrl, { headers: { Range: 'bytes=2-5' } });
@@ -248,7 +264,7 @@ describe('TV API v1 on loopback (B7)', () => {
     expect((await fetch(playback.body.streamUrl, { headers: { Range: 'bytes=50-' } })).status).toBe(416);
 
     // Sidecar subtitles exist on disk but were not fetched by Adrenaline: not offered.
-    expect(playback.body.subtitles).toEqual([]);
+    expect(playback.body.subtitleTracks).toEqual([]);
 
     await call('PUT', `/api/v1/playback/${library.body[0]!.id}/progress`, {
       token,

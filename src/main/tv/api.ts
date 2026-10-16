@@ -14,12 +14,16 @@ import {
   type TvInfo,
   type TvLibraryItem,
   type TvPlayback,
+  tvPlaybackRequestSchema,
+  type TvSubtitleTrack,
   type TvSession,
   tvProgressSchema,
   tvSelectionSchema,
 } from '@shared/contracts/tv';
 import { deriveJobStatus } from '@shared/domain/job-status';
 import { AppError } from '@shared/errors';
+import { stat as statFile } from 'node:fs/promises';
+import type { MediaService } from '../media/media-service';
 import type { MediaRepository } from '../persistence/repositories/media';
 import type { CatalogService } from '../services/catalog-service';
 import type { DownloadService } from '../services/download-service';
@@ -30,6 +34,15 @@ import type { TvDevicesRepository } from './devices';
 import { readSubtitleAsVtt, sendFile, type TicketStore, videoMime } from './media';
 import type { PairingManager } from './pairing';
 import { HANDLED, type RequestContext, type Route } from './server';
+
+/** What the API needs from the media layer (MediaService in the app, a stub in tests). */
+export interface PlaybackApi {
+  start: MediaService['start'];
+  embeddedVtt: MediaService['embeddedVtt'];
+  stopDevice: (deviceId: string) => void;
+  /** Path of an HLS file of the device's session for this item (waits until FFmpeg wrote it). */
+  hlsFile: (sessionId: string, deviceId: string, itemId: string, name: string) => Promise<string>;
+}
 
 export interface TvApiDeps {
   version: string;
@@ -44,6 +57,8 @@ export interface TvApiDeps {
   settings: SettingsService;
   /** OpenSubtitles account saved on the PC (D-78): only then a TV can ask for subtitles. */
   subtitleAccountReady: () => boolean;
+  /** Probe, plan and HLS sessions (D-85). */
+  playback: PlaybackApi;
   /** Lets a revoke end the device's open media streams. */
   trackStream: (deviceId: string, res: RequestContext['res']) => void;
 }
@@ -116,6 +131,11 @@ export function tvRoutes(deps: TvApiDeps): Route[] {
     apiVersion: TV_API_VERSION,
     apiMin: TV_API_MIN,
   });
+  const requireTicket = (ctx: RequestContext) => {
+    const ticket = deps.tickets.use(ctx.params['ticket']!);
+    if (!ticket || !deps.devices.exists(ticket.deviceId)) throw new AppError('TV_UNAUTHORIZED');
+    return ticket;
+  };
   const listDownloads = (): TvDownload[] => {
     const d = deps.downloads();
     if (!d) return [];
@@ -281,25 +301,83 @@ export function tvRoutes(deps: TvApiDeps): Route[] {
       path: '/api/v1/playback/:itemId',
       auth: 'device',
       handler: async (ctx): Promise<TvPlayback> => {
-        const file = await deps.library.resolve(ctx.params['itemId']!);
+        const req = parse(tvPlaybackRequestSchema, ctx.body);
+        const deviceId = ctx.device!.id;
+        const itemId = ctx.params['itemId']!;
+        const saved = deps.devices.progress(deviceId).get(itemId);
+        const savedResume =
+          saved &&
+          !(saved.durationMs && saved.positionMs >= saved.durationMs * WATCHED_RATIO) &&
+          saved.positionMs > 5_000
+            ? saved.positionMs
+            : null;
+        const started = await deps.playback.start({
+          deviceId,
+          itemId,
+          profile: req.profile,
+          ...(req.audioIndex !== undefined ? { audioIndex: req.audioIndex } : {}),
+          ...(req.subtitle ? { subtitle: req.subtitle } : {}),
+          // A converted stream starts where this TV stopped watching (the original file is sought by the player).
+          startMs: req.startMs ?? savedResume ?? 0,
+        });
+        const { file, probe, plan, session } = started;
+        if (plan.error) throw new AppError('TV_UNSUPPORTED_MEDIA', plan.error);
         const mime = videoMime(file.path);
-        if (mime === 'application/octet-stream') throw new AppError('TV_UNSUPPORTED_MEDIA');
-        const ticket = deps.tickets.issue(ctx.device!.id, file.item.id);
+        if (plan.delivery === 'file' && mime === 'application/octet-stream') throw new AppError('TV_UNSUPPORTED_MEDIA');
+        const ticket = deps.tickets.issue(deviceId, file.item.id);
         const base = `http://${ctx.host}/media/${ticket}`;
-        const p = deps.devices.progress(ctx.device!.id).get(file.item.id);
+        const p = deps.devices.progress(deviceId).get(file.item.id);
         const watched = p && p.durationMs ? p.positionMs >= p.durationMs * WATCHED_RATIO : false;
+        const external: TvSubtitleTrack[] = file.subtitles
+          .filter((x) => /\.(srt|vtt)$/i.test(x.path))
+          .map((x) => ({
+            id: `x:${x.lang}`,
+            label: x.lang.toUpperCase(),
+            kind: 'external',
+            url: `${base}/subtitles/${encodeURIComponent(x.lang)}.vtt`,
+            burnedIn: false,
+          }));
+        const embedded: TvSubtitleTrack[] = (probe?.subtitles ?? []).map((x) => ({
+          id: `e:${x.index}`,
+          label: [
+            x.language?.toUpperCase() ?? `#${x.index}`,
+            x.title,
+            x.forced ? 'forced' : null,
+            x.image ? (x.codec === 'hdmv_pgs_subtitle' ? 'PGS' : 'image') : null,
+          ]
+            .filter(Boolean)
+            .join(' · '),
+          kind: x.image ? 'embedded-image' : 'embedded-text',
+          url: x.image ? null : `${base}/subtitles/e${x.index}.vtt`,
+          burnedIn: plan.subtitles.delivery === 'burn-in' && plan.subtitles.index === x.index,
+        }));
+        const audioTracks = (probe?.audio ?? []).map((a) => ({
+          index: a.index,
+          label: [
+            a.language?.toUpperCase(),
+            a.title,
+            audioLabel(a.codec, a.profile),
+            a.channels === 6 ? '5.1' : a.channels === 8 ? '7.1' : a.channels === 2 ? 'stereo' : `${a.channels}ch`,
+          ]
+            .filter(Boolean)
+            .join(' · '),
+          selected: a.index === plan.audio.index,
+        }));
         return {
           itemId: file.item.id,
           title:
             file.item.kind === 'episode'
               ? `${file.item.title} · S${String(file.item.season).padStart(2, '0')}E${String(file.item.episode).padStart(2, '0')}`
               : file.item.title,
-          streamUrl: `${base}/video`,
-          mimeType: mime,
-          subtitles: file.subtitles
-            .filter((s) => /\.(srt|vtt)$/i.test(s.path))
-            .map((s) => ({ lang: s.lang, url: `${base}/subtitles/${encodeURIComponent(s.lang)}.vtt` })),
+          mode: plan.mode,
+          streamUrl: session ? `${base}/hls/${session.id}/index.m3u8` : `${base}/video`,
+          mimeType: session ? 'application/vnd.apple.mpegurl' : mime,
+          offsetMs: session ? session.startMs : 0,
+          durationMs: probe?.durationMs ?? null,
           resumeMs: p && !watched && p.positionMs > 5_000 ? p.positionMs : null,
+          audioTracks,
+          subtitleTracks: [...external, ...embedded],
+          reasons: plan.reasons,
         };
       },
     },
@@ -315,12 +393,18 @@ export function tvRoutes(deps: TvApiDeps): Route[] {
       },
     },
     {
+      method: 'DELETE',
+      path: '/api/v1/playback',
+      auth: 'device',
+      // The TV left the player: stop its conversion at once (otherwise it stops after a minute without requests).
+      handler: (ctx) => deps.playback.stopDevice(ctx.device!.id),
+    },
+    {
       method: 'GET',
       path: '/media/:ticket/video',
       auth: 'media',
       handler: async (ctx) => {
-        const ticket = deps.tickets.use(ctx.params['ticket']!);
-        if (!ticket || !deps.devices.exists(ticket.deviceId)) throw new AppError('TV_UNAUTHORIZED');
+        const ticket = requireTicket(ctx);
         const file = await deps.library.resolve(ticket.itemId);
         deps.trackStream(ticket.deviceId, ctx.res);
         await sendFile(ctx.req, ctx.res, { ...file, mime: videoMime(file.path) });
@@ -329,15 +413,41 @@ export function tvRoutes(deps: TvApiDeps): Route[] {
     },
     {
       method: 'GET',
+      path: '/media/:ticket/hls/:session/:file',
+      auth: 'media',
+      handler: async (ctx) => {
+        const ticket = requireTicket(ctx);
+        const name = ctx.params['file'] ?? '';
+        if (!/^(index\.m3u8|init\.mp4|seg\d{5}\.m4s)$/.test(name)) throw new AppError('BAD_REQUEST');
+        const path = await deps.playback.hlsFile(ctx.params['session']!, ticket.deviceId, ticket.itemId, name);
+        const stat = await statFile(path);
+        deps.trackStream(ticket.deviceId, ctx.res);
+        await sendFile(ctx.req, ctx.res, {
+          path,
+          size: stat.size,
+          mtimeMs: stat.mtimeMs,
+          mime: name.endsWith('.m3u8') ? 'application/vnd.apple.mpegurl' : 'video/mp4',
+        });
+        return HANDLED;
+      },
+    },
+    {
+      method: 'GET',
       path: '/media/:ticket/subtitles/:file',
       auth: 'media',
       handler: async (ctx) => {
-        const ticket = deps.tickets.use(ctx.params['ticket']!);
-        if (!ticket || !deps.devices.exists(ticket.deviceId)) throw new AppError('TV_UNAUTHORIZED');
-        const lang = /^([\w-]{1,16})\.vtt$/.exec(ctx.params['file'] ?? '')?.[1];
+        const ticket = requireTicket(ctx);
+        const name = ctx.params['file'] ?? '';
         const file = await deps.library.resolve(ticket.itemId);
-        const sub = file.subtitles.find((s) => s.lang === lang);
-        const vtt = sub ? await readSubtitleAsVtt(sub.path) : null;
+        let vtt: string | null;
+        const embedded = /^e(\d{1,3})\.vtt$/.exec(name);
+        if (embedded) {
+          vtt = await deps.playback.embeddedVtt(file, Number(embedded[1]));
+        } else {
+          const lang = /^([\w-]{1,16})\.vtt$/.exec(name)?.[1];
+          const sub = file.subtitles.find((x) => x.lang === lang);
+          vtt = sub ? await readSubtitleAsVtt(sub.path) : null;
+        }
         if (vtt === null) throw new AppError('NOT_FOUND');
         ctx.res.setHeader('Content-Type', 'text/vtt; charset=utf-8');
         ctx.res.setHeader('Cache-Control', 'no-store');
@@ -346,6 +456,22 @@ export function tvRoutes(deps: TvApiDeps): Route[] {
       },
     },
   ];
+}
+
+/** Codec name as people know it (TrueHD Atmos, DTS-HD MA, E-AC3 Atmos…). */
+function audioLabel(codec: string, profile: string | null): string {
+  if (profile && /atmos|DTS-HD|DTS:X/i.test(profile)) return profile.replace('Dolby Digital Plus', 'E-AC3');
+  const names: Record<string, string> = {
+    truehd: 'TrueHD',
+    eac3: 'E-AC3',
+    ac3: 'AC3',
+    dts: 'DTS',
+    aac: 'AAC',
+    flac: 'FLAC',
+    opus: 'Opus',
+    mp3: 'MP3',
+  };
+  return names[codec] ?? codec.toUpperCase();
 }
 
 function parseId(value: string | undefined): number {

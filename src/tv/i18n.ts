@@ -100,7 +100,13 @@ const en = {
     unsupported: 'This file can’t be played on this TV. Play it on your PC from the Library.',
     missing: 'The file is no longer on the PC.',
     subtitles: 'Subtitles',
+    audio: 'Audio',
     off: 'Off',
+    mode: {
+      remux: 'Repackaged by the PC',
+      audio: 'Audio converted by the PC',
+      video: 'Converted by the PC',
+    },
   },
   settings: {
     title: 'Settings',
@@ -123,6 +129,7 @@ const en = {
     FILE_MISSING: 'The file is no longer on the PC.',
     TV_UNSUPPORTED_MEDIA: 'This file type can’t be streamed to the TV.',
     TV_RATE_LIMITED: 'Too many requests. Wait a moment.',
+    TV_TRANSCODE_BUSY: 'The PC is already converting a video for another TV. Try again when it stops.',
     default: 'Something went wrong on the PC ({code}).',
   },
 };

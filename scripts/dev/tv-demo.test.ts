@@ -31,6 +31,8 @@ import { SettingsService } from '../../src/main/services/settings-service';
 import type { SourcesService } from '../../src/main/services/sources-service';
 import { TvDevicesRepository } from '../../src/main/tv/devices';
 import { TvService } from '../../src/main/tv/tv-service';
+import { resolveFfmpeg } from '../../src/main/media/ffmpeg-path';
+import { createMediaService } from '../../src/main/media/media-service';
 
 const MiB = 1024 * 1024;
 // Synthetic titles (own data, D-23): images are served by the screenshot script from generated files.
@@ -291,7 +293,16 @@ it('serves the TV demo', async () => {
     jobs.replaceFiles(j.id, [{ ...f, size, doneBytes: size }]);
   }
 
+  const playback = createMediaService({
+    userData: base,
+    db,
+    library,
+    settings,
+    tools: resolveFfmpeg({ env: process.env, isPackaged: false, resourcesPath: '', appRoot: process.cwd() }),
+    log: log,
+  });
   const tv = new TvService({
+    playback,
     version: 'demo',
     devices: new TvDevicesRepository(db),
     catalog,

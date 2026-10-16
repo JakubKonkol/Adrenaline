@@ -76,7 +76,7 @@ describe('openDatabase', () => {
     old.prepare("INSERT INTO settings (key, value_json) VALUES ('theme', '\"dark\"')").run();
     old.close();
     const db = openDatabase(path, { log: nullLogger });
-    expect(userVersion(db)).toBe(2);
+    expect(userVersion(db)).toBe(MIGRATIONS.at(-1)!.version);
     expect(db.prepare("SELECT value_json FROM settings WHERE key = 'theme'").get()).toEqual({ value_json: '"dark"' });
     expect(db.prepare("SELECT name FROM sqlite_master WHERE name = 'tv_devices'").get()).toBeTruthy();
     db.close();

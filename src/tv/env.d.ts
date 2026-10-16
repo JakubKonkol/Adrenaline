@@ -9,6 +9,8 @@ interface AdrenalineNativeBridge {
   serverUrl(): string;
   /** Opens the native Media3 player with a JSON `NativePlayRequest`. */
   play(request: string): void;
+  /** JSON DeviceProfile from MediaCodecList, Display HDR capabilities and AudioCapabilities (D-85). */
+  deviceProfile?(): string;
   exit(): void;
 }
 

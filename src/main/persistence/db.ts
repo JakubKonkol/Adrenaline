@@ -4,6 +4,7 @@ import { DatabaseSync } from 'node:sqlite';
 import type { Logger } from '../logger';
 import init001 from './migrations/001_init.sql?raw';
 import tv002 from './migrations/002_tv.sql?raw';
+import probe003 from './migrations/003_media_probe.sql?raw';
 
 export interface Migration {
   version: number;
@@ -15,6 +16,7 @@ export interface Migration {
 export const MIGRATIONS: Migration[] = [
   { version: 1, name: 'init', sql: init001 },
   { version: 2, name: 'tv', sql: tv002 },
+  { version: 3, name: 'media probe', sql: probe003 },
 ];
 
 const MAX_BACKUPS = 3;

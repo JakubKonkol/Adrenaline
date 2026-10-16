@@ -141,6 +141,10 @@ export const errorTexts: Record<AppErrorCode, { message: string; action: string 
     message: 'The TV server could not start.',
     action: 'Check the address and port in the TV tab. Details are in the logs.',
   },
+  TV_TRANSCODE_BUSY: {
+    message: 'The PC is already converting a video for another TV.',
+    action: 'Wait until the other TV stops playing, or play a file that needs no conversion.',
+  },
   TV_UNSUPPORTED_MEDIA: {
     message: 'This file cannot be streamed to the TV.',
     action: 'Play it on the PC from the Library.',

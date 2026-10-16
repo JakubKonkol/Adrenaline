@@ -1,21 +1,26 @@
 import type { TvPlatform } from '@shared/contracts/tv';
 
+/** What the Android player gets (TvPlayback + where to start). */
 export interface NativePlayRequest {
   itemId: string;
   url: string;
   title: string;
   mimeType: string;
-  subtitles: { lang: string; url: string }[];
+  /** The stream starts at this position of the film (HLS after a seek); positions reported back are absolute. */
+  offsetMs: number;
+  durationMs: number | null;
   startMs: number;
+  audioTracks: { index: number; label: string; selected: boolean }[];
+  subtitleTracks: { id: string; label: string; kind: string; url: string | null; burnedIn: boolean }[];
 }
 
-export interface NativePlayerEvent {
-  type: 'closed';
-  itemId: string;
-  positionMs: number;
-  durationMs: number | null;
-  ended: boolean;
-}
+/**
+ * Events from the Android player. `closed`: back to the app with the position. `restart`: the user sought outside
+ * the converted part or chose another audio/burned-in subtitle track; the app asks the PC for a new stream.
+ */
+export type NativePlayerEvent =
+  | { type: 'closed'; itemId: string; positionMs: number; durationMs: number | null; ended: boolean }
+  | { type: 'restart'; itemId: string; positionMs: number; audioIndex: number | null; subtitleId: string | null };
 
 export interface Platform {
   name: TvPlatform;

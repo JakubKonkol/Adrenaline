@@ -1,17 +1,19 @@
-import { useEffect, useRef, useState } from 'react';
-import type { TvPlayback } from '@shared/contracts/tv';
-import { ApiError } from '../api';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { TvPlayback, TvSubtitleTrack } from '@shared/contracts/tv';
+import { ApiError, type PlaybackRequest } from '../api';
 import { invalidate } from '../data';
 import { errorText, t } from '../i18n';
 import { useBackHandler, useMediaKeys, useNav } from '../nav';
 import { type NativePlayerEvent, platform } from '../platform';
 import { avplayAvailable, createAvPlayEngine, createVideoEngine, type PlayerEngine } from '../player/engines';
+import { deviceProfile } from '../player/profile';
 import { type Cue, cueAt, parseVtt } from '../player/vtt';
 import { useSession } from '../session';
 import { Message, Spinner } from '../ui';
 
 const SAVE_EVERY_MS = 15_000;
 const CONTROLS_MS = 4_000;
+const HLS = 'application/vnd.apple.mpegurl';
 
 export function formatTime(ms: number | null): string {
   if (ms === null || !Number.isFinite(ms)) return '--:--';
@@ -22,15 +24,30 @@ export function formatTime(ms: number | null): string {
   return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`;
 }
 
+type Request = Omit<PlaybackRequest, 'profile'>;
+
+/** Subtitle choice → what the PC must do (only image subtitles change the stream: they are burned in). */
+export function subtitleRequest(track: TvSubtitleTrack | null): PlaybackRequest['subtitle'] {
+  if (!track || track.kind !== 'embedded-image') return { kind: 'none' };
+  return { kind: 'embedded', index: Number(track.id.slice(2)) };
+}
+
+/**
+ * Player screen (D-85): asks the PC for a stream with this TV's profile. The answer is the file itself (direct play)
+ * or an HLS stream the PC converts (remux / audio / video). A seek outside the converted part, another audio track
+ * (for HLS) or image subtitles start a new stream from the current position.
+ */
 export function Player({ itemId }: { itemId: string }) {
   const { api } = useSession();
   const nav = useNav();
+  const profile = useMemo(() => deviceProfile(platform.name), []);
+  const [request, setRequest] = useState<Request>({});
   const [playback, setPlayback] = useState<TvPlayback | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
-    api.playback(itemId).then(
+    api.playback(itemId, { profile, ...request }).then(
       (p) => alive && setPlayback(p),
       (e: unknown) => {
         if (!alive) return;
@@ -41,75 +58,131 @@ export function Player({ itemId }: { itemId: string }) {
     return () => {
       alive = false;
     };
-  }, [api, itemId]);
+  }, [api, itemId, profile, request]);
+
+  // Leaving the player stops the PC's conversion right away.
+  useEffect(() => () => void api.stopPlayback().catch(() => undefined), [api]);
 
   useBackHandler(() => {
     nav.pop();
     return true;
   }, !playback || !!error);
 
+  const restart = (next: Request) => {
+    setPlayback(null);
+    setRequest(next);
+  };
+
   if (error) return <Message title={error} action={t('app.back')} onAction={nav.pop} />;
   if (!playback) return <Spinner />;
-  return platform.playNative ? <NativePlayer playback={playback} /> : <WebPlayer playback={playback} />;
+  return platform.playNative ? (
+    <NativePlayer playback={playback} request={request} onRestart={restart} />
+  ) : (
+    <WebPlayer key={playback.streamUrl} playback={playback} request={request} onRestart={restart} />
+  );
 }
 
-/** Android: the Media3 activity plays; this screen waits for it to close and stores the position. */
-function NativePlayer({ playback }: { playback: TvPlayback }) {
+/** Android: the Media3 activity plays; this screen waits for it and handles restarts and the final position. */
+function NativePlayer({
+  playback,
+  request,
+  onRestart,
+}: {
+  playback: TvPlayback;
+  request: Request;
+  onRestart: (r: Request) => void;
+}) {
   const { api } = useSession();
   const nav = useNav();
   useEffect(() => {
     window.__adrenalineNativeEvent = (raw: string) => {
+      let e: NativePlayerEvent;
       try {
-        const e = JSON.parse(raw) as NativePlayerEvent;
-        if (e.type === 'closed' && e.itemId === playback.itemId) {
-          void api
-            .saveProgress(playback.itemId, e.ended ? (e.durationMs ?? e.positionMs) : e.positionMs, e.durationMs)
-            .catch(() => undefined)
-            .finally(() => invalidate('library'));
-          nav.pop();
-        }
+        e = JSON.parse(raw) as NativePlayerEvent;
       } catch {
         nav.pop();
+        return;
       }
+      if (e.itemId !== playback.itemId) return;
+      if (e.type === 'restart') {
+        const track = playback.subtitleTracks.find((s) => s.id === e.subtitleId) ?? null;
+        onRestart({ startMs: e.positionMs, audioIndex: e.audioIndex, subtitle: subtitleRequest(track) });
+        return;
+      }
+      void api
+        .saveProgress(playback.itemId, e.ended ? (e.durationMs ?? e.positionMs) : e.positionMs, e.durationMs)
+        .catch(() => undefined)
+        .finally(() => invalidate('library'));
+      nav.pop();
     };
     platform.playNative!({
       itemId: playback.itemId,
       url: playback.streamUrl,
       title: playback.title,
       mimeType: playback.mimeType,
-      subtitles: playback.subtitles,
-      startMs: playback.resumeMs ?? 0,
+      offsetMs: playback.offsetMs,
+      durationMs: playback.durationMs,
+      startMs: playback.mimeType === HLS ? 0 : (request.startMs ?? playback.resumeMs ?? 0),
+      audioTracks: playback.audioTracks,
+      subtitleTracks: playback.subtitleTracks,
     });
     return () => {
       window.__adrenalineNativeEvent = undefined;
     };
-  }, [api, nav, playback]);
+  }, [api, nav, playback, request, onRestart]);
   return <Spinner label={playback.title} />;
 }
 
-function WebPlayer({ playback }: { playback: TvPlayback }) {
+type MenuChoice =
+  { kind: 'subtitle'; track: TvSubtitleTrack | null } | { kind: 'audio'; index: number; ordinal: number };
+
+interface MenuOption {
+  label: string;
+  selected: boolean;
+  choice: MenuChoice;
+}
+
+function WebPlayer({
+  playback,
+  request,
+  onRestart,
+}: {
+  playback: TvPlayback;
+  request: Request;
+  onRestart: (r: Request) => void;
+}) {
   const { api } = useSession();
   const nav = useNav();
   const videoRef = useRef<HTMLVideoElement>(null);
   const engineRef = useRef<PlayerEngine | null>(null);
-  const [time, setTime] = useState(playback.resumeMs ?? 0);
-  const [duration, setDuration] = useState<number | null>(null);
+  const hls = playback.mimeType === HLS;
+  const openAt = hls ? 0 : (request.startMs ?? playback.resumeMs ?? 0);
+  const [time, setTime] = useState(playback.offsetMs + openAt);
+  const [duration, setDuration] = useState<number | null>(playback.durationMs);
   const [paused, setPaused] = useState(false);
   const [buffering, setBuffering] = useState(true);
   const [failed, setFailed] = useState(false);
   const [controls, setControls] = useState(true);
-  const [menu, setMenu] = useState(false);
+  const [menu, setMenu] = useState<{ column: 0 | 1; row: number } | null>(null);
+  const burned = playback.subtitleTracks.find((s) => s.burnedIn) ?? null;
+  const [subtitleId, setSubtitleId] = useState<string | null>(
+    burned?.id ?? playback.subtitleTracks.find((s) => s.kind === 'external')?.id ?? null,
+  );
+  const [audioIndex, setAudioIndex] = useState<number | null>(
+    playback.audioTracks.find((a) => a.selected)?.index ?? null,
+  );
   const [loaded, setLoaded] = useState<{ url: string; cues: Cue[] } | null>(null);
-  const [subtitle, setSubtitle] = useState<string | null>(playback.subtitles[0]?.lang ?? null);
-  const [menuIndex, setMenuIndex] = useState(0);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSave = useRef(0);
   const useAvPlay = avplayAvailable();
 
-  const save = (ms: number, force = false) => {
+  /** Position in the film (the HLS stream may start later than 0). */
+  const absolute = () => playback.offsetMs + (engineRef.current?.position() ?? 0);
+
+  const save = (force = false) => {
     if (!force && Date.now() - lastSave.current < SAVE_EVERY_MS) return;
     lastSave.current = Date.now();
-    void api.saveProgress(playback.itemId, ms, engineRef.current?.duration() ?? null).catch(() => undefined);
+    void api.saveProgress(playback.itemId, absolute(), playback.durationMs).catch(() => undefined);
   };
 
   const showControls = () => {
@@ -121,16 +194,18 @@ function WebPlayer({ playback }: { playback: TvPlayback }) {
   useEffect(() => {
     const events = {
       onTime: (ms: number) => {
-        setTime(ms);
-        save(ms);
+        setTime(playback.offsetMs + ms);
+        save();
       },
       onReady: (d: number | null) => {
-        setDuration(d);
+        if (!playback.durationMs && d) setDuration(playback.offsetMs + d);
         setBuffering(false);
         showControls();
       },
       onEnded: () => {
-        save(engineRef.current?.duration() ?? 0, true);
+        void api
+          .saveProgress(playback.itemId, playback.durationMs ?? absolute(), playback.durationMs)
+          .catch(() => undefined);
         invalidate('library');
         nav.pop();
       },
@@ -142,19 +217,19 @@ function WebPlayer({ playback }: { playback: TvPlayback }) {
         ? createAvPlayEngine(window.webapis.avplay, events)
         : createVideoEngine(videoRef.current!, events);
     engineRef.current = engine;
-    engine.open(playback.streamUrl, playback.resumeMs ?? 0);
+    engine.open(playback.streamUrl, openAt);
     return () => {
-      save(engine.position(), true);
+      save(true);
       invalidate('library');
       engine.destroy();
       if (hideTimer.current) clearTimeout(hideTimer.current);
     };
-    // The engine lives as long as this playback.
+    // One engine per stream (the component is keyed by the stream URL).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playback]);
+  }, []);
 
-  // Subtitles: fetched as text and drawn by the app.
-  const subtitleUrl = playback.subtitles.find((s) => s.lang === subtitle)?.url ?? null;
+  // Text subtitles: fetched as WebVTT and drawn by the app (AVPlay draws video on its own plane).
+  const subtitleUrl = playback.subtitleTracks.find((s) => s.id === subtitleId && !s.burnedIn)?.url ?? null;
   const cues = loaded && loaded.url === subtitleUrl ? loaded.cues : [];
   useEffect(() => {
     if (!subtitleUrl) return;
@@ -168,21 +243,81 @@ function WebPlayer({ playback }: { playback: TvPlayback }) {
     };
   }, [subtitleUrl]);
 
-  const options: { label: string; lang: string | null }[] = [
-    { label: t('player.off'), lang: null },
-    ...playback.subtitles.map((s) => ({ label: s.lang.toUpperCase(), lang: s.lang })),
+  /** Seek in the film: inside the converted part locally, otherwise a new stream from there. */
+  const seekTo = (target: number) => {
+    const engine = engineRef.current;
+    if (!engine) return;
+    const clamped = Math.max(0, Math.min(target, (playback.durationMs ?? Infinity) - 1_000));
+    if (!hls) {
+      engine.seek(clamped);
+      return;
+    }
+    const local = clamped - playback.offsetMs;
+    const available = engine.duration();
+    if (local >= 0 && available !== null && local < available - 2_000) engine.seek(local);
+    else onRestart({ ...request, startMs: Math.round(clamped), audioIndex, subtitle: subtitleRequest(burned) });
+  };
+
+  // Menu entries are plain data; choosing one runs `choose` (event handler).
+  const subtitleOptions: MenuOption[] = [
+    { label: t('player.off'), selected: subtitleId === null, choice: { kind: 'subtitle', track: null } },
+    ...playback.subtitleTracks.map((track) => ({
+      label: track.label,
+      selected: track.id === subtitleId,
+      choice: { kind: 'subtitle' as const, track },
+    })),
   ];
+  const audioOptions: MenuOption[] = playback.audioTracks.map((track, ordinal) => ({
+    label: track.label,
+    selected: track.index === audioIndex,
+    choice: { kind: 'audio', index: track.index, ordinal },
+  }));
+  const columns = [subtitleOptions, audioOptions.length > 1 ? audioOptions : []];
+
+  const choose = (choice: MenuChoice) => {
+    const here = Math.round(absolute());
+    if (choice.kind === 'subtitle') {
+      const track = choice.track;
+      setSubtitleId(track?.id ?? null);
+      // Burned-in subtitles live in the picture: switching to or away from them needs a new stream.
+      if (track?.kind === 'embedded-image' || burned)
+        onRestart({ ...request, startMs: here, audioIndex, subtitle: subtitleRequest(track) });
+      return;
+    }
+    if (choice.index === audioIndex) return;
+    const engineTracks = engineRef.current?.audioTracks() ?? [];
+    const inFile = engineTracks[choice.ordinal];
+    if (!hls && inFile) {
+      // Direct play on AVPlay: switch inside the file.
+      engineRef.current?.selectAudio(inFile.index);
+      setAudioIndex(choice.index);
+    } else {
+      onRestart({ ...request, startMs: here, audioIndex: choice.index, subtitle: subtitleRequest(burned) });
+    }
+  };
 
   const handle = (action: string): boolean => {
     const engine = engineRef.current;
     if (!engine) return false;
     showControls();
     if (menu) {
-      if (action === 'up' || action === 'left') setMenuIndex((i) => Math.max(0, i - 1));
-      else if (action === 'down' || action === 'right') setMenuIndex((i) => Math.min(options.length - 1, i + 1));
-      else if (action === 'select') {
-        setSubtitle(options[menuIndex]?.lang ?? null);
-        setMenu(false);
+      const options = columns[menu.column]!;
+      if (action === 'up') setMenu({ ...menu, row: Math.max(0, menu.row - 1) });
+      else if (action === 'down') setMenu({ ...menu, row: Math.min(options.length - 1, menu.row + 1) });
+      else if (action === 'left' || action === 'right') {
+        const column = action === 'left' ? 0 : 1;
+        if (columns[column]!.length > 0)
+          setMenu({
+            column,
+            row: Math.max(
+              0,
+              columns[column]!.findIndex((o) => o.selected),
+            ),
+          });
+      } else if (action === 'select') {
+        const option = options[menu.row];
+        if (option) choose(option.choice);
+        setMenu(null);
       }
       return true;
     }
@@ -206,22 +341,21 @@ function WebPlayer({ playback }: { playback: TvPlayback }) {
         return true;
       case 'left':
       case 'rewind':
-        engine.seek(engine.position() - 10_000);
+        seekTo(absolute() - 10_000);
         return true;
       case 'right':
       case 'forward':
-        engine.seek(engine.position() + 30_000);
+        seekTo(absolute() + 30_000);
         return true;
       case 'up':
-        if (options.length > 1) {
-          setMenuIndex(
-            Math.max(
+        if (subtitleOptions.length > 1 || audioOptions.length > 1)
+          setMenu({
+            column: 0,
+            row: Math.max(
               0,
-              options.findIndex((o) => o.lang === subtitle),
+              subtitleOptions.findIndex((o) => o.selected),
             ),
-          );
-          setMenu(true);
-        }
+          });
         return true;
       case 'down':
         setControls(false);
@@ -237,7 +371,7 @@ function WebPlayer({ playback }: { playback: TvPlayback }) {
   useMediaKeys(handle);
   useBackHandler(() => {
     if (menu) {
-      setMenu(false);
+      setMenu(null);
       return true;
     }
     nav.pop();
@@ -246,6 +380,7 @@ function WebPlayer({ playback }: { playback: TvPlayback }) {
 
   const progress = duration ? (time / duration) * 100 : 0;
   const text = cueAt(cues, time);
+  const titles = [t('player.subtitles'), t('player.audio')];
   return (
     <div className={`player ${useAvPlay ? 'is-avplay' : ''} ${controls || paused ? 'controls-on' : ''}`}>
       {useAvPlay ? (
@@ -267,14 +402,25 @@ function WebPlayer({ playback }: { playback: TvPlayback }) {
         </div>
       ) : null}
       {menu ? (
-        <div className="player-menu" role="listbox" aria-label={t('player.subtitles')}>
-          <h3>{t('player.subtitles')}</h3>
-          {options.map((o, i) => (
-            <div key={o.label} className={`player-option ${i === menuIndex ? 'is-focused' : ''}`} role="option">
-              {o.label}
-              {o.lang === subtitle ? ' ✓' : ''}
-            </div>
-          ))}
+        <div className="player-menu" role="listbox">
+          {columns.map((options, c) =>
+            options.length > 0 ? (
+              <div key={c} className={`player-column ${menu.column === c ? 'is-active' : ''}`}>
+                <h3>{titles[c]}</h3>
+                {options.map((o, i) => (
+                  <div
+                    key={`${c}-${i}`}
+                    className={`player-option ${menu.column === c && menu.row === i ? 'is-focused' : ''}`}
+                    role="option"
+                    aria-selected={o.selected}
+                  >
+                    {o.label}
+                    {o.selected ? ' ✓' : ''}
+                  </div>
+                ))}
+              </div>
+            ) : null,
+          )}
         </div>
       ) : null}
       <div className={`player-controls ${controls || paused ? 'is-visible' : ''}`}>
@@ -286,7 +432,10 @@ function WebPlayer({ playback }: { playback: TvPlayback }) {
           </div>
           <span className="player-time">{formatTime(duration)}</span>
         </div>
-        <div className="player-hint">{paused ? '❚❚' : ''}</div>
+        <div className="player-hint">
+          {paused ? '❚❚ ' : ''}
+          {playback.mode !== 'direct' ? <span className="player-mode">{t(`player.mode.${playback.mode}`)}</span> : null}
+        </div>
       </div>
     </div>
   );

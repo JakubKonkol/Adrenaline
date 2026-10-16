@@ -28,6 +28,13 @@ export const appSettingsSchema = z.object({
   tvServerPort: z.number().int().min(1024).max(65535),
   /** IPv4 address of the chosen network interface; empty = the first private LAN address. */
   tvServerAddress: z.union([z.literal(''), z.ipv4()]),
+  /** D-85: encoder family for TV transcodes (auto = first working of NVENC, QSV, AMF, else CPU). */
+  transcodeHwAccel: z.enum(['auto', 'nvenc', 'qsv', 'amf', 'cpu']),
+  /** Highest output resolution of a TV transcode (lines). */
+  transcodeMaxHeight: z.union([z.literal(2160), z.literal(1440), z.literal(1080), z.literal(720)]),
+  transcodeMaxBitrateMbps: z.number().int().min(2).max(120),
+  /** Disk space for HLS segments in userData/transcode. */
+  transcodeCacheGiB: z.number().int().min(1).max(200),
 });
 export type AppSettings = z.infer<typeof appSettingsSchema>;
 
@@ -52,6 +59,10 @@ export const STATIC_DEFAULTS: Omit<AppSettings, 'downloadDir' | 'listenPort'> = 
   tvServerEnabled: false,
   tvServerPort: 18790,
   tvServerAddress: '',
+  transcodeHwAccel: 'auto',
+  transcodeMaxHeight: 2160,
+  transcodeMaxBitrateMbps: 40,
+  transcodeCacheGiB: 20,
 };
 
 /** Secrets the user can set from the renderer (write-only; the renderer only learns whether they exist). */

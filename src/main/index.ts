@@ -18,6 +18,8 @@ import { LibraryService } from './services/library-service';
 import { registerTvHandlers } from './ipc/tv-handlers';
 import { TvDevicesRepository } from './tv/devices';
 import { TvService } from './tv/tv-service';
+import { resolveFfmpeg } from './media/ffmpeg-path';
+import { createMediaService } from './media/media-service';
 import { JobsRepository } from './persistence/repositories/jobs';
 import { DownloadService } from './services/download-service';
 import { SubtitleService } from './services/subtitle-service';
@@ -304,8 +306,17 @@ if (!app.requestSingleInstanceLock()) {
       },
     });
     registerLibraryHandlers(ipc, library);
+    const ffmpeg = resolveFfmpeg({
+      env: process.env,
+      isPackaged: app.isPackaged,
+      resourcesPath: process.resourcesPath,
+      appRoot: app.getAppPath(),
+    });
+    if (!ffmpeg) log.warn('ffmpeg not found: TVs get direct play only');
+    const playback = createMediaService({ userData, db, library, settings, tools: ffmpeg, log: log.child('media') });
     const tv = new TvService({
       version: __ADRENALINE_VERSION__,
+      playback,
       devices: new TvDevicesRepository(db),
       catalog,
       releases: releaseSearch,

@@ -3,14 +3,18 @@ import { AppError } from '@shared/errors';
 import type { Logger } from '../logger';
 import type { SettingsService } from '../services/settings-service';
 import { Emitter } from '../util/emitter';
-import { tvRoutes, type TvApiDeps } from './api';
+import type { MediaService } from '../media/media-service';
+import { type PlaybackApi, tvRoutes, type TvApiDeps } from './api';
 import type { TvDevicesRepository } from './devices';
 import { TicketStore } from './media';
 import { chooseAddress, listAddresses } from './network';
 import { PairingManager } from './pairing';
 import { TvHttpServer } from './server';
 
-export interface TvServiceDeps extends Omit<TvApiDeps, 'devices' | 'pairing' | 'tickets' | 'trackStream'> {
+export type TvPlaybackDeps = PlaybackApi & Pick<MediaService, 'recentPlaybacks' | 'stopAll' | 'available'>;
+
+export interface TvServiceDeps extends Omit<TvApiDeps, 'devices' | 'pairing' | 'tickets' | 'trackStream' | 'playback'> {
+  playback: TvPlaybackDeps;
   devices: TvDevicesRepository;
   settings: SettingsService;
   log: Logger;
@@ -95,7 +99,24 @@ export class TvService extends Emitter<{ status: TvServerStatus }> {
       addresses: this.addresses(),
       pending: this.pairing.pending(),
       devices: this.deps.devices.list(),
+      ffmpeg: this.deps.playback.available,
+      playbacks: this.playbacks(),
     };
+  }
+
+  private playbacks(): TvServerStatus['playbacks'] {
+    const names = new Map(this.deps.devices.list().map((d) => [d.id, d.name]));
+    return this.deps.playback.recentPlaybacks().map((p) => ({
+      deviceName: names.get(p.deviceId) ?? '—',
+      title: p.title,
+      mode: p.mode,
+      reasons: p.reasons,
+      encoder: p.encoder,
+      toneMap: p.toneMap,
+      speed: p.speed,
+      active: p.active,
+      startedAt: p.startedAt,
+    }));
   }
 
   private publish() {
@@ -156,6 +177,7 @@ export class TvService extends Emitter<{ status: TvServerStatus }> {
     if (this.expiryTimer) clearTimeout(this.expiryTimer);
     await this.applying;
     await this.stopServer();
+    this.deps.playback.stopAll();
   }
 
   approve(id: string): void {
@@ -171,6 +193,7 @@ export class TvService extends Emitter<{ status: TvServerStatus }> {
     this.deps.devices.remove(deviceId);
     this.tickets.revokeDevice(deviceId);
     this.http.dropDevice(deviceId);
+    this.deps.playback.stopDevice(deviceId);
     this.publish();
   }
 

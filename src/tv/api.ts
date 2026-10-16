@@ -1,5 +1,6 @@
 import type { CatalogItem, SeasonDetails, TitleDetails } from '@shared/contracts/catalog';
 import type { ReleaseSession } from '@shared/contracts/releases';
+import type { DeviceProfile } from '@shared/domain/playback';
 import type {
   PairingCreated,
   PairingStatus,
@@ -20,6 +21,13 @@ export class ApiError extends Error {
     super(code);
     this.name = 'ApiError';
   }
+}
+
+export interface PlaybackRequest {
+  profile: DeviceProfile;
+  audioIndex?: number | null;
+  subtitle?: { kind: 'none' } | { kind: 'external'; lang: string } | { kind: 'embedded'; index: number };
+  startMs?: number;
 }
 
 export type Selection =
@@ -105,7 +113,9 @@ export class Api {
     this.call<TvDownload>('POST', `/api/v1/downloads/${id}/actions`, { action });
   removeDownload = (id: string) => this.call<void>('DELETE', `/api/v1/downloads/${id}`);
   library = () => this.call<TvLibraryItem[]>('GET', '/api/v1/library');
-  playback = (itemId: string) => this.call<TvPlayback>('POST', `/api/v1/playback/${encodeURIComponent(itemId)}`);
+  playback = (itemId: string, request: PlaybackRequest) =>
+    this.call<TvPlayback>('POST', `/api/v1/playback/${encodeURIComponent(itemId)}`, request);
+  stopPlayback = () => this.call<void>('DELETE', '/api/v1/playback');
   saveProgress = (itemId: string, positionMs: number, durationMs: number | null) =>
     this.call<void>('PUT', `/api/v1/playback/${encodeURIComponent(itemId)}/progress`, {
       positionMs: Math.max(0, Math.round(positionMs)),

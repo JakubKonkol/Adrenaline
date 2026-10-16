@@ -123,16 +123,90 @@ export const tvLibraryItemSchema = libraryItemSchema.omit({ jobId: true }).exten
 });
 export type TvLibraryItem = z.infer<typeof tvLibraryItemSchema>;
 
+const codec = z.string().regex(/^[a-z0-9-]{1,20}$/);
+
+/** What the TV can play (D-85): reported by the TV app, used by the PlaybackPlanner. */
+export const deviceProfileSchema = z
+  .object({
+    platform: tvPlatformSchema,
+    model: z.string().max(80).nullable(),
+    maxWidth: z.number().int().min(320).max(7680),
+    maxHeight: z.number().int().min(240).max(4320),
+    video: z
+      .array(
+        z.object({
+          codec,
+          maxWidth: z.number().int().min(320).max(7680),
+          maxHeight: z.number().int().min(240).max(4320),
+          tenBit: z.boolean(),
+        }),
+      )
+      .max(10),
+    hdr: z.object({
+      hdr10: z.boolean(),
+      hdr10plus: z.boolean(),
+      hlg: z.boolean(),
+      dolbyVision: z.array(z.number().int().min(0).max(20)).max(10),
+    }),
+    audioDecode: z.array(codec).max(20),
+    audioPassthrough: z.array(codec).max(20),
+    maxAudioChannels: z.number().int().min(1).max(16),
+    containers: z.array(codec).max(10),
+    hls: z.boolean(),
+  })
+  .strict();
+
+export const subtitleChoiceSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('none') }).strict(),
+  z.object({ kind: z.literal('external'), lang: z.string().max(16) }).strict(),
+  z.object({ kind: z.literal('embedded'), index: z.number().int().min(0).max(999) }).strict(),
+]);
+
+export const tvPlaybackRequestSchema = z
+  .object({
+    profile: deviceProfileSchema,
+    audioIndex: z.number().int().min(0).max(999).nullable().optional(),
+    subtitle: subtitleChoiceSchema.optional(),
+    /** Start of the converted stream (a seek beyond what the PC converted so far starts a new stream). */
+    startMs: z.number().int().min(0).max(1e9).optional(),
+  })
+  .strict();
+
+export const tvAudioTrackSchema = z.object({
+  index: z.number().int(),
+  label: z.string(),
+  selected: z.boolean(),
+});
+
+export const tvSubtitleTrackSchema = z.object({
+  /** `x:<lang>` sidecar file, `e:<index>` embedded track. */
+  id: z.string(),
+  label: z.string(),
+  kind: z.enum(['external', 'embedded-text', 'embedded-image']),
+  /** WebVTT for text tracks; image tracks are burned in by the PC (new stream). */
+  url: z.string().nullable(),
+  /** Already part of the picture (burned in). */
+  burnedIn: z.boolean(),
+});
+
 export const tvPlaybackSchema = z.object({
   itemId: z.string(),
   title: z.string(),
-  /** Absolute URL with a short-lived ticket; supports HTTP Range. */
+  mode: z.enum(['direct', 'remux', 'audio', 'video']),
+  /** Absolute URL with a short-lived ticket: the file (HTTP Range) or an HLS playlist. */
   streamUrl: z.string(),
   mimeType: z.string(),
-  subtitles: z.array(z.object({ lang: z.string(), url: z.string() })),
+  /** Position in the film where the stream starts (HLS after a seek); the player adds it to its own time. */
+  offsetMs: z.number().int().nonnegative(),
+  durationMs: z.number().int().nonnegative().nullable(),
   resumeMs: z.number().int().nonnegative().nullable(),
+  audioTracks: z.array(tvAudioTrackSchema),
+  subtitleTracks: z.array(tvSubtitleTrackSchema),
+  /** Why this variant (direct play, remux, conversion). */
+  reasons: z.array(z.string()),
 });
 export type TvPlayback = z.infer<typeof tvPlaybackSchema>;
+export type TvSubtitleTrack = z.infer<typeof tvSubtitleTrackSchema>;
 
 export const tvProgressSchema = z
   .object({
@@ -176,6 +250,20 @@ export const tvPendingPairingSchema = z.object({
 });
 export type TvPendingPairing = z.infer<typeof tvPendingPairingSchema>;
 
+export const tvPlaybackRecordSchema = z.object({
+  deviceName: z.string(),
+  title: z.string(),
+  mode: z.enum(['direct', 'remux', 'audio', 'video']),
+  reasons: z.array(z.string()),
+  encoder: z.string().nullable(),
+  toneMap: z.enum(['none', 'zscale', 'libplacebo']),
+  /** FFmpeg speed (×realtime) while converting. */
+  speed: z.number().nullable(),
+  active: z.boolean(),
+  startedAt: z.number(),
+});
+export type TvPlaybackRecord = z.infer<typeof tvPlaybackRecordSchema>;
+
 export const tvServerStatusSchema = z.object({
   enabled: z.boolean(),
   state: z.enum(['stopped', 'starting', 'running', 'error']),
@@ -188,5 +276,8 @@ export const tvServerStatusSchema = z.object({
   addresses: z.array(tvAddressSchema),
   pending: z.array(tvPendingPairingSchema),
   devices: z.array(tvDeviceSchema),
+  /** FFmpeg is bundled and found (conversion possible). */
+  ffmpeg: z.boolean(),
+  playbacks: z.array(tvPlaybackRecordSchema),
 });
 export type TvServerStatus = z.infer<typeof tvServerStatusSchema>;

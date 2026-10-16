@@ -1,0 +1,122 @@
+{
+  "streams": [
+    {
+      "index": 0,
+      "codec_name": "hevc",
+      "codec_type": "video",
+      "profile": "Main 10",
+      "level": 150,
+      "width": 3840,
+      "height": 2160,
+      "pix_fmt": "yuv420p10le",
+      "color_transfer": "smpte2084",
+      "color_primaries": "bt2020",
+      "avg_frame_rate": "24/1",
+      "r_frame_rate": "24/1",
+      "disposition": {
+        "default": 0,
+        "forced": 0,
+        "attached_pic": 0
+      },
+      "tags": {},
+      "side_data_list": [
+        {
+          "side_data_type": "DOVI configuration record",
+          "dv_version_major": 1,
+          "dv_version_minor": 0,
+          "dv_profile": 8,
+          "dv_level": 6,
+          "rpu_present_flag": 1,
+          "el_present_flag": 0,
+          "bl_present_flag": 1,
+          "dv_bl_signal_compatibility_id": 1
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "codec_name": "truehd",
+      "codec_type": "audio",
+      "bits_per_raw_sample": "24",
+      "avg_frame_rate": "0/0",
+      "r_frame_rate": "0/0",
+      "channels": 6,
+      "channel_layout": "5.1(side)",
+      "disposition": {
+        "default": 1,
+        "forced": 0,
+        "attached_pic": 0
+      },
+      "tags": {
+        "language": "eng"
+      },
+      "profile": "Dolby TrueHD + Dolby Atmos"
+    },
+    {
+      "index": 2,
+      "codec_name": "eac3",
+      "codec_type": "audio",
+      "avg_frame_rate": "0/0",
+      "r_frame_rate": "0/0",
+      "channels": 6,
+      "channel_layout": "5.1(side)",
+      "disposition": {
+        "default": 0,
+        "forced": 0,
+        "attached_pic": 0
+      },
+      "tags": {
+        "language": "pol"
+      }
+    },
+    {
+      "index": 3,
+      "codec_name": "subrip",
+      "codec_type": "subtitle",
+      "avg_frame_rate": "0/0",
+      "r_frame_rate": "0/0",
+      "disposition": {
+        "default": 1,
+        "forced": 0,
+        "attached_pic": 0
+      },
+      "tags": {
+        "language": "eng"
+      }
+    },
+    {
+      "index": 4,
+      "codec_name": "ass",
+      "codec_type": "subtitle",
+      "avg_frame_rate": "0/0",
+      "r_frame_rate": "0/0",
+      "disposition": {
+        "default": 0,
+        "forced": 0,
+        "attached_pic": 0
+      },
+      "tags": {
+        "language": "pol"
+      }
+    },
+    {
+      "index": 5,
+      "codec_name": "hdmv_pgs_subtitle",
+      "codec_type": "subtitle",
+      "disposition": {
+        "default": 0,
+        "forced": 0,
+        "attached_pic": 0
+      },
+      "tags": {
+        "language": "pol"
+      }
+    }
+  ],
+  "format": {
+    "format_name": "matroska,webm",
+    "duration": "1.500000",
+    "bit_rate": "10656816",
+    "size": "1998153"
+  }
+}
