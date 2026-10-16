@@ -23,11 +23,11 @@ Brak fizycznych TV w środowisku agenta → bramki sprzętowe P0 (instalacja, up
 ## Zadania
 
 ### A. Desktop: procesy, seedowanie, biblioteka
-- [ ] A1 Audyt procesów po Quit: silnik, Jackett, osierocone procesy po awarii main (pid file + sprzątanie przy starcie).
-- [ ] A2 Auto-stop seedowania: po `downloaded` → `remove` w silniku (bez kasowania plików) → stan `completed`. Brak ponownego dodawania do silnika po restarcie. Migracja istniejących `downloaded/seeding/stopped`.
-- [ ] A3 Usunięcie ustawień seedowania z UI (Settings, Download setup, JobDetails) + D-80.
-- [ ] A4 `LibraryService` (projekcja ukończonych plików wideo, wykrywanie brakujących) + IPC `library:*`.
-- [ ] A5 Zakładka **Library** w desktopie (plakaty, odtwórz w domyślnym odtwarzaczu, pokaż w folderze, usuń).
+- [x] A1 Audyt procesów po Quit: silnik, Jackett, osierocone procesy po awarii main (pid file + sprzątanie przy starcie).
+- [x] A2 Auto-stop seedowania: po `downloaded` → `remove` w silniku (bez kasowania plików) → stan `completed`. Brak ponownego dodawania do silnika po restarcie. Migracja istniejących `downloaded/seeding/stopped`.
+- [x] A3 Usunięcie ustawień seedowania z UI (Settings, Download setup, JobDetails) + D-80.
+- [x] A4 `LibraryService` (projekcja ukończonych plików wideo, wykrywanie brakujących) + IPC `library:*`.
+- [x] A5 Zakładka **Library** w desktopie (plakaty, odtwórz w domyślnym odtwarzaczu, pokaż w folderze, usuń).
 
 ### B. Serwer TV (main)
 - [ ] B1 Ustawienia serwera (enabled, port, interfejs) + migracja `002` (tv_devices, tv_pairings w pamięci).
@@ -64,6 +64,7 @@ Brak fizycznych TV w środowisku agenta → bramki sprzętowe P0 (instalacja, up
 ## Ostatnia sesja
 
 - 16.10.2026, Claude (Opus): start. Baseline `npm run check` zielony (348 zaliczonych, 3 pominięte). Katalog dokumentacji przemianowany z `1.0-andrenalive-tv`.
+- A zamknięte: `src/main/util/pid-file.ts` (sprzątanie osieroconych silnika/Jackett), stan `completed` + `DownloadService.release()` (D-80), `LibraryService` + IPC `library:*`, ekran `src/renderer/screens/library/`. Commity `e17e893`, `569af0a`, `2081a34`.
 
 ## Następne kroki
 
