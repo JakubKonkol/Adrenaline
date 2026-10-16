@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useSyncExternalStore } from 'react';
 import type { DownloadJob, DownloadOptions, JobProgress } from '@shared/contracts/downloads';
+import type { LanguageCode } from '@shared/domain/languages';
 import { api, unwrap } from './bridge';
 
 const LIST = ['downloads'] as const;
@@ -79,6 +80,11 @@ export const useRemove = () =>
   useJobAction((input: { jobId: string; deleteFiles: boolean }) => unwrap(api().downloads.remove(input)));
 export const useSelectFiles = () =>
   useJobAction((input: { jobId: string; indices: number[] }) => unwrap(api().downloads.selectFiles(input)));
+/** Turns subtitles on (a language), off (null, D-78: "Skip subtitles") or changes them for one download. */
+export const useSetSubtitles = () =>
+  useJobAction((input: { jobId: string; language: LanguageCode | null; fallback: LanguageCode | null }) =>
+    unwrap(api().subtitles.language(input)),
+  );
 export const openJobFolder = (jobId: string) => unwrap(api().downloads.openFolder({ jobId }));
 
 export function usePreflight(ref: { sessionId: string; releaseId: string } | null, options: Partial<DownloadOptions>) {

@@ -1,14 +1,14 @@
-import { pl } from './pl';
+import { en } from './en';
 
 type Leaves<T, P extends string = ''> = {
   [K in keyof T & string]: T[K] extends string ? `${P}${K}` : Leaves<T[K], `${P}${K}.`>;
 }[keyof T & string];
 
-export type TranslationKey = Leaves<typeof pl>;
+export type TranslationKey = Leaves<typeof en>;
 export type TranslationParams = Record<string, string | number>;
 
 function lookup(key: string): string | undefined {
-  let node: unknown = pl;
+  let node: unknown = en;
   for (const part of key.split('.')) {
     if (typeof node !== 'object' || node === null) return undefined;
     node = (node as Record<string, unknown>)[part];

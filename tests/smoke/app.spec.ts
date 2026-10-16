@@ -9,7 +9,7 @@ import show from '../fixtures/tmdb/tv.json' with { type: 'json' };
 import season from '../fixtures/tmdb/season.json' with { type: 'json' };
 const caps = readFileSync('tests/fixtures/torznab/caps.xml', 'utf8');
 const releases = `<?xml version="1.0"?><rss version="2.0" xmlns:torznab="http://torznab.com/schemas/2015/feed"><channel><item>
-<title>Przygody.Adrenaliny.S01E02.1080p.WEB-DL.x264-SMOKE</title><guid>smoke-release</guid><size>104857600</size>
+<title>Adrenaline.Adventures.S01E02.1080p.WEB-DL.x264-SMOKE</title><guid>smoke-release</guid><size>104857600</size>
 <torznab:attr name="seeders" value="5"/><torznab:attr name="magneturl" value="magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&amp;dn=Smoke.Episode.S01E02"/>
 </item></channel></rss>`;
 
@@ -105,15 +105,15 @@ test('first run, onboarding, settings kept after restart, isolated renderer', as
     await expect(page.getByRole('link', { name: /1968/ })).toBeVisible();
     await expect(page.getByRole('link', { name: /1990/ })).toBeVisible();
     await page.screenshot({ path: test.info().outputPath('catalog.png') });
-    await page.getByRole('link', { name: /Przygody Adrenaliny/ }).click();
-    await page.getByRole('link', { name: /Sezon 1/ }).click();
+    await page.getByRole('link', { name: /Adrenaline Adventures/ }).click();
+    await page.getByRole('link', { name: /Season 1/ }).click();
     await page
       .getByRole('listitem')
-      .filter({ has: page.getByRole('heading', { name: 'Nowy szlak' }) })
-      .getByRole('button', { name: 'Szukaj wydań' })
+      .filter({ has: page.getByRole('heading', { name: 'New Trail' }) })
+      .getByRole('button', { name: 'Find releases' })
       .click();
-    await expect(page.getByTestId('screen-releases')).toContainText('Sezon 1 · Odcinek 2');
-    await expect(page.getByTestId('screen-releases')).toContainText('Nie masz włączonych źródeł');
+    await expect(page.getByTestId('screen-releases')).toContainText('Season 1 · Episode 2');
+    await expect(page.getByTestId('screen-releases')).toContainText('You have no release sources turned on');
     const source = await page.evaluate(() =>
       window.adrenaline.sources.addCustom({
         name: 'Smoke source',
@@ -122,39 +122,53 @@ test('first run, onboarding, settings kept after restart, isolated renderer', as
       }),
     );
     expect(source.ok).toBe(true);
-    await page.getByRole('button', { name: 'Odśwież', exact: true }).press('Enter');
-    const releaseRow = page.getByRole('row').filter({ hasText: 'Przygody.Adrenaliny.S01E02' });
+    await page.getByRole('button', { name: 'Refresh', exact: true }).press('Enter');
+    const releaseRow = page.getByRole('row').filter({ hasText: 'Adrenaline.Adventures.S01E02' });
     await expect(releaseRow).toBeVisible();
     await releaseRow.press('Enter');
     await expect(page.getByTestId('download-start')).toBeEnabled();
+    // D-78: without an OpenSubtitles account subtitles start switched off; turning them on explains why they
+    // cannot work yet, and the download goes ahead without them.
+    const wantSubtitles = page.getByTestId('download-sub-enabled');
+    await expect(wantSubtitles).toHaveAttribute('aria-checked', 'false');
+    await wantSubtitles.click();
+    await expect(page.getByTestId('download-sub-no-account')).toBeVisible();
+    await expect(page.getByTestId('download-sub-lang')).toHaveValue('en');
+    await wantSubtitles.click();
+    await expect(page.getByTestId('download-sub-lang')).toHaveCount(0);
     await page.getByTestId('download-start').press('Enter');
     await expect(page.getByTestId('screen-job')).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Napisy', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Subtitles', exact: true })).toBeVisible();
+    // Subtitles can be fetched later and skipped again at any time.
+    await page.getByTestId('subtitles-get').click();
+    await expect(page.getByTestId('subtitles-skip')).toBeVisible();
+    await page.getByTestId('subtitles-skip').click();
+    await expect(page.getByTestId('subtitles-get')).toBeVisible();
     // Explorer calls are replaced in main: exercise the action without opening another window.
     await app.evaluate(({ shell }) => {
       shell.openPath = () => Promise.resolve('');
       shell.showItemInFolder = () => {};
     });
-    await page.getByRole('button', { name: 'Otwórz folder', exact: true }).press('Enter');
+    await page.getByRole('button', { name: 'Open folder', exact: true }).press('Enter');
     const created = await page.evaluate(() => window.adrenaline.downloads.list());
     expect(created.ok).toBe(true);
     if (created.ok)
       for (const job of created.data)
         await page.evaluate((id) => window.adrenaline.downloads.remove({ jobId: id, deleteFiles: false }), job.id);
 
-    await page.getByRole('link', { name: 'O aplikacji' }).click();
+    await page.getByRole('link', { name: 'About' }).click();
     await expect(page.getByTestId('app-version')).toContainText(/\d+\.\d+\.\d+/);
-    await expect(page.getByTestId('updater-status')).toContainText('wyłączone');
-    await expect(page.getByTestId('engine-status')).toContainText('Działa');
-    await page.getByRole('button', { name: 'Kopiuj diagnostykę' }).press('Enter');
-    await expect(page.getByText('Diagnostyka skopiowana')).toBeVisible();
+    await expect(page.getByTestId('updater-status')).toContainText('Updates are off');
+    await expect(page.getByTestId('engine-status')).toContainText('Running');
+    await page.getByRole('button', { name: 'Copy diagnostics' }).press('Enter');
+    await expect(page.getByText('Diagnostics copied')).toBeVisible();
     const diagnostics = await app.evaluate(({ clipboard }) => clipboard.readText());
-    expect(diagnostics).not.toMatch(/smoke-test-token|Smoke|Przygody|magnet:|smoke.invalid|Downloads/);
+    expect(diagnostics).not.toMatch(/smoke-test-token|Smoke|Adventures|magnet:|smoke.invalid|Downloads/);
     expect(JSON.parse(diagnostics)).toHaveProperty('versions.electron');
-    await page.getByRole('link', { name: 'Instrukcja użytkownika' }).press('Enter');
-    await expect(page.getByRole('heading', { name: 'Pierwsze uruchomienie' })).toBeVisible();
-    await page.getByRole('link', { name: 'Wstecz', exact: true }).press('Enter');
-    await page.getByRole('link', { name: 'Licencje składników' }).press('Enter');
+    await page.getByRole('link', { name: 'User guide' }).press('Enter');
+    await expect(page.getByRole('heading', { name: 'First run' })).toBeVisible();
+    await page.getByRole('link', { name: 'Back', exact: true }).press('Enter');
+    await page.getByRole('link', { name: 'Third-party licenses' }).press('Enter');
     await expect(page.locator('article')).toContainText('react@19.3.1');
 
     // Etap 6.6: a job through the hidden test API (fake engine only) → progress → pause → kept after restart.
@@ -168,15 +182,15 @@ test('first run, onboarding, settings kept after restart, isolated renderer', as
     const jobId = added.data!.id;
     await page
       .getByRole('navigation')
-      .getByRole('link', { name: /Pobrane/ })
+      .getByRole('link', { name: /Downloads/ })
       .click();
     const row = page.getByTestId(`job-${jobId}`);
     await expect(row).toHaveAttribute('data-state', 'downloading');
     await expect(row.getByRole('progressbar')).toHaveAttribute('aria-valuenow', /^[1-9]/, { timeout: 10_000 });
     await expect(page.getByTestId('nav-active-count')).toHaveText('1');
-    await row.getByRole('button', { name: /Wstrzymaj/ }).click();
+    await row.getByRole('button', { name: /Pause/ }).click();
     await expect(row).toHaveAttribute('data-state', 'paused');
-    await expect(row.getByTestId('job-status')).toContainText('Wstrzymane');
+    await expect(row.getByTestId('job-status')).toContainText('Paused');
     await quit(app);
 
     // Restart with the same profile: no onboarding, settings and the secret are kept.
@@ -199,34 +213,34 @@ test('first run, onboarding, settings kept after restart, isolated renderer', as
       return (await w.adrenaline.settings.secretsStatus()).data?.encryptionAvailable ?? false;
     });
     if (!encrypted) {
-      await page.getByRole('link', { name: 'Ustawienia', exact: true }).click();
-      await expect(page.getByText(/tylko do zamknięcia aplikacji/)).toBeVisible();
+      await page.getByRole('link', { name: 'Settings', exact: true }).click();
+      await expect(page.getByText(/only until the app is closed/)).toBeVisible();
       await page.getByTestId('tmdb-token').fill('smoke-test-token');
       await page.getByTestId('settings-save').click();
-      await expect(page.getByText('Zapisano')).toBeVisible();
-      await page.getByRole('link', { name: 'Szukaj', exact: true }).click();
+      await expect(page.getByText('Saved', { exact: true })).toBeVisible();
+      await page.getByRole('link', { name: 'Search', exact: true }).click();
     }
     await page.getByRole('searchbox').fill('Night of the Living Dead');
     await page.getByRole('searchbox').press('Enter');
     await expect(page.getByRole('link', { name: /1968/ })).toBeVisible();
-    await page.getByRole('link', { name: 'Ustawienia', exact: true }).click();
+    await page.getByRole('link', { name: 'Settings', exact: true }).click();
     await expect(page.getByTestId('subtitle-lang')).toHaveValue('en');
-    await expect(page.getByTestId('tmdb-token')).toHaveAttribute('placeholder', /Zapisany/);
+    await expect(page.getByTestId('tmdb-token')).toHaveAttribute('placeholder', /Saved/);
     await page.getByTestId('setting-maxActiveDownloads').fill('0');
     await page.getByTestId('settings-save').click();
-    await expect(page.getByRole('alert').first()).toContainText('Popraw');
+    await expect(page.getByRole('alert').first()).toContainText('Fix the highlighted');
     await page.getByTestId('setting-maxActiveDownloads').fill('2');
     await page.getByTestId('settings-save').click();
-    await expect(page.getByText('Zapisano')).toBeVisible();
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible();
 
     // The paused job survived the restart (FR12) and resumes.
     await page
       .getByRole('navigation')
-      .getByRole('link', { name: /Pobrane/ })
+      .getByRole('link', { name: /Downloads/ })
       .click();
     const restored = page.getByTestId(`job-${jobId}`);
     await expect(restored).toHaveAttribute('data-state', 'paused');
-    await restored.getByRole('button', { name: /Wznów/ }).click();
+    await restored.getByRole('button', { name: /Resume/ }).click();
     await expect(restored).toHaveAttribute('data-state', 'downloading');
     // NFR01: click-to-painted-state, 20 samples while two other jobs are transferring.
     await page.evaluate(async () => {
@@ -255,7 +269,7 @@ test('first run, onboarding, settings kept after restart, isolated renderer', as
                 }
               });
               observer.observe(element, { attributes: true, attributeFilter: ['data-state'] });
-              const text = state === 'paused' ? 'Wstrzymaj' : 'Wznów';
+              const text = state === 'paused' ? 'Pause' : 'Resume';
               const button = [...element.querySelectorAll('button')].find((b) => b.textContent?.includes(text));
               if (!button) {
                 clearTimeout(timer);

@@ -274,7 +274,7 @@ if (!app.requestSingleInstanceLock()) {
       // Tray tooltip with the total speed (etap 6.5).
       const tooltip = setInterval(() => {
         const { down, up, active } = downloads.totals();
-        const mb = (b: number) => (b / 1024 / 1024).toFixed(1).replace('.', ',');
+        const mb = (b: number) => (b / 1024 / 1024).toFixed(1);
         tray?.setTooltip(
           active > 0 || down > 0 || up > 0 ? `Adrenaline — ↓ ${mb(down)} MB/s ↑ ${mb(up)} MB/s` : 'Adrenaline',
         );

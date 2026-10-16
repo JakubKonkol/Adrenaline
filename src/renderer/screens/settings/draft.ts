@@ -32,7 +32,7 @@ export function toDraft(s: AppSettings): SettingsDraft {
     downloadLimitKBps: String(s.downloadLimitKBps),
     uploadLimitKBps: String(s.uploadLimitKBps),
     listenPort: String(s.listenPort),
-    seedRatioLimit: s.seedRatioLimit === null ? '' : String(s.seedRatioLimit).replace('.', ','),
+    seedRatioLimit: s.seedRatioLimit === null ? '' : String(s.seedRatioLimit),
     seedTimeLimitMin: s.seedTimeLimitMin === null ? '' : String(s.seedTimeLimitMin),
     closeToTray: s.closeToTray,
     theme: s.theme,

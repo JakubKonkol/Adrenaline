@@ -27,7 +27,13 @@ export interface EngineSetup {
 export function setupEngine(opts: EngineSetupOptions): EngineSetup {
   const log = opts.log.child('engine');
   if (!opts.isPackaged && opts.env['ADRENALINE_FAKE_ENGINE'] === '1') {
-    const fake = new FakeEngine({ peers: 18, uploadRate: 256 * 1024 });
+    // Dev-only knob (README screenshots): ADRENALINE_FAKE_RATE_MIB sets the simulated speed per download.
+    const rateMiB = Number(opts.env['ADRENALINE_FAKE_RATE_MIB']);
+    const fake = new FakeEngine({
+      peers: 18,
+      uploadRate: 256 * 1024,
+      ...(rateMiB > 0 ? { rate: rateMiB * 1024 * 1024 } : {}),
+    });
     const supervisor = new EngineSupervisor({ launch: fake.launch, log, clientVersion: opts.clientVersion });
     return { supervisor, fake, binaryPath: null };
   }

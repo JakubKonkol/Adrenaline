@@ -204,3 +204,44 @@ it('restores interrupted searches but requires explicit retry after an interrupt
   await service.retry('job', task.id);
   expect(tasks.list('job')[0]?.state).toBe('ready');
 });
+it('D-78: a download started without subtitles does not wait for them and can get them later', async () => {
+  const { service, tasks, client, jobs } = setup();
+  jobs.update('job', { subtitleLang: null, subtitleFallbackLang: null });
+  service.complete('job', 0);
+  await service.idle();
+  expect(client.search).not.toHaveBeenCalled();
+  expect(tasks.list('job').every((t) => t.state === 'disabled')).toBe(true);
+  await service.language('job', 'pl', null);
+  await service.idle();
+  expect(client.search).toHaveBeenCalledOnce();
+  expect(tasks.list('job')[0]).toMatchObject({ lang: 'pl', state: 'ready' });
+});
+it('D-78: skipping subtitles during a search stops it without downloading or writing anything', async () => {
+  const { service, tasks, client, base } = setup();
+  let answer!: (c: SubtitleCandidate[]) => void;
+  client.search.mockImplementationOnce(
+    () =>
+      new Promise<SubtitleCandidate[]>((r) => {
+        answer = r;
+      }),
+  );
+  service.complete('job', 0);
+  await vi.waitFor(() => expect(client.search).toHaveBeenCalledOnce());
+  expect(tasks.list('job')[0]?.state).toBe('searching');
+  const skipped = service.language('job', null, null);
+  answer([candidate]);
+  await skipped;
+  await service.idle();
+  expect(tasks.list('job')[0]?.state).toBe('disabled');
+  expect(client.downloadLink).not.toHaveBeenCalled();
+  expect(readdirSync(base).filter((f) => f.endsWith('.srt'))).toHaveLength(0);
+});
+it('a complete download paused by the user still gets its subtitles after a restart', async () => {
+  const { service, tasks, jobs } = setup();
+  service.sync('job');
+  jobs.update('job', { state: 'paused', pauseReason: 'user' });
+  jobs.saveProgress('job', 131072, [{ index: 0, doneBytes: 131072 }]);
+  service.restore();
+  await service.idle();
+  expect(tasks.list('job')[0]?.state).toBe('ready');
+});

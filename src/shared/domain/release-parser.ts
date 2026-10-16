@@ -81,9 +81,9 @@ const EDITION: [RegExp, string][] = [
 
 const LANGS: [RegExp, string][] = [
   [/\bmulti\b/i, 'MULTi'],
-  [/\b(dubbing\s?pl|pl\s?dub(bing)?|dubpl)\b/i, 'Dubbing PL'],
-  [/\b(lektor\s?pl|pl\s?lektor)\b/i, 'Lektor PL'],
-  [/\b(napisy\s?pl|pl\s?sub(s|bed)?|plsub(s|bed)?|subs?\s?pl)\b/i, 'Napisy PL'],
+  [/\b(dubbing\s?pl|pl\s?dub(bing)?|dubpl)\b/i, 'PL dub'],
+  [/\b(lektor\s?pl|pl\s?lektor)\b/i, 'PL voice-over'],
+  [/\b(napisy\s?pl|pl\s?sub(s|bed)?|plsub(s|bed)?|subs?\s?pl)\b/i, 'PL subs'],
   [/\b(pl|polish)\b/i, 'PL'],
 ];
 

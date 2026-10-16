@@ -12,7 +12,7 @@ import { Releases } from './Releases';
 const movie: CatalogItem = {
   type: 'movie',
   tmdbId: 10331,
-  title: 'Noc żywych trupów',
+  title: 'Night of the Living Dead',
   originalTitle: 'Night of the Living Dead',
   year: 1968,
   posterPath: '/fixture1968.jpg',
@@ -23,22 +23,22 @@ const show: TitleDetails = {
   ...movie,
   type: 'tv',
   tmdbId: 900001,
-  title: 'Przygody Adrenaliny',
+  title: 'Adrenaline Adventures',
   originalTitle: 'Adrenaline Adventures',
   year: 2024,
   posterPath: null,
   imdbId: null,
-  genres: ['Przygodowy'],
+  genres: ['Adventure'],
   runtime: 25,
-  seasons: [{ number: 1, name: 'Sezon pierwszy', episodeCount: 2 }],
+  seasons: [{ number: 1, name: 'First season', episodeCount: 2 }],
 };
 const season: SeasonDetails = {
   tmdbId: 900001,
   number: 1,
-  name: 'Sezon pierwszy',
+  name: 'First season',
   episodes: [
-    { tmdbId: 900003, number: 1, season: 1, title: 'Początek podróży', airDate: '2024-01-01', overview: '' },
-    { tmdbId: 900004, number: 2, season: 1, title: 'Nowy szlak', airDate: null, overview: '' },
+    { tmdbId: 900003, number: 1, season: 1, title: 'Journey Begins', airDate: '2024-01-01', overview: '' },
+    { tmdbId: 900004, number: 2, season: 1, title: 'New Trail', airDate: null, overview: '' },
   ],
 };
 const success = <T,>(data: T) => ({ ok: true as const, data });
@@ -61,7 +61,7 @@ function mount(path = '/') {
         element: (
           <>
             <nav>
-              <Link to="/downloads">Pobrane</Link>
+              <Link to="/downloads">Downloads</Link>
             </nav>
             <Outlet />
           </>
@@ -71,8 +71,8 @@ function mount(path = '/') {
           { path: '/title/:type/:id', element: <Details /> },
           { path: '/title/tv/:id/season/:n', element: <Season /> },
           { path: '/releases', element: <Releases /> },
-          { path: '/downloads', element: <h1>Lista pobrań</h1> },
-          { path: '/settings', element: <h1>Ustawienia kont</h1> },
+          { path: '/downloads', element: <h1>Download list</h1> },
+          { path: '/settings', element: <h1>Account settings</h1> },
         ],
       },
     ],
@@ -139,13 +139,13 @@ describe('catalog screens', () => {
     first.focus();
     fireEvent.keyDown(first, { key: 'ArrowRight' });
     expect(document.activeElement).toBe(second);
-    fireEvent.click(screen.getByRole('button', { name: 'Filmy' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Movies' }));
     await waitFor(() => expect(search).toHaveBeenLastCalledWith({ query: 'Night', type: 'movie' }));
   });
 
   it('debounces input and submits immediately with Enter/form submit', async () => {
     mount();
-    await screen.findByText('Zacznij od tytułu filmu lub serialu.');
+    await screen.findByText('Start with the title of a movie or a TV show.');
     const input = screen.getByRole('searchbox');
     fireEvent.change(input, { target: { value: 'N' } });
     fireEvent.change(input, { target: { value: 'Night' } });
@@ -164,34 +164,34 @@ describe('catalog screens', () => {
       }),
     );
     mount('/?q=Night');
-    fireEvent.click(await screen.findByRole('link', { name: 'Otwórz Ustawienia' }));
-    expect(await screen.findByRole('heading', { name: 'Ustawienia kont' })).toBeTruthy();
+    fireEvent.click(await screen.findByRole('link', { name: 'Open Settings' }));
+    expect(await screen.findByRole('heading', { name: 'Account settings' })).toBeTruthy();
     expect(search).not.toHaveBeenCalled();
   });
 
   it('shows empty results and permits downloads navigation during TMDB failure', async () => {
     search.mockResolvedValueOnce(success([]));
     mount('/?q=Unknown');
-    expect(await screen.findByText('Nie znaleziono tytułów dla „Unknown”.')).toBeTruthy();
+    expect(await screen.findByText('No titles found for “Unknown”.')).toBeTruthy();
     search.mockResolvedValue({ ok: false, error: { code: 'TMDB_UNAVAILABLE', message: 'TMDB_UNAVAILABLE' } });
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Other' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Szukaj' }));
-    expect((await screen.findByRole('alert')).textContent).toContain('Pobieranie trwa dalej');
-    fireEvent.click(screen.getByRole('link', { name: 'Pobrane' }));
-    expect(await screen.findByRole('heading', { name: 'Lista pobrań' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('Downloads keep running');
+    fireEvent.click(screen.getByRole('link', { name: 'Downloads' }));
+    expect(await screen.findByRole('heading', { name: 'Download list' })).toBeTruthy();
   });
 
   it('selects season and second episode, then passes SearchTarget through router state', async () => {
     const router = mount('/title/tv/900001');
-    fireEvent.click(await screen.findByRole('link', { name: /Sezon 1/ }));
-    const episode = (await screen.findByRole('heading', { name: 'Nowy szlak' })).closest('li')!;
-    fireEvent.click(within(episode).getByRole('button', { name: 'Szukaj wydań' }));
+    fireEvent.click(await screen.findByRole('link', { name: /Season 1/ }));
+    const episode = (await screen.findByRole('heading', { name: 'New Trail' })).closest('li')!;
+    fireEvent.click(within(episode).getByRole('button', { name: 'Find releases' }));
     expect(await screen.findByTestId('screen-releases')).toBeTruthy();
     expect(select).toHaveBeenCalledExactlyOnceWith({ type: 'tv', tmdbId: 900001, season: 1, episode: 2 });
     expect(router.state.location.state).toMatchObject({
       target: { kind: 'episode', tmdbId: 900001, season: 1, episode: 2 },
     });
-    expect(screen.getByText(/Sezon 1 · Odcinek 2/)).toBeTruthy();
+    expect(screen.getByText(/Season 1 · Episode 2/)).toBeTruthy();
   });
 
   it('rejects invalid route parameters without requesting details', async () => {

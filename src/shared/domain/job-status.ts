@@ -42,6 +42,8 @@ export interface DerivedJobStatus {
 export interface JobStatusInput {
   state: JobState;
   pauseReason: PauseReason | null;
+  /** null = subtitles turned off for this download (D-78): they never hold back readiness. */
+  subtitleLang?: string | null;
 }
 
 export interface FileInput {
@@ -90,7 +92,7 @@ export function deriveJobStatus(
     };
     return { kind: map[job.state] ?? 'downloading', ready: false, ...base };
   }
-  const subs = subtitles.filter((s) => s.state !== 'disabled');
+  const subs = job.subtitleLang === null ? [] : subtitles.filter((s) => s.state !== 'disabled');
   if (subs.every((s) => s.state === 'ready')) return { kind: 'ready', ready: true, ...base };
   if (subs.some((s) => ATTENTION.includes(s.state)))
     return { kind: 'ready_subtitles_attention', ready: false, ...base };

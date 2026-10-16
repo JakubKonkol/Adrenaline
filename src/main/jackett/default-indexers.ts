@@ -9,10 +9,10 @@ export interface DefaultIndexer {
 }
 
 export const DEFAULT_INDEXERS: DefaultIndexer[] = [
-  { id: 'yts', name: 'YTS', description: 'Filmy, małe pliki dobrej jakości.' },
-  { id: 'thepiratebay', name: 'The Pirate Bay', description: 'Ogólny indeks: filmy i seriale.' },
-  { id: 'torrentdownloads', name: 'Torrent Downloads', description: 'Ogólny indeks: filmy i seriale.' },
-  { id: 'limetorrents', name: 'LimeTorrents', description: 'Ogólny indeks: filmy i seriale.' },
+  { id: 'yts', name: 'YTS', description: 'Movies, small files in good quality.' },
+  { id: 'thepiratebay', name: 'The Pirate Bay', description: 'General index: movies and TV shows.' },
+  { id: 'torrentdownloads', name: 'Torrent Downloads', description: 'General index: movies and TV shows.' },
+  { id: 'limetorrents', name: 'LimeTorrents', description: 'General index: movies and TV shows.' },
 ];
 
 export const builtinSourceId = (indexerId: string) => `jackett:${indexerId}`;

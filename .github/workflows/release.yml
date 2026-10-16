@@ -50,7 +50,7 @@ jobs:
             node -e "if(!require('./release-state.json').isDraft) process.exit(1)"
           else
             LABEL="Adrenaline ${GITHUB_REF_NAME#v}"
-            if [[ "$GITHUB_REF_NAME" == "v0.9.0" ]]; then LABEL="$LABEL — beta (testy odbiorcze w docs/manual-tests.md)"; fi
+            if [[ "$GITHUB_REF_NAME" == "v0.9.0" ]]; then LABEL="$LABEL — beta (acceptance checklist in docs/manual-tests.md)"; fi
             gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "${GITHUB_REF_NAME#v}" --notes "$LABEL"
           fi
         env:

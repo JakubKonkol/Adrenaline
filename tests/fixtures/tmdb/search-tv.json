@@ -1,6 +1,6 @@
 {
   "page": 1,
-  "results": [{ "id": 900001, "name": "Przygody Adrenaliny", "original_name": "Adrenaline Adventures", "first_air_date": "2024-01-01", "poster_path": null, "overview": "Własny fikcyjny serial do testów.", "popularity": 15 }],
+  "results": [{ "id": 900001, "name": "Adrenaline Adventures", "original_name": "Adrenaline Adventures", "first_air_date": "2024-01-01", "poster_path": null, "overview": "Our own fictional show for tests.", "popularity": 15 }],
   "total_pages": 1,
   "total_results": 1
 }

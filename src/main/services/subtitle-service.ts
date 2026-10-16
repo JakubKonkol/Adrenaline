@@ -61,7 +61,12 @@ export class SubtitleService {
           task.state = 'pending';
           changed = true;
         }
-        if (['downloaded', 'seeding', 'stopped'].includes(job.state) && file.size > 0 && file.doneBytes >= file.size)
+        // A finished download paused by the user (e.g. while seeding) still has a complete video.
+        if (
+          ['downloaded', 'seeding', 'stopped', 'paused'].includes(job.state) &&
+          file.size > 0 &&
+          file.doneBytes >= file.size
+        )
           this.completed.add(`${jobId}:${file.index}`);
         if (task.state === 'pending' && this.completed.has(`${jobId}:${file.index}`)) this.enqueue(jobId, task);
       }

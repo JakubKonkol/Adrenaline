@@ -29,6 +29,9 @@ nsis:
   createDesktopShortcut: true
   deleteAppDataOnUninstall: false
   artifactName: Adrenaline-Setup-${version}.exe
+  # English-only installer, like the app (D-77).
+  multiLanguageInstaller: false
+  installerLanguages: [en_US]
 publish:
   provider: github
   owner: JakubKonkol

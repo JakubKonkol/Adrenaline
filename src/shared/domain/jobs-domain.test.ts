@@ -61,6 +61,14 @@ describe('deriveJobStatus (BR02, BR03)', () => {
     expect(deriveJobStatus({ state: 'downloaded', pauseReason: null }, done, []).kind).toBe('ready');
   });
 
+  it('D-78: skipped subtitles never hold back readiness, whatever their tasks say', () => {
+    const job = { state: 'seeding', pauseReason: null, subtitleLang: null } as const;
+    expect(deriveJobStatus(job, done, [{ state: 'error' }, { state: 'searching' }]).kind).toBe('ready');
+    expect(deriveJobStatus({ ...job, subtitleLang: 'en' }, done, [{ state: 'error' }]).kind).toBe(
+      'ready_subtitles_attention',
+    );
+  });
+
   it('film ready, subtitles need attention (partial success)', () => {
     for (const state of ['not_found', 'quota_exceeded', 'error', 'needs_selection'] as const) {
       expect(deriveJobStatus({ state: 'seeding', pauseReason: null }, done, [{ state }])).toMatchObject({

@@ -1,17 +1,17 @@
-/** Polish strings shown by main itself (tray, notifications, dialogs); the renderer has its own dictionary. */
+/** Strings shown by main itself (tray, notifications, dialogs); the renderer has its own dictionary. */
 export const mainText = {
   tray: {
     tooltip: 'Adrenaline',
-    show: 'Pokaż Adrenaline',
-    pauseAll: 'Wstrzymaj wszystko',
-    resumeAll: 'Wznów wszystko',
-    quit: 'Zakończ',
+    show: 'Show Adrenaline',
+    pauseAll: 'Pause all',
+    resumeAll: 'Resume all',
+    quit: 'Quit',
   },
   notice: {
-    trayTitle: 'Adrenaline działa w tle',
-    trayBody: 'Pobieranie trwa dalej. Aby zamknąć aplikację, wybierz „Zakończ” w menu ikony w zasobniku.',
+    trayTitle: 'Adrenaline is running in the background',
+    trayBody: 'Downloads keep running. To close the app, choose “Quit” in the tray icon menu.',
   },
   dialog: {
-    chooseFolder: 'Wybierz folder pobierania',
+    chooseFolder: 'Choose the download folder',
   },
 } as const;

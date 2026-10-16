@@ -17,6 +17,7 @@ import {
   closeSync,
   ftruncateSync,
 } from 'node:fs';
+import { createServer, type AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -48,10 +49,10 @@ class Engine {
   private readonly instance: EngineInstance;
   listenPort = 0;
 
-  constructor(dataDir: string, extra: string[] = []) {
+  constructor(dataDir: string, extra: string[] = [], port = 0) {
     this.instance = spawnEngine({
       binaryPath: ENGINE!,
-      args: ['--data-dir', dataDir, '--listen-port', '0', '--no-dht', '--no-upnp', '--test-mode', ...extra],
+      args: ['--data-dir', dataDir, '--listen-port', String(port), '--no-dht', '--no-upnp', '--test-mode', ...extra],
       log: nullLogger,
     });
     this.client = new EngineClient({ transport: this.instance.transport, log: nullLogger, timeoutMs: 15_000 });
@@ -129,6 +130,17 @@ async function until<T>(
   }
 }
 
+function freePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const { port } = server.address() as AddressInfo;
+      server.close(() => resolve(port));
+    });
+  });
+}
+
 const sha256 = (path: string) => createHash('sha256').update(readFileSync(path)).digest('hex');
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -146,8 +158,8 @@ describe.skipIf(!ENGINE)('adrenaline-engine swarm', () => {
     return JSON.parse(execFileSync(ENGINE!, args, { encoding: 'utf8' })) as TorrentInfo;
   };
 
-  const newEngine = async (dataDir: string, extra: string[] = []) => {
-    const e = new Engine(dataDir, extra);
+  const newEngine = async (dataDir: string, extra: string[] = [], port = 0) => {
+    const e = new Engine(dataDir, extra, port);
     engines.push(e);
     await e.hello();
     return e;
@@ -177,8 +189,11 @@ describe.skipIf(!ENGINE)('adrenaline-engine swarm', () => {
     expect(packTorrent.infoHashV2).toMatch(/^[0-9a-f]{64}$/);
     expect(singleTorrent.infoHashV2).toBe('');
 
-    seeder = await newEngine(join(root, 'seeder-data'));
-    expect(seeder.listenPort).toBeGreaterThan(0);
+    // A fixed port: with port 0, libtorrent reopening its sockets (network change on Windows) would pick a new
+    // port and leechers would keep dialling the old one.
+    const seederPort = await freePort();
+    seeder = await newEngine(join(root, 'seeder-data'), [], seederPort);
+    expect(seeder.listenPort).toBe(seederPort);
     for (const [jobId, torrent] of [
       ['seed-pack', 'pack.torrent'],
       ['seed-single', 'single.torrent'],
@@ -220,14 +235,22 @@ describe.skipIf(!ENGINE)('adrenaline-engine swarm', () => {
     expect(target!.path).toBe(`Pack/${POLISH}`);
     await leecher.client.request('selectFiles', { files: [{ index: target!.index, priority: 4 }] }, 'job-pack');
 
+    let last: JobStatus | undefined;
     const done = await until(
       async () => {
         const s = await leecher.status('job-pack');
+        last = s;
         return s.state === 'seeding' ? s : undefined;
       },
       120_000,
       'download complete',
-    );
+    ).catch(async (error: Error) => {
+      // Enough context to tell a stalled swarm (no peers) from a slow or stuck download on a CI runner.
+      const seederNow = await seeder.client.hello('test').catch(() => undefined);
+      throw new Error(
+        `${error.message}: leecher ${JSON.stringify({ ...last, files: undefined })}, seeder port ${seeder.listenPort} → ${seederNow?.listenPort}`,
+      );
+    });
     expect(done.selectedBytes).toBe(12 * MiB);
     expect(done.selectedDoneBytes).toBe(12 * MiB);
     expect(done.files).toEqual([{ index: target!.index, doneBytes: 12 * MiB }]);

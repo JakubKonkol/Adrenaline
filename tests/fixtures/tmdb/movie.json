@@ -1,10 +1,10 @@
 {
   "id": 10331,
-  "title": "Noc żywych trupów",
+  "title": "Night of the Living Dead",
   "original_title": "Night of the Living Dead",
   "release_date": "1968-10-04",
   "poster_path": "/fixture1968.jpg",
-  "overview": "Przykładowy opis testowy filmu z 1968 roku.",
+  "overview": "Sample test overview of the 1968 movie.",
   "popularity": 25,
   "genres": [{ "id": 27, "name": "Horror" }],
   "runtime": 96,

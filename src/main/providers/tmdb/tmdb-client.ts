@@ -17,7 +17,10 @@ interface Options {
   timeoutMs?: number;
   sleep?: (ms: number) => Promise<void>;
   now?: () => number;
+  /** Catalog language (D-77: en-US). Any other language falls back to an English overview when its own is empty. */
+  language?: string;
 }
+export const CATALOG_LANGUAGE = 'en-US';
 const MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
 const MAX_RETRY_WAIT_MS = 10_000;
 
@@ -63,7 +66,7 @@ export class TmdbClient {
     path: string,
     schema: z.ZodType<T>,
     params: Record<string, string> = {},
-    language = 'pl-PL',
+    language = this.options.language ?? CATALOG_LANGUAGE,
   ): Promise<T> {
     const token = this.requireToken();
     const url = new URL(`https://api.themoviedb.org/3/${path}`);
@@ -172,7 +175,7 @@ export class TmdbClient {
       };
     }
     if (result.tmdbId !== id) throw new AppError('TMDB_BAD_RESPONSE');
-    if (!result.overview.trim()) {
+    if (!result.overview.trim() && (this.options.language ?? CATALOG_LANGUAGE) !== 'en-US') {
       try {
         const english = await this.request(
           `${type}/${id}`,
