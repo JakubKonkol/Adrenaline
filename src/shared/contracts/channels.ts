@@ -56,6 +56,11 @@ export const IPC_CHANNEL_NAMES = [
   'tv:approve',
   'tv:deny',
   'tv:revoke',
+  'tv:toolchain',
+  'tv:chooseTool',
+  'tv:deploy',
+  'tv:deployCancel',
+  'tv:deployState',
   'dev:addTestDownload',
 ] as const;
 
@@ -67,6 +72,7 @@ export const IPC_EVENT_NAMES = [
   'downloads:changed',
   'downloads:progress',
   'tv:status',
+  'tv:deploy',
 ] as const;
 
 export type ChannelName = (typeof IPC_CHANNEL_NAMES)[number];

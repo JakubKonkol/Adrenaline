@@ -20,6 +20,8 @@ import { TvDevicesRepository } from './tv/devices';
 import { TvService } from './tv/tv-service';
 import { resolveFfmpeg } from './media/ffmpeg-path';
 import { createMediaService } from './media/media-service';
+import { DeployService } from './tv/deploy/deploy-service';
+import { detectToolchain } from './tv/deploy/toolchain';
 import { JobsRepository } from './persistence/repositories/jobs';
 import { DownloadService } from './services/download-service';
 import { SubtitleService } from './services/subtitle-service';
@@ -341,7 +343,23 @@ if (!app.requestSingleInstanceLock()) {
     });
     tvService = tv;
     tv.on('status', (status) => send('tv:status', status));
-    registerTvHandlers(ipc, tv);
+    const toolchain = () =>
+      detectToolchain({
+        adbPath: settings.get().tvAdbPath,
+        tizenStudioPath: settings.get().tvTizenStudioPath,
+        env: process.env,
+      });
+    const deploy = new DeployService({
+      tvDir: app.isPackaged ? join(process.resourcesPath, 'tv') : join(app.getAppPath(), 'resources', 'tv'),
+      workDir: join(userData, 'tv-deploy'),
+      toolchain,
+      serverUrl: () => tv.status().url,
+      waitForTv: (address, since, signal) => tv.waitForTv(address, since, signal),
+      log: log.child('deploy'),
+    });
+    deploy.on('state', (state) => send('tv:deploy', state));
+    lifecycle.addStep('deploy', () => deploy.cancel(), 500);
+    registerTvHandlers(ipc, { tv, deploy, settings, toolchain, window: () => mainWindow });
     void tv.apply();
 
     lifecycle.addStep('jackett', () => jackett.stop(), 6_000);

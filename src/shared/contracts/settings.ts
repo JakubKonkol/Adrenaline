@@ -35,6 +35,10 @@ export const appSettingsSchema = z.object({
   transcodeMaxBitrateMbps: z.number().int().min(2).max(120),
   /** Disk space for HLS segments in userData/transcode. */
   transcodeCacheGiB: z.number().int().min(1).max(200),
+  /** Deploy to TV (D-84): adb.exe and the Tizen Studio folder chosen by the user ('' = detect). */
+  tvAdbPath: z.string().max(400),
+  tvTizenStudioPath: z.string().max(400),
+  tvTizenProfile: z.string().max(64),
 });
 export type AppSettings = z.infer<typeof appSettingsSchema>;
 
@@ -63,6 +67,9 @@ export const STATIC_DEFAULTS: Omit<AppSettings, 'downloadDir' | 'listenPort'> = 
   transcodeMaxHeight: 2160,
   transcodeMaxBitrateMbps: 40,
   transcodeCacheGiB: 20,
+  tvAdbPath: '',
+  tvTizenStudioPath: '',
+  tvTizenProfile: '',
 };
 
 /** Secrets the user can set from the renderer (write-only; the renderer only learns whether they exist). */

@@ -281,3 +281,73 @@ export const tvServerStatusSchema = z.object({
   playbacks: z.array(tvPlaybackRecordSchema),
 });
 export type TvServerStatus = z.infer<typeof tvServerStatusSchema>;
+
+// ---------------------------------------------------------------- Deploy to TV (desktop, D-84)
+
+export const tvToolchainSchema = z.object({
+  adb: z.string().nullable(),
+  sdb: z.string().nullable(),
+  tizen: z.string().nullable(),
+  tizenStudio: z.string().nullable(),
+  /** Certificate profiles from Tizen Studio's Certificate Manager. */
+  profiles: z.array(z.string()),
+});
+export type TvToolchain = z.infer<typeof tvToolchainSchema>;
+
+/** Private IPv4 of the TV (no host names, no command text: D-84). */
+const tvAddressSchemaIp = z.ipv4().refine((ip) => {
+  const [a, b] = ip.split('.').map(Number) as [number, number];
+  return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
+}, 'Enter the private IPv4 address of the TV (e.g. 192.168.1.40)');
+
+export const tvDeployRequestSchema = z.discriminatedUnion('platform', [
+  z
+    .object({
+      platform: z.literal('android'),
+      address: tvAddressSchemaIp,
+      /** ADB port shown by the TV (wireless debugging) or 5555 for classic network debugging. */
+      port: z.number().int().min(1).max(65535),
+      /** Android 11+ wireless debugging: "Pair device with pairing code" port and code. */
+      pairing: z
+        .object({ port: z.number().int().min(1).max(65535), code: z.string().regex(/^\d{6}$/) })
+        .strict()
+        .nullable(),
+    })
+    .strict(),
+  z
+    .object({
+      platform: z.literal('tizen'),
+      address: tvAddressSchemaIp,
+      /** Certificate profile (author + Samsung distributor certificate with this TV's DUID). */
+      profile: z.string().regex(/^[\w-]{1,64}$/),
+    })
+    .strict(),
+]);
+export type TvDeployRequest = z.infer<typeof tvDeployRequestSchema>;
+
+export const TV_DEPLOY_STEPS = [
+  'preflight',
+  'pairing',
+  'connecting',
+  'authorizing',
+  'packaging',
+  'installing',
+  'launching',
+  'handshake',
+] as const;
+export type TvDeployStep = (typeof TV_DEPLOY_STEPS)[number];
+
+export const tvDeployStateSchema = z.object({
+  platform: z.enum(['android', 'tizen']),
+  address: z.string(),
+  step: z.enum(TV_DEPLOY_STEPS),
+  /** action: waiting for the user on the TV (accept the debugging prompt, open the app, approve pairing). */
+  status: z.enum(['running', 'action', 'done', 'error', 'cancelled']),
+  errorCode: z.string().nullable(),
+  /** Last lines of the tool output, without secrets (for the error details). */
+  detail: z.string().nullable(),
+  /** Samsung DUID of the TV (needed for the distributor certificate). */
+  duid: z.string().nullable(),
+  startedAt: z.number(),
+});
+export type TvDeployState = z.infer<typeof tvDeployStateSchema>;

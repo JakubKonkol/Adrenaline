@@ -6,6 +6,9 @@ const ALLOWED_HOSTS = new Set([
   'www.opensubtitles.com',
   'opensubtitles.com',
   'github.com',
+  // Deploy to TV instructions (official tools and developer mode, D-84).
+  'developer.android.com',
+  'developer.samsung.com',
 ]);
 
 export function isAllowedExternalUrl(raw: string): boolean {

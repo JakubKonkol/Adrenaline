@@ -29,7 +29,7 @@ import {
 } from './downloads';
 import { libraryItemIdSchema, libraryItemSchema } from './library';
 import { releaseSessionSchema } from './releases';
-import { tvServerStatusSchema } from './tv';
+import { tvDeployRequestSchema, tvDeployStateSchema, tvServerStatusSchema, tvToolchainSchema } from './tv';
 import { addCustomSourceSchema, jackettStatusSchema, sourceIdSchema, sourceSchema } from './sources';
 
 export type { ChannelName, EventName } from './channels';
@@ -134,6 +134,12 @@ export const ipcChannels = {
   'tv:approve': { input: z.object({ id: z.string().max(64) }).strict(), output: tvServerStatusSchema },
   'tv:deny': { input: z.object({ id: z.string().max(64) }).strict(), output: tvServerStatusSchema },
   'tv:revoke': { input: z.object({ deviceId: z.string().max(64) }).strict(), output: tvServerStatusSchema },
+  'tv:toolchain': { input: z.void(), output: tvToolchainSchema },
+  /** Lets the user point at adb.exe or the Tizen Studio folder (stored in Settings). */
+  'tv:chooseTool': { input: z.object({ tool: z.enum(['adb', 'tizen']) }).strict(), output: tvToolchainSchema },
+  'tv:deploy': { input: tvDeployRequestSchema, output: tvDeployStateSchema },
+  'tv:deployCancel': { input: z.void(), output: z.void() },
+  'tv:deployState': { input: z.void(), output: tvDeployStateSchema.nullable() },
   /** Hidden test API: only registered with the fake engine in an unpackaged app (03-testy.md, smoke). */
   'dev:addTestDownload': {
     input: z.object({ name: z.string().min(1).max(120) }).strict(),
@@ -171,6 +177,7 @@ export const ipcEvents = {
   'downloads:changed': downloadJobSchema,
   'downloads:progress': z.object({ jobs: z.array(jobProgressSchema) }),
   'tv:status': tvServerStatusSchema,
+  'tv:deploy': tvDeployStateSchema,
 } as const satisfies Record<EventName, z.ZodType>;
 
 export type ChannelInput<C extends ChannelName> = z.input<(typeof ipcChannels)[C]['input']>;

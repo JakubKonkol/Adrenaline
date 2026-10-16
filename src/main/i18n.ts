@@ -14,6 +14,8 @@ export const mainText = {
     tvPairingBody: '{name} is asking to pair. Code {code}. Approve it in the TV tab if the code matches the TV.',
   },
   dialog: {
+    chooseAdb: 'Choose adb.exe (Android SDK platform-tools)',
+    chooseTizenStudio: 'Choose the Tizen Studio folder',
     chooseFolder: 'Choose the download folder',
   },
 } as const;

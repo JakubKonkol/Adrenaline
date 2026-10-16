@@ -59,6 +59,8 @@ export interface TvApiDeps {
   subtitleAccountReady: () => boolean;
   /** Probe, plan and HLS sessions (D-85). */
   playback: PlaybackApi;
+  /** A paired TV talked to the server (Deploy to TV waits for this). */
+  onSeen?: (deviceId: string, address: string) => void;
   /** Lets a revoke end the device's open media streams. */
   trackStream: (deviceId: string, res: RequestContext['res']) => void;
 }
@@ -168,6 +170,7 @@ export function tvRoutes(deps: TvApiDeps): Route[] {
       handler: (ctx) => {
         const version = ctx.query.get('clientVersion')?.slice(0, 40);
         deps.devices.seen(ctx.device!.id, ctx.address, version);
+        deps.onSeen?.(ctx.device!.id, ctx.address);
         const session: TvSession = {
           device: { id: ctx.device!.id, name: ctx.device!.name },
           server: info(),

@@ -28,7 +28,10 @@ export interface TvServiceDeps extends Omit<TvApiDeps, 'devices' | 'pairing' | '
  * The desktop side of the TV feature (1.0): starts/stops the LAN server from the settings, keeps pairing requests,
  * devices and the status shown in the TV tab. Off by default (D-82); a failure to listen never blocks the desktop.
  */
-export class TvService extends Emitter<{ status: TvServerStatus }> {
+export class TvService extends Emitter<{
+  status: TvServerStatus;
+  seen: { deviceId: string; address: string; at: number };
+}> {
   readonly pairing: PairingManager;
   readonly tickets = new TicketStore();
   private readonly http: TvHttpServer;
@@ -67,6 +70,10 @@ export class TvService extends Emitter<{ status: TvServerStatus }> {
         pairing: this.pairing,
         tickets: this.tickets,
         trackStream: (id, res) => this.http.trackStream(id, res),
+        onSeen: (deviceId, address) => {
+          this.emit('seen', { deviceId, address, at: Date.now() });
+          this.publish();
+        },
       }),
       authenticate: (token) => deps.devices.byToken(token),
       allowedHosts: () => (this.boundAddress ? [this.boundAddress] : []),
@@ -195,6 +202,29 @@ export class TvService extends Emitter<{ status: TvServerStatus }> {
     this.http.dropDevice(deviceId);
     this.deps.playback.stopDevice(deviceId);
     this.publish();
+  }
+
+  /** Deploy to TV: resolves true when the app on the TV at `address` connected (paired) after `since`. */
+  waitForTv(address: string, since: number, signal: AbortSignal, timeoutMs = 5 * 60_000): Promise<boolean> {
+    return new Promise((resolve) => {
+      const known = this.deps.devices.list().some((d) => d.lastAddress === address && (d.lastSeenAt ?? 0) >= since);
+      if (known) {
+        resolve(true);
+        return;
+      }
+      const done = (value: boolean) => {
+        clearTimeout(timer);
+        off();
+        signal.removeEventListener('abort', abort);
+        resolve(value);
+      };
+      const off = this.on('seen', (e) => {
+        if (e.address === address && e.at >= since) done(true);
+      });
+      const abort = () => done(false);
+      const timer = setTimeout(() => done(false), timeoutMs);
+      signal.addEventListener('abort', abort, { once: true });
+    });
   }
 
   /** Pending requests disappear from the TV tab when they expire. */
