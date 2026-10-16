@@ -47,27 +47,27 @@ Brak fizycznych TV w środowisku agenta → bramki sprzętowe P0 (instalacja, up
 - [x] C5 Testy jednostkowe logiki fokusu i klienta API.
 
 ### D. Pakiety TV
-- [ ] D1 Tizen: `tv/tizen/config.xml`, ikona, skrypt składający katalog `resources/tv/tizen/web`.
-- [ ] D2 Android: projekt Gradle `tv/android` (Kotlin, WebView + Media3, Leanback launcher, banner), build w Dockerze/CI.
-- [ ] D3 `resources/tv/manifest.json` (wersje, SHA-256), `electron-builder.yml`, workflow release (build APK + Tizen web).
+- [x] D1 Tizen: `tv/tizen/config.xml`, ikona, skrypt składający katalog `resources/tv/tizen/web`.
+- [x] D2 Android: projekt Gradle `tv/android` (Kotlin, WebView + Media3, Leanback launcher, banner), build w Dockerze/CI.
+- [x] D3 `resources/tv/manifest.json` (wersje, SHA-256), `electron-builder.yml`, workflow release (build APK + Tizen web).
 
 ### E. Deploy to TV (desktop)
-- [ ] E1 `src/main/tv/deploy/process-runner.ts` (spawn bez shell, timeout, limit wyjścia, cancel).
-- [ ] E2 Android: wykrycie adb, pair (kod przez stdin), connect, install -r, launch z adresem serwera.
-- [ ] E3 Tizen: wykrycie Tizen Studio, sdb connect, package z profilem certyfikatu, install, run; adres serwera wpisany do pakietu.
-- [ ] E4 Zakładka **TV** w desktopie: serwer (włącz, adres, port), oczekujące parowania, urządzenia (revoke), kreator Deploy (platforma, IP TV, etapy, błędy).
-- [ ] E5 Testy adapterów na stubach procesów.
+- [x] E1 `src/main/tv/deploy/process-runner.ts` (spawn bez shell, timeout, limit wyjścia, cancel).
+- [x] E2 Android: wykrycie adb, pair (kod przez stdin), connect, install -r, launch z adresem serwera.
+- [x] E3 Tizen: wykrycie Tizen Studio, sdb connect, package z profilem certyfikatu, install, run; adres serwera wpisany do pakietu.
+- [x] E4 Zakładka **TV** w desktopie: serwer (włącz, adres, port), oczekujące parowania, urządzenia (revoke), kreator Deploy (platforma, IP TV, etapy, błędy).
+- [x] E5 Testy adapterów na stubach procesów.
 
 ### G. Negocjacja odtwarzania (D-85, BARDZO WAŻNE — warunek wydania 1.0) — [06-playback-negotiation.md](06-playback-negotiation.md)
-- [ ] G1 FFmpeg/ffprobe: `scripts/fetch-ffmpeg.mjs`, wersja + SHA-256 w repo, krok w `release.yml`, `resources/ffmpeg`, notices/licencja GPL w instalatorze, lokalizacja binariów w main.
-- [ ] G2 `probe.ts` + migracja `003` (`media_probe`): kontener, kodek/profil, bit depth, HDR10/HDR10+/HLG/DV (profil 5/7/8), audio (TrueHD/Atmos, E-AC3 JOC, DTS-HD), napisy (SRT/ASS/PGS).
-- [ ] G3 `DeviceProfile` (kontrakt) + `planPlayback()` w `src/shared/domain/playback.ts` + fixtures ffprobe i testy wszystkich gałęzi.
-- [ ] G4 Wykrycie enkoderów (NVENC/QSV/AMF/CPU) i budowa argumentów FFmpeg (remux HLS fMP4, audio E-AC3/AAC, wideo HW + tone mapping, burn-in PGS/ASS).
-- [ ] G5 Transcoder: sesje HLS, 1 transkod naraz, seek = restart, kill drzewa procesów po stop/seek/quit/revoke, cache z limitem miejsca.
-- [ ] G6 API: `POST /playback/:itemId` z profilem urządzenia → plan; `/media/:ticket/hls/*` za biletem; wybór ścieżek audio/napisów.
+- [x] G1 FFmpeg/ffprobe: `scripts/fetch-ffmpeg.mjs`, wersja + SHA-256 w repo, krok w `release.yml`, `resources/ffmpeg`, notices/licencja GPL w instalatorze, lokalizacja binariów w main.
+- [x] G2 `probe.ts` + migracja `003` (`media_probe`): kontener, kodek/profil, bit depth, HDR10/HDR10+/HLG/DV (profil 5/7/8), audio (TrueHD/Atmos, E-AC3 JOC, DTS-HD), napisy (SRT/ASS/PGS).
+- [x] G3 `DeviceProfile` (kontrakt) + `planPlayback()` w `src/shared/domain/playback.ts` + fixtures ffprobe i testy wszystkich gałęzi.
+- [x] G4 Wykrycie enkoderów (NVENC/QSV/AMF/CPU) i budowa argumentów FFmpeg (remux HLS fMP4, audio E-AC3/AAC, wideo HW + tone mapping, burn-in PGS/ASS).
+- [x] G5 Transcoder: sesje HLS, 1 transkod naraz, seek = restart, kill drzewa procesów po stop/seek/quit/revoke, cache z limitem miejsca.
+- [x] G6 API: `POST /playback/:itemId` z profilem urządzenia → plan; `/media/:ticket/hls/*` za biletem; wybór ścieżek audio/napisów.
 - [ ] G7 Klient Tizen: odtwarzacz AVPlay (ścieżki, napisy, HLS, passthrough) + profil z `webapis.avinfo`/`productinfo` i tabeli modeli.
 - [ ] G8 Klient Android: Media3 z passthrough (`AudioCapabilities`), wybór ścieżek, profil z `MediaCodecList`/`Display.HdrCapabilities`.
-- [ ] G9 Ustawienia PC (hwaccel, max rozdzielczość/bitrate, limit cache) + diagnostyka sesji odtwarzania w zakładce TV.
+- [x] G9 Ustawienia PC (hwaccel, max rozdzielczość/bitrate, limit cache) + diagnostyka sesji odtwarzania w zakładce TV.
 - [ ] G10 `docs/manual-tests.md`: odbiór 4K DV P5/P8, HDR10, Atmos, DTS-HD, PGS na sprzęcie.
 
 ### F. Dokumentacja i odbiór
@@ -82,9 +82,15 @@ Brak fizycznych TV w środowisku agenta → bramki sprzętowe P0 (instalacja, up
 - B zamknięte (`c921810`): `src/main/tv/{server,api,pairing,devices,media,network,tv-service}.ts`, migracja `002_tv.sql`, ustawienia `tvServer*`, IPC `tv:*`, właściciel sesji wyszukiwania. Test integracyjny `src/main/tv/tv-api.test.ts` (loopback, FakeEngine).
 - C zamknięte (`6cbfd0f`): `src/tv` (React, build `npm run build:tv` → `out/tv`, IIFE + CSP, target chrome69, reguły ESLint na nowe API). Ekrany: Connect/pairing, Discover (hero + rzędy + wyszukiwarka), Details (sezony/odcinki), Releases (+ potwierdzenie), Library (kontynuuj, pobierane, filmy, seriale), Show, Player (AVPlay na Tizen / `<video>` / natywny na Androidzie, własny renderer VTT), Settings. Przegląd wizualny: demo `npx vitest run -c scripts/dev/vitest.tv-demo.config.ts` + `npm run dev:tv` + `node scripts/dev/tv-screens.mjs <out> [obrazy]` (pilotem: strzałki/Enter/Escape).
 
+- G (`ae2fb3b`, `de84f3f`): FFmpeg 9.0.2 Gyan `full_build-shared` (SHA-256 w `scripts/ffmpeg-sha256.txt`, `scripts/fetch-ffmpeg.mjs`, w instalatorze `resources/ffmpeg` + LICENSE/SOURCE.txt), `src/main/media/{probe,probe-cache,hwaccel,ffmpeg-args,transcoder,media-service}.ts`, migracja `003_media_probe.sql`, planner `src/shared/domain/playback.ts` (fixtures `tests/fixtures/ffprobe`), trasy `/media/:ticket/hls/...`, napisy osadzone `e<index>.vtt`, ustawienia `transcode*`. Test z prawdziwym FFmpeg `src/main/media/ffmpeg-real.test.ts` (lokalnie NVENC + libplacebo; w CI ścieżka CPU/zscale). AVPlay (G7) i Media3 (G8) zaimplementowane bez testu na sprzęcie.
+- D (`de84f3f`): `tv/tizen/config.xml` + `scripts/tv/prepare-tizen.mjs` (webapis.js, CSP w config.xml), `tv/android` (Kotlin: MainActivity/WebView, AdrenalineBridge, DeviceCapabilities, PlayerActivity/Media3; Gradle 8.11.1 wrapper zweryfikowany SHA-256; build w Dockerze `ghcr.io/cirruslabs/android-sdk:35`), `scripts/tv/write-manifest.mjs`, workflow `.github/workflows/tv-android.yml` (CI + Release), `electron-builder.yml` (ffmpeg, tv).
+- E (`02439d6`): `src/main/tv/deploy/{process-runner,toolchain,deploy-service}.ts`, IPC `tv:toolchain|chooseTool|deploy|deployCancel|deployState`, zakładka `src/renderer/screens/tv/TvScreen.tsx` (serwer, parowanie, urządzenia, kreator, diagnostyka i ustawienia konwersji). Zrzuty desktopu: `scripts/dev/desktop-tv-screens.mjs` (WSL/xvfb). Smoke Electron w WSL: 1/1.
+
 ## Następne kroki
 
-Kolejność: A → B → C → G → D → E → F. G jest warunkiem wydania 1.0 (polecenie właściciela). Commit po każdym zadaniu (`npm run check` zielony).
+Kolejność: A → B → C → G → D → E → F. G jest warunkiem wydania 1.0 (polecenie właściciela).
+
+Do zrobienia: F1/F2 (dokumentacja, odbiory ręczne), G7/G8/G10 — odbiór na sprzęcie. **Sekrety CI dla podpisu APK** (Jakub, w GitHub → Settings → Secrets): `ADRENALINE_ANDROID_KEYSTORE_BASE64`, `ADRENALINE_ANDROID_KEYSTORE_PASSWORD`, `ADRENALINE_ANDROID_KEY_ALIAS`, `ADRENALINE_ANDROID_KEY_PASSWORD`; bez nich APK jest podpisany kluczem debug (manifest `signing: debug`) i późniejsza zmiana klucza wymaga odinstalowania aplikacji na TV. Commit po każdym zadaniu (`npm run check` zielony).
 
 ## Notatki środowiskowe
 
