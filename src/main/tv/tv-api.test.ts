@@ -7,6 +7,7 @@ import movieFixture from '../../../tests/fixtures/tmdb/movie.json';
 import searchFixture from '../../../tests/fixtures/tmdb/search-movie.json';
 import { FakeJackett } from '../../../tests/helpers/fake-jackett';
 import { PROFILE } from '../../../tests/helpers/tv-profile';
+import { freePort } from '../../../tests/helpers/free-port';
 import type { PairingCreated, PairingStatus, TvDownload, TvLibraryItem, TvPlayback } from '@shared/contracts/tv';
 import type { ReleaseSession } from '@shared/contracts/releases';
 import { EngineSupervisor } from '../engine/engine-process';
@@ -47,7 +48,7 @@ async function setup() {
   cleanups.push(() => rmSync(base, { recursive: true, force: true }));
   const db: Database = openDatabase(':memory:', { log: nullLogger });
   cleanups.push(() => db.close());
-  const port = 20000 + Math.floor(Math.random() * 30000);
+  const port = await freePort();
   const settings = new SettingsService(db, { downloadDir: join(base, 'Videos'), randomPort: () => 50000 });
 
   const tmdbFetch: typeof fetch = (input) => {

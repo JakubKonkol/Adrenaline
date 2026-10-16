@@ -19,6 +19,7 @@ import { SettingsService } from '../services/settings-service';
 import { TvDevicesRepository } from './devices';
 import { TvService } from './tv-service';
 import { PROFILE } from '../../../tests/helpers/tv-profile';
+import { freePort } from '../../../tests/helpers/free-port';
 
 const cleanups: (() => unknown)[] = [];
 afterEach(async () => {
@@ -139,7 +140,7 @@ async function setup() {
     log: nullLogger,
     probe: () => Promise.resolve(probe),
   });
-  const port = 20000 + Math.floor(Math.random() * 30000);
+  const port = await freePort();
   const tv = new TvService({
     version: 't',
     devices: new TvDevicesRepository(db),
