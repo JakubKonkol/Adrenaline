@@ -18,6 +18,8 @@ export default tseslint.config(
       'playwright-report/**',
       'native/engine/build/**',
       'docs/**',
+      'resources/tv/**',
+      'tv/android/**',
     ],
   },
   js.configs.recommended,

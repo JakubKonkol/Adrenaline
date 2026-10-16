@@ -16,6 +16,7 @@
     "build": "electron-vite build",
     "build:tv": "vite build -c vite.tv.config.ts",
     "dev:tv": "vite -c vite.tv.config.ts",
+    "tv:prepare": "npm run build:tv && node scripts/tv/prepare-tizen.mjs && node scripts/tv/prepare-android.mjs",
     "start": "electron-vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",

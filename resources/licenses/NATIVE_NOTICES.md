@@ -12,5 +12,9 @@ Sources:
 - https://github.com/openssl/openssl
 - https://github.com/nlohmann/json
 
+FFmpeg 9.0.2 (Windows x64 "full_build-shared" by Gyan Doshi, https://www.gyan.dev/ffmpeg/builds/) is distributed as separate programs (ffmpeg.exe, ffprobe.exe and their libraries) under the GNU General Public License v3; Adrenaline runs them as separate processes to analyse and convert videos for TVs (D-85). The licence text, the build readme with the list of included libraries, and the links to the exact binaries and the corresponding source code (https://github.com/FFmpeg/FFmpeg/tree/n9.0.2) are installed in the ffmpeg/ folder (LICENSE, README.txt, SOURCE.txt). The binaries are unchanged from the upstream archive, pinned by SHA-256 in scripts/ffmpeg-sha256.txt.
+
+The TV apps installed with Adrenaline (tv/ folder) contain: the Adrenaline TV web app with React and React DOM (MIT, see the npm notices above) and the Inter typeface (SIL Open Font License 1.1, https://github.com/rsms/inter); the Android app additionally contains AndroidX Media3, Activity, WebKit and the Kotlin standard library (Apache License 2.0, https://www.apache.org/licenses/LICENSE-2.0; sources: https://github.com/androidx/media, https://android.googlesource.com/platform/frameworks/support, https://github.com/JetBrains/kotlin).
+
 TMDB data: This product uses the TMDB API but is not endorsed or certified by TMDB.
 Subtitle data is provided by OpenSubtitles.com.

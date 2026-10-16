@@ -17,6 +17,13 @@ extraResources:
     filter: ['**/*', '!**/*.pdb']
   - from: resources/licenses
     to: licenses
+  # D-85: FFmpeg for TV playback (GPLv3, separate program; LICENSE and SOURCE.txt travel with it).
+  - from: vendor/ffmpeg
+    to: ffmpeg
+    filter: ['**/*', '!.adrenaline-version']
+  # D-79/D-81: the TV apps (Android APK, Tizen widget content) and their manifest with hashes.
+  - from: resources/tv
+    to: tv
 win:
   target:
     - target: nsis

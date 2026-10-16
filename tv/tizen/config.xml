@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Adrenaline for Samsung Tizen TV (D-81). The version and the content security policy are filled in by
+  scripts/tv/prepare-tizen.mjs; the widget is signed on the user's PC with their own Samsung certificate profile
+  (Deploy to TV, D-84). Package id and author stay fixed: updates must keep them.
+-->
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets"
+        id="http://adrenaline.jakubkonkol.com/tv" version="__VERSION__" viewmodes="maximized">
+  <tizen:application id="AdrnlnTV01.Adrenaline" package="AdrnlnTV01" required_version="5.5"/>
+  <name>Adrenaline</name>
+  <description>Find, download on your PC and watch: the TV app of Adrenaline.</description>
+  <author href="https://github.com/JakubKonkol/Adrenaline">Jakub Konkol</author>
+  <content src="index.html"/>
+  <icon src="icon.png"/>
+  <feature name="http://tizen.org/feature/screen.size.all"/>
+  <access origin="*" subdomains="true"/>
+  <tizen:privilege name="http://tizen.org/privilege/internet"/>
+  <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
+  <tizen:privilege name="http://developer.samsung.com/privilege/productinfo"/>
+  <tizen:privilege name="http://developer.samsung.com/privilege/avplay"/>
+  <tizen:content-security-policy>__CSP__</tizen:content-security-policy>
+  <tizen:setting screen-orientation="landscape" context-menu="disable" background-support="disable"
+                 encryption="disable" install-location="auto" hwkey-event="enable"/>
+  <tizen:profile name="tv-samsung"/>
+</widget>

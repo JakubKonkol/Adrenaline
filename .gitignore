@@ -13,3 +13,5 @@ coverage/
 Adrenaline-logo.zip
 tests/fixtures/tmdb/live/
 tests/fixtures/opensubtitles/live/
+resources/tv/
+resources/ffmpeg/

@@ -14,6 +14,11 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 24, cache: npm }
       - run: npm ci
+      # Real FFmpeg pipeline tests (src/main/media/ffmpeg-real.test.ts) run when the binaries are there.
+      - run: node scripts/fetch-ffmpeg.mjs
       - run: npm run check
       - run: npm run build
       - run: npm run test:smoke
+
+  tv-android:
+    uses: ./.github/workflows/tv-android.yml

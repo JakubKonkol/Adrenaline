@@ -16,6 +16,8 @@ jobs:
         with: { node-version: 24, cache: npm }
       - run: npm ci
       - run: node scripts/check-version-tag.mjs "${{ github.ref_name }}"
+      # Real FFmpeg pipeline tests (src/main/media/ffmpeg-real.test.ts) run when the binaries are there.
+      - run: node scripts/fetch-ffmpeg.mjs
       - run: npm run check
       - run: npm run build
       - run: npm run test:smoke
@@ -23,8 +25,12 @@ jobs:
   engine:
     uses: ./.github/workflows/engine-ci.yml
 
+  tv-android:
+    uses: ./.github/workflows/tv-android.yml
+    secrets: inherit
+
   package:
-    needs: [test, engine]
+    needs: [test, engine, tv-android]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -36,6 +42,18 @@ jobs:
           name: adrenaline-engine
           path: resources/engine
       - run: node scripts/fetch-jackett.mjs
+      # D-85: pinned FFmpeg (SHA-256 in scripts/ffmpeg-sha256.txt), shipped with its GPL licence and source link.
+      - run: node scripts/fetch-ffmpeg.mjs
+      # TV apps (D-79): Tizen widget content from the TV web build, the APK from the tv-android job, the manifest.
+      - run: npm run build:tv
+      - run: node scripts/tv/prepare-tizen.mjs
+      - uses: actions/download-artifact@v4
+        with:
+          name: adrenaline-tv-apk
+          path: tv-apk
+      - name: TV manifest
+        shell: bash
+        run: ADRENALINE_ANDROID_SIGNING="$(cat tv-apk/signing.txt)" node scripts/tv/write-manifest.mjs tv-apk/app-release.apk
       - uses: actions/download-artifact@v4
         with:
           name: engine-licenses

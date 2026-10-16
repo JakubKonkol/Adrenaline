@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- D-82: the PC serves the TV API over HTTP on the home network; the address is only known at runtime, so cleartext
+     cannot be limited to one domain. TMDB images use HTTPS. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

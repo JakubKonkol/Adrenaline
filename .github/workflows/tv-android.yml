@@ -1,0 +1,63 @@
+name: TV Android
+on:
+  push:
+    branches: [main]
+    paths: ['tv/android/**', 'src/tv/**', 'vite.tv.config.ts', '.github/workflows/tv-android.yml']
+  workflow_dispatch:
+  workflow_call:
+    secrets:
+      ADRENALINE_ANDROID_KEYSTORE_BASE64:
+        required: false
+      ADRENALINE_ANDROID_KEYSTORE_PASSWORD:
+        required: false
+      ADRENALINE_ANDROID_KEY_ALIAS:
+        required: false
+      ADRENALINE_ANDROID_KEY_PASSWORD:
+        required: false
+permissions:
+  contents: read
+jobs:
+  apk:
+    # Android TV app (D-81): the TV web app (src/tv) inside a Kotlin shell with Media3. Linux runners have the SDK.
+    runs-on: ubuntu-latest
+    env:
+      KEYSTORE_BASE64: ${{ secrets.ADRENALINE_ANDROID_KEYSTORE_BASE64 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - run: npm ci
+      - run: npm run build:tv
+      - run: node scripts/tv/prepare-android.mjs
+      # Release signing only from secrets; without them the APK is signed with the debug key (marked in the manifest).
+      - name: Release key
+        if: env.KEYSTORE_BASE64 != ''
+        shell: bash
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "ADRENALINE_ANDROID_KEYSTORE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+          echo "ADRENALINE_ANDROID_SIGNING=release" >> "$GITHUB_ENV"
+      - name: Build APK
+        working-directory: tv/android
+        shell: bash
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease
+          echo "${ADRENALINE_ANDROID_SIGNING:-debug}" > app/build/outputs/apk/release/signing.txt
+        env:
+          ADRENALINE_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ADRENALINE_ANDROID_KEYSTORE_PASSWORD }}
+          ADRENALINE_ANDROID_KEY_ALIAS: ${{ secrets.ADRENALINE_ANDROID_KEY_ALIAS }}
+          ADRENALINE_ANDROID_KEY_PASSWORD: ${{ secrets.ADRENALINE_ANDROID_KEY_PASSWORD }}
+      - name: Remove the key
+        if: always()
+        shell: bash
+        run: rm -f "$RUNNER_TEMP/release.jks"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: adrenaline-tv-apk
+          path: |
+            tv/android/app/build/outputs/apk/release/app-release.apk
+            tv/android/app/build/outputs/apk/release/signing.txt
+          if-no-files-found: error
