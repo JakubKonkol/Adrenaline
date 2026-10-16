@@ -171,6 +171,20 @@ test('first run, onboarding, settings kept after restart, isolated renderer', as
     await page.getByRole('link', { name: 'Third-party licenses' }).press('Enter');
     await expect(page.locator('article')).toContainText('react@19.3.1');
 
+    // 1.0: the TV tab. The server is off by default; turned on it answers the TV API, turned off it stops.
+    await page.getByRole('navigation').getByRole('link', { name: 'TV', exact: true }).click();
+    await expect(page.getByTestId('screen-tv')).toBeVisible();
+    await expect(page.getByTestId('tv-server-state')).toHaveCount(0);
+    await page.getByTestId('tv-server-toggle').click();
+    await expect(page.getByTestId('tv-server-state')).toHaveAttribute('data-state', 'running');
+    const tvAddress = (await page.getByTestId('tv-server-url').textContent())!.trim();
+    // Asked from the test process: the app's own fetch is stubbed against provider traffic in this test.
+    const info = (await (await fetch(`http://${tvAddress}/api/v1/info`)).json()) as { app: string; apiVersion: number };
+    expect(info).toMatchObject({ app: 'adrenaline', apiVersion: 1 });
+    await page.getByTestId('tv-server-toggle').click();
+    await expect(page.getByTestId('tv-server-state')).toHaveCount(0);
+    await expect(page.getByRole('navigation').getByRole('link', { name: 'Library', exact: true })).toBeVisible();
+
     // Etap 6.6: a job through the hidden test API (fake engine only) → progress → pause → kept after restart.
     const added = await page.evaluate(async () => {
       const w = globalThis as unknown as {
