@@ -65,14 +65,14 @@ Brak fizycznych TV w środowisku agenta → bramki sprzętowe P0 (instalacja, up
 - [x] G4 Wykrycie enkoderów (NVENC/QSV/AMF/CPU) i budowa argumentów FFmpeg (remux HLS fMP4, audio E-AC3/AAC, wideo HW + tone mapping, burn-in PGS/ASS).
 - [x] G5 Transcoder: sesje HLS, 1 transkod naraz, seek = restart, kill drzewa procesów po stop/seek/quit/revoke, cache z limitem miejsca.
 - [x] G6 API: `POST /playback/:itemId` z profilem urządzenia → plan; `/media/:ticket/hls/*` za biletem; wybór ścieżek audio/napisów.
-- [ ] G7 Klient Tizen: odtwarzacz AVPlay (ścieżki, napisy, HLS, passthrough) + profil z `webapis.avinfo`/`productinfo` i tabeli modeli.
-- [ ] G8 Klient Android: Media3 z passthrough (`AudioCapabilities`), wybór ścieżek, profil z `MediaCodecList`/`Display.HdrCapabilities`.
+- [ ] G7 Klient Tizen: odtwarzacz AVPlay (ścieżki, napisy, HLS, passthrough) + profil z `webapis.avinfo`/`productinfo` i tabeli modeli. **Kod gotowy; brak testu na Tizenie (sprzęt).**
+- [ ] G8 Klient Android: Media3 z passthrough (`AudioCapabilities`), wybór ścieżek, profil z `MediaCodecList`/`Display.HdrCapabilities`. **Kod gotowy, emulator OK (direct + HLS z konwersją); passthrough/DV do odbioru na sprzęcie.**
 - [x] G9 Ustawienia PC (hwaccel, max rozdzielczość/bitrate, limit cache) + diagnostyka sesji odtwarzania w zakładce TV.
-- [ ] G10 `docs/manual-tests.md`: odbiór 4K DV P5/P8, HDR10, Atmos, DTS-HD, PGS na sprzęcie.
+- [x] G10 `docs/manual-tests.md`: odbiór 4K DV P5/P8, HDR10, Atmos, DTS-HD, PGS na sprzęcie.
 
 ### F. Dokumentacja i odbiór
-- [ ] F1 `docs/user-guide.md` (TV, Library), README, decyzje D-80..D-84, `docs/implementation-plan/STATUS.md`.
-- [ ] F2 Lista odbiorów ręcznych na sprzęcie (`docs/manual-tests.md`).
+- [x] F1 `docs/user-guide.md` (TV, Library), README, decyzje D-80..D-84, `docs/implementation-plan/STATUS.md`.
+- [x] F2 Lista odbiorów ręcznych na sprzęcie (`docs/manual-tests.md`).
 
 ## Ostatnia sesja
 
@@ -90,11 +90,23 @@ Brak fizycznych TV w środowisku agenta → bramki sprzętowe P0 (instalacja, up
 
 ## Następne kroki
 
-Kolejność: A → B → C → G → D → E → F. G jest warunkiem wydania 1.0 (polecenie właściciela).
+Stan na 16.10.2026 wieczór: **kod 1.0 kompletny w zakresie możliwym bez sprzętu**; `npm run check` 423 zaliczone / 3 pominięte, smoke Electron (WSL/xvfb) zielony, CI i workflow „TV Android” zielone. Wersja w `package.json` nadal 0.9.0 — **nie wydano 1.0**.
 
-Do zrobienia: F1/F2 (dokumentacja, odbiory ręczne), G7/G8/G10 — odbiór na sprzęcie. **Sekrety CI dla podpisu APK** (Jakub, w GitHub → Settings → Secrets): `ADRENALINE_ANDROID_KEYSTORE_BASE64`, `ADRENALINE_ANDROID_KEYSTORE_PASSWORD`, `ADRENALINE_ANDROID_KEY_ALIAS`, `ADRENALINE_ANDROID_KEY_PASSWORD`; bez nich APK jest podpisany kluczem debug (manifest `signing: debug`) i późniejsza zmiana klucza wymaga odinstalowania aplikacji na TV. Commit po każdym zadaniu (`npm run check` zielony).
+Otwarte (w tej kolejności):
+1. **G7 Tizen na fizycznym Samsungu** (P0 z planu): instalacja przez Deploy (Tizen Studio + profil z DUID), start UI (Chromium 69/76: składnia obniżona do chrome69, reguła ESLint na nowe API — ale bez testu na prawdziwym Tizenie), AVPlay (`src/tv/player/engines.ts`: direct, HLS, `setSelectTrack` audio), klawisze pilota, `webapis.avinfo/productinfo` (profil w `src/tv/player/profile.ts`). Jeśli `config.xml` odrzuci przywilej `avplay`/`productinfo`, usunąć go i sprawdzić ponownie.
+2. **G8 Android na fizycznym TV**: passthrough E-AC3/TrueHD/DTS do AVR (Media3 `DefaultRenderersFactory` robi to automatycznie przy wspieranym HDMI), Dolby Vision (profil z `DeviceCapabilities.kt`). Emulator przeszedł pełny scenariusz (patrz wyżej).
+3. **Sekrety CI dla podpisu APK** (Jakub, GitHub → Settings → Secrets): `ADRENALINE_ANDROID_KEYSTORE_BASE64`, `ADRENALINE_ANDROID_KEYSTORE_PASSWORD`, `ADRENALINE_ANDROID_KEY_ALIAS`, `ADRENALINE_ANDROID_KEY_PASSWORD`. Bez nich APK jest podpisany stałym kluczem deweloperskim `tv/android/debug.keystore` (aktualizacje między wydaniami działają). Przejście z klucza deweloperskiego na release wymaga jednorazowego odinstalowania aplikacji na TV — zdecydować przed 1.0, który klucz idzie do użytkowników.
+4. Odbiory z `docs/manual-tests.md` → sekcja „1.0 — TV i biblioteka” (20 punktów), potem decyzja o wydaniu (`npm version 1.0.0` → tag → Release workflow buduje APK, pobiera FFmpeg, dołącza TV do NSIS).
+5. Do rozważenia po odbiorze: TLS dla API TV (D-82), wybór ścieżki audio w HLS na Androidzie (dziś Media3 pokazuje ścieżki tylko dla direct play; w HLS jest jedna, planowana przez PC), rozmiar instalatora (+FFmpeg ~230 MB przed kompresją).
+
+Ważne zachowania dla kolejnych agentów:
+- Klient TV ładuje się z `file://` (Tizen WGT, assets APK): **bundle IIFE bez `type=module`/`crossorigin`** (plugin w `vite.tv.config.ts`); nie zmieniać na moduły ES.
+- `src/tv` importuje z `@shared` wyłącznie typy (poza `tv-constants`) — reguła ESLint pilnuje, żeby zod nie trafił do paczki TV.
+- Testy z prawdziwym FFmpeg (`src/main/media/ffmpeg-real.test.ts`) uruchamiają się, gdy jest `vendor/ffmpeg` (`node scripts/fetch-ffmpeg.mjs`); CI pobiera go przed `npm run check`.
+- Narzędzia ręczne: demo serwera TV `scripts/dev/tv-demo.test.ts` (`TV_DEMO_LAN=1` dla emulatora/TV), zrzuty klienta `scripts/dev/tv-screens.mjs`, zrzuty desktopu `scripts/dev/desktop-tv-screens.mjs` (WSL/xvfb), wdrożenie `scripts/dev/tv-deploy.test.ts`, ikony `scripts/dev/tv-icons.mjs`.
 
 ## Notatki środowiskowe
 
-- Windows właściciela: Node 24, `npm run check` ok. Docker Desktop zainstalowany, domyślnie wyłączony (uruchomić do budowy APK). Java 26 lokalnie (Gradle/AGP wymaga JDK 17/21 — używać obrazu Docker).
-- Brak adb/sdb/Tizen Studio lokalnie.
+- Windows właściciela: Node 24, `npm run check` ok. Docker Desktop zainstalowany (włączany do budowy APK: `docker run … ghcr.io/cirruslabs/android-sdk:35 ./gradlew assembleRelease` w `tv/android`, wolumen `adrenaline-gradle`). Java 26 lokalnie (AGP potrzebuje JDK 17/21 — obraz Docker ma 21).
+- Brak adb/sdb/Tizen Studio w systemie. Emulator Android TV działa z WHPX (`emulator -no-window`), SDK trzymać poza repo (katalog tymczasowy). W Dockerze/WSL nie ma KVM.
+- GUI Electrona testować w WSL (`/root/adrenaline-claude`, `node_modules` → symlink do `/root/adrenaline/node_modules`, `xvfb-run -a`), bez okien na pulpicie właściciela.

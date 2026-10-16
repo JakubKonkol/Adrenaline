@@ -1,3 +1,9 @@
+# Kontynuacja — Claude, 16.10.2026 (sesja „1.0: TV + biblioteka”)
+
+Zlecenie Jakuba: klienci Samsung Tizen i Android TV z instalacją z zakładki TV po IP, nowoczesne UI TV (Discover + Library), negocjacja odtwarzania w stylu Jellyfin (D-85, „BARDZO WAŻNE”), brak seedowania po pobraniu, zakładka Library w desktopie, audyt procesów po zamknięciu. **Pełny postęp, decyzje i następne kroki: [1.0-adrenaline-tv/STATUS.md](1.0-adrenaline-tv/STATUS.md).** Wersja nadal 0.9.0, nic nie wydano.
+
+---
+
 # Kontynuacja — Claude, 15/16.10.2026 (sesja „dokończenie + napisy opcjonalne + angielski”)
 
 Zlecenie Jakuba (15.10.2026 wieczorem):
