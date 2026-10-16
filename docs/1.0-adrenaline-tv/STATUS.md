@@ -31,20 +31,20 @@ Brak fizycznych TV w środowisku agenta → bramki sprzętowe P0 (instalacja, up
 - [x] A5 Zakładka **Library** w desktopie (plakaty, odtwórz w domyślnym odtwarzaczu, pokaż w folderze, usuń).
 
 ### B. Serwer TV (main)
-- [ ] B1 Ustawienia serwera (enabled, port, interfejs) + migracja `002` (tv_devices, tv_pairings w pamięci).
-- [ ] B2 `src/main/tv/server.ts` na `node:http`: Host allowlist, CORS bez credentials, limity body, rate limit, redakcja.
-- [ ] B3 Parowanie: kod 6 cyfr, okno 120 s, zatwierdzenie na PC, token 256 bit (hash w DB), revoke.
-- [ ] B4 API: info, catalog (search, trending, details, season), release-searches, downloads (create/list/actions), library, playback tickets.
-- [ ] B5 Media: Range/HEAD/416 z biletem, napisy SRT→VTT, bez dowolnych ścieżek.
-- [ ] B6 Release search: właściciel sesji (desktop vs urządzenie), TV nie wypiera sesji desktopu.
-- [ ] B7 Testy integracyjne API na loopback (pairing → catalog → release → download → library → media, revoke).
+- [x] B1 Ustawienia serwera (enabled, port, interfejs) + migracja `002` (tv_devices, tv_pairings w pamięci).
+- [x] B2 `src/main/tv/server.ts` na `node:http`: Host allowlist, CORS bez credentials, limity body, rate limit, redakcja.
+- [x] B3 Parowanie: kod 6 cyfr, okno 120 s, zatwierdzenie na PC, token 256 bit (hash w DB), revoke.
+- [x] B4 API: info, catalog (search, trending, details, season), release-searches, downloads (create/list/actions), library, playback tickets.
+- [x] B5 Media: Range/HEAD/416 z biletem, napisy SRT→VTT, bez dowolnych ścieżek.
+- [x] B6 Release search: właściciel sesji (desktop vs urządzenie), TV nie wypiera sesji desktopu.
+- [x] B7 Testy integracyjne API na loopback (pairing → catalog → release → download → library → media, revoke).
 
 ### C. Klient TV (web, `src/tv`)
-- [ ] C1 Osobny entrypoint Vite (`vite.tv.config.ts`), target starszego Chromium (Tizen 6 ≈ M76), bez Node/Electron.
-- [ ] C2 Nawigacja D-pad (spatial focus), pamięć fokusu, Back.
-- [ ] C3 Ekrany: Connect/Pair, Home (Browse: trending + wyszukiwarka), Details/Seasons/Episodes, Releases, Downloads (stan), Library, Player.
-- [ ] C4 Adaptery platformy: Tizen (klawisze pilota, `tizen.application.exit`), Android (most `AdrenalineNative`), przeglądarka (dev).
-- [ ] C5 Testy jednostkowe logiki fokusu i klienta API.
+- [x] C1 Osobny entrypoint Vite (`vite.tv.config.ts`), target starszego Chromium (Tizen 6 ≈ M76), bez Node/Electron.
+- [x] C2 Nawigacja D-pad (spatial focus), pamięć fokusu, Back.
+- [x] C3 Ekrany: Connect/Pair, Home (Browse: trending + wyszukiwarka), Details/Seasons/Episodes, Releases, Downloads (stan), Library, Player.
+- [x] C4 Adaptery platformy: Tizen (klawisze pilota, `tizen.application.exit`), Android (most `AdrenalineNative`), przeglądarka (dev).
+- [x] C5 Testy jednostkowe logiki fokusu i klienta API.
 
 ### D. Pakiety TV
 - [ ] D1 Tizen: `tv/tizen/config.xml`, ikona, skrypt składający katalog `resources/tv/tizen/web`.
@@ -78,6 +78,9 @@ Brak fizycznych TV w środowisku agenta → bramki sprzętowe P0 (instalacja, up
 
 - 16.10.2026, Claude (Opus): start. Baseline `npm run check` zielony (348 zaliczonych, 3 pominięte). Katalog dokumentacji przemianowany z `1.0-andrenalive-tv`.
 - A zamknięte: `src/main/util/pid-file.ts` (sprzątanie osieroconych silnika/Jackett), stan `completed` + `DownloadService.release()` (D-80), `LibraryService` + IPC `library:*`, ekran `src/renderer/screens/library/`. Commity `e17e893`, `569af0a`, `2081a34`.
+
+- B zamknięte (`c921810`): `src/main/tv/{server,api,pairing,devices,media,network,tv-service}.ts`, migracja `002_tv.sql`, ustawienia `tvServer*`, IPC `tv:*`, właściciel sesji wyszukiwania. Test integracyjny `src/main/tv/tv-api.test.ts` (loopback, FakeEngine).
+- C zamknięte (`6cbfd0f`): `src/tv` (React, build `npm run build:tv` → `out/tv`, IIFE + CSP, target chrome69, reguły ESLint na nowe API). Ekrany: Connect/pairing, Discover (hero + rzędy + wyszukiwarka), Details (sezony/odcinki), Releases (+ potwierdzenie), Library (kontynuuj, pobierane, filmy, seriale), Show, Player (AVPlay na Tizen / `<video>` / natywny na Androidzie, własny renderer VTT), Settings. Przegląd wizualny: demo `npx vitest run -c scripts/dev/vitest.tv-demo.config.ts` + `npm run dev:tv` + `node scripts/dev/tv-screens.mjs <out> [obrazy]` (pilotem: strzałki/Enter/Escape).
 
 ## Następne kroki
 
