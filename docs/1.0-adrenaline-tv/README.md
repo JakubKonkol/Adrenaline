@@ -19,6 +19,8 @@ Rekomendacja: własne, wąskie API nad istniejącymi serwisami, natywny klient A
 | [03-deploy-and-packaging.md](03-deploy-and-packaging.md) | Kreator TV, ADB/SDB, podpisy, bundling i wydania |
 | [04-implementation-plan.md](04-implementation-plan.md) | Etapy, zależności, pliki, bramki i estymacja |
 | [05-acceptance-and-risks.md](05-acceptance-and-risks.md) | Kryteria odbioru, testy, ryzyka i otwarte decyzje |
+| [06-playback-negotiation.md](06-playback-negotiation.md) | **Wymóg 1.0 (D-85):** negocjacja odtwarzania w stylu Jellyfin — FFmpeg, ffprobe, profil TV, planner, HLS, tone mapping, AVPlay/Media3 |
+| [STATUS.md](STATUS.md) | Postęp implementacji i przekazanie między agentami |
 
 ## Zakres 1.0.0
 

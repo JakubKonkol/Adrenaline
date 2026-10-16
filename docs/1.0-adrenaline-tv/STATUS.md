@@ -17,7 +17,8 @@ Brak fizycznych TV w środowisku agenta → bramki sprzętowe P0 (instalacja, up
 - **D-80** Po pobraniu bez seedowania: torrent usuwany z silnika, nowy stan `completed`. Zastępuje D-70.
 - **D-81** Wspólny webowy klient TV (`src/tv`, React) dla Tizen i Android TV. Android = natywna powłoka Kotlin (WebView z dołączonymi zasobami + odtwarzacz Media3). Zamiast osobnego UI w Compose.
 - **D-82** Transport 1.0: HTTP w prywatnym LAN + parowanie zatwierdzane na PC + token urządzenia; serwer domyślnie wyłączony. TLS odłożony (wymaga testu Tizen).
-- **D-83** Odtwarzanie 1.0: direct play (HTTP Range) + napisy SRT→WebVTT. Bez FFmpeg/transkodowania w 1.0.
+- ~~**D-83** Odtwarzanie 1.0: direct play (HTTP Range) + napisy SRT→WebVTT. Bez FFmpeg/transkodowania w 1.0.~~ **Zastąpione przez D-85** (polecenie Jakuba 16.10.2026, „BARDZO WAŻNE”).
+- **D-85** Negocjacja odtwarzania w stylu Jellyfin: FFmpeg w instalatorze, ffprobe + cache, profil urządzenia, PlaybackPlanner (direct → remux HLS fMP4 → audio → wideo sprzętowo z tone mappingiem), AVPlay na Tizen, Media3 na Androidzie. Szczegóły: [06-playback-negotiation.md](06-playback-negotiation.md).
 - **D-84** Deploy: ADB i Tizen CLI wykrywane z oficjalnych instalacji (Android platform-tools, Tizen Studio), nie dołączane do instalatora. APK i zasoby Tizen dołączane.
 
 ## Zadania
@@ -57,6 +58,18 @@ Brak fizycznych TV w środowisku agenta → bramki sprzętowe P0 (instalacja, up
 - [ ] E4 Zakładka **TV** w desktopie: serwer (włącz, adres, port), oczekujące parowania, urządzenia (revoke), kreator Deploy (platforma, IP TV, etapy, błędy).
 - [ ] E5 Testy adapterów na stubach procesów.
 
+### G. Negocjacja odtwarzania (D-85, BARDZO WAŻNE — warunek wydania 1.0) — [06-playback-negotiation.md](06-playback-negotiation.md)
+- [ ] G1 FFmpeg/ffprobe: `scripts/fetch-ffmpeg.mjs`, wersja + SHA-256 w repo, krok w `release.yml`, `resources/ffmpeg`, notices/licencja GPL w instalatorze, lokalizacja binariów w main.
+- [ ] G2 `probe.ts` + migracja `003` (`media_probe`): kontener, kodek/profil, bit depth, HDR10/HDR10+/HLG/DV (profil 5/7/8), audio (TrueHD/Atmos, E-AC3 JOC, DTS-HD), napisy (SRT/ASS/PGS).
+- [ ] G3 `DeviceProfile` (kontrakt) + `planPlayback()` w `src/shared/domain/playback.ts` + fixtures ffprobe i testy wszystkich gałęzi.
+- [ ] G4 Wykrycie enkoderów (NVENC/QSV/AMF/CPU) i budowa argumentów FFmpeg (remux HLS fMP4, audio E-AC3/AAC, wideo HW + tone mapping, burn-in PGS/ASS).
+- [ ] G5 Transcoder: sesje HLS, 1 transkod naraz, seek = restart, kill drzewa procesów po stop/seek/quit/revoke, cache z limitem miejsca.
+- [ ] G6 API: `POST /playback/:itemId` z profilem urządzenia → plan; `/media/:ticket/hls/*` za biletem; wybór ścieżek audio/napisów.
+- [ ] G7 Klient Tizen: odtwarzacz AVPlay (ścieżki, napisy, HLS, passthrough) + profil z `webapis.avinfo`/`productinfo` i tabeli modeli.
+- [ ] G8 Klient Android: Media3 z passthrough (`AudioCapabilities`), wybór ścieżek, profil z `MediaCodecList`/`Display.HdrCapabilities`.
+- [ ] G9 Ustawienia PC (hwaccel, max rozdzielczość/bitrate, limit cache) + diagnostyka sesji odtwarzania w zakładce TV.
+- [ ] G10 `docs/manual-tests.md`: odbiór 4K DV P5/P8, HDR10, Atmos, DTS-HD, PGS na sprzęcie.
+
 ### F. Dokumentacja i odbiór
 - [ ] F1 `docs/user-guide.md` (TV, Library), README, decyzje D-80..D-84, `docs/implementation-plan/STATUS.md`.
 - [ ] F2 Lista odbiorów ręcznych na sprzęcie (`docs/manual-tests.md`).
@@ -68,7 +81,7 @@ Brak fizycznych TV w środowisku agenta → bramki sprzętowe P0 (instalacja, up
 
 ## Następne kroki
 
-Kolejność: A → B → C → D → E → F. Commit po każdym zadaniu (`npm run check` zielony).
+Kolejność: A → B → C → G → D → E → F. G jest warunkiem wydania 1.0 (polecenie właściciela). Commit po każdym zadaniu (`npm run check` zielony).
 
 ## Notatki środowiskowe
 
