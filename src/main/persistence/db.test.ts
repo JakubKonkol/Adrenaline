@@ -52,19 +52,35 @@ describe('openDatabase', () => {
     dirs.push(dir);
     const path = join(dir, 'adrenaline.db');
     openDatabase(path, { log: nullLogger }).close();
-    const extra = [...MIGRATIONS, { version: 2, name: 'extra', sql: 'CREATE TABLE extra (id INTEGER);' }];
+    const last = MIGRATIONS.at(-1)!.version;
+    const extra = [...MIGRATIONS, { version: last + 1, name: 'extra', sql: 'CREATE TABLE extra (id INTEGER);' }];
     const db = openDatabase(path, { log: nullLogger, migrations: extra });
-    expect(userVersion(db)).toBe(2);
+    expect(userVersion(db)).toBe(last + 1);
     db.close();
-    expect(existsSync(`${path}.bak-1`)).toBe(true);
+    expect(existsSync(`${path}.bak-${last}`)).toBe(true);
 
-    const broken = [...extra, { version: 3, name: 'broken', sql: 'CREATE TABLE ok3 (id INTEGER); NOT SQL;' }];
+    const broken = [...extra, { version: last + 2, name: 'broken', sql: 'CREATE TABLE ok3 (id INTEGER); NOT SQL;' }];
     expect(() => openDatabase(path, { log: nullLogger, migrations: broken })).toThrow();
     const again = openDatabase(path, { log: nullLogger, migrations: extra });
-    expect(userVersion(again)).toBe(2);
+    expect(userVersion(again)).toBe(last + 1);
     expect(again.prepare("SELECT name FROM sqlite_master WHERE name = 'ok3'").get()).toBeUndefined();
     again.close();
     expect(readdirSync(dir).filter((f) => f.includes('.bak-')).length).toBeLessThanOrEqual(3);
+  });
+
+  it('upgrades a 0.9.0 profile (version 1) to the TV schema without touching its data', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'adr-db-'));
+    dirs.push(dir);
+    const path = join(dir, 'adrenaline.db');
+    const old = openDatabase(path, { log: nullLogger, migrations: MIGRATIONS.slice(0, 1) });
+    old.prepare("INSERT INTO settings (key, value_json) VALUES ('theme', '\"dark\"')").run();
+    old.close();
+    const db = openDatabase(path, { log: nullLogger });
+    expect(userVersion(db)).toBe(2);
+    expect(db.prepare("SELECT value_json FROM settings WHERE key = 'theme'").get()).toEqual({ value_json: '"dark"' });
+    expect(db.prepare("SELECT name FROM sqlite_master WHERE name = 'tv_devices'").get()).toBeTruthy();
+    db.close();
+    expect(existsSync(`${path}.bak-1`)).toBe(true);
   });
 
   it('transaction rolls back on error', () => {

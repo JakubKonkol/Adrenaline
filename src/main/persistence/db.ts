@@ -3,6 +3,7 @@ import { basename, dirname, join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import type { Logger } from '../logger';
 import init001 from './migrations/001_init.sql?raw';
+import tv002 from './migrations/002_tv.sql?raw';
 
 export interface Migration {
   version: number;
@@ -11,7 +12,10 @@ export interface Migration {
 }
 
 /** Ordered migrations; `PRAGMA user_version` holds the last applied version. */
-export const MIGRATIONS: Migration[] = [{ version: 1, name: 'init', sql: init001 }];
+export const MIGRATIONS: Migration[] = [
+  { version: 1, name: 'init', sql: init001 },
+  { version: 2, name: 'tv', sql: tv002 },
+];
 
 const MAX_BACKUPS = 3;
 

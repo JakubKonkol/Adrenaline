@@ -29,6 +29,7 @@ import {
 } from './downloads';
 import { libraryItemIdSchema, libraryItemSchema } from './library';
 import { releaseSessionSchema } from './releases';
+import { tvServerStatusSchema } from './tv';
 import { addCustomSourceSchema, jackettStatusSchema, sourceIdSchema, sourceSchema } from './sources';
 
 export type { ChannelName, EventName } from './channels';
@@ -129,6 +130,10 @@ export const ipcChannels = {
     input: z.object({ id: libraryItemIdSchema, deleteFiles: z.boolean() }).strict(),
     output: z.void(),
   },
+  'tv:status': { input: z.void(), output: tvServerStatusSchema },
+  'tv:approve': { input: z.object({ id: z.string().max(64) }).strict(), output: tvServerStatusSchema },
+  'tv:deny': { input: z.object({ id: z.string().max(64) }).strict(), output: tvServerStatusSchema },
+  'tv:revoke': { input: z.object({ deviceId: z.string().max(64) }).strict(), output: tvServerStatusSchema },
   /** Hidden test API: only registered with the fake engine in an unpackaged app (03-testy.md, smoke). */
   'dev:addTestDownload': {
     input: z.object({ name: z.string().min(1).max(120) }).strict(),
@@ -165,6 +170,7 @@ export const ipcEvents = {
   'jackett:status': jackettStatusSchema,
   'downloads:changed': downloadJobSchema,
   'downloads:progress': z.object({ jobs: z.array(jobProgressSchema) }),
+  'tv:status': tvServerStatusSchema,
 } as const satisfies Record<EventName, z.ZodType>;
 
 export type ChannelInput<C extends ChannelName> = z.input<(typeof ipcChannels)[C]['input']>;

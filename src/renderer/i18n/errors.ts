@@ -113,4 +113,76 @@ export const errorTexts: Record<AppErrorCode, { message: string; action: string 
     action: 'Keys are kept only until the app is closed.',
   },
   UPDATE_FAILED: { message: 'The update failed.', action: 'Try again later.' },
+  TV_UNAUTHORIZED: {
+    message: 'This TV is not paired with the PC.',
+    action: 'Pair the TV again from its Connect screen.',
+  },
+  TV_RATE_LIMITED: {
+    message: 'Too many requests from the TV.',
+    action: 'Wait a moment and try again.',
+  },
+  TV_PAIRING_BUSY: {
+    message: 'Too many TVs are waiting for approval.',
+    action: 'Approve or deny the waiting requests in the TV tab.',
+  },
+  TV_PAIRING_EXPIRED: {
+    message: 'The pairing request expired.',
+    action: 'Start pairing again on the TV.',
+  },
+  TV_PORT_IN_USE: {
+    message: 'The TV server port is already in use.',
+    action: 'Choose another port in the TV tab.',
+  },
+  TV_NO_NETWORK: {
+    message: 'No local network found for the TV server.',
+    action: 'Connect the PC to the same network as the TV.',
+  },
+  TV_SERVER_FAILED: {
+    message: 'The TV server could not start.',
+    action: 'Check the address and port in the TV tab. Details are in the logs.',
+  },
+  TV_UNSUPPORTED_MEDIA: {
+    message: 'This file cannot be streamed to the TV.',
+    action: 'Play it on the PC from the Library.',
+  },
+  DEPLOY_TOOL_MISSING: {
+    message: 'The tool needed to install on this TV was not found.',
+    action: 'Install it as described in the TV tab, or choose its location.',
+  },
+  DEPLOY_PACKAGE_MISSING: {
+    message: 'The TV app package is missing from this installation.',
+    action: 'Reinstall Adrenaline.',
+  },
+  DEPLOY_CONNECT_FAILED: {
+    message: 'Could not connect to the TV.',
+    action: 'Check the TV address, that developer mode is on and that the TV and PC are on the same network.',
+  },
+  DEPLOY_UNAUTHORIZED: {
+    message: 'The TV did not allow the connection.',
+    action: 'Accept the connection prompt on the TV, or pair again with a new code.',
+  },
+  DEPLOY_TIMEOUT: {
+    message: 'The TV did not answer in time.',
+    action: 'Make sure the TV is on and try again.',
+  },
+  DEPLOY_INSTALL_FAILED: {
+    message: 'The TV refused to install the app.',
+    action: 'Check the details below and try again.',
+  },
+  DEPLOY_SIGNATURE_MISMATCH: {
+    message: 'An Adrenaline app signed with a different key is already on the TV.',
+    action: 'Uninstall it on the TV first; this removes its pairing.',
+  },
+  DEPLOY_NO_SPACE: {
+    message: 'Not enough space on the TV.',
+    action: 'Free some space on the TV and try again.',
+  },
+  DEPLOY_CERTIFICATE: {
+    message: 'The Samsung certificate profile is missing or does not match this TV.',
+    action: 'Create a certificate profile for this TV in Tizen Studio (Certificate Manager).',
+  },
+  DEPLOY_CANCELLED: {
+    message: 'The installation was cancelled.',
+    action: 'Start it again when ready.',
+  },
 };

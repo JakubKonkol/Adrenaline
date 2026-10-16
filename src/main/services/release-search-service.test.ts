@@ -163,4 +163,16 @@ describe('ReleaseSearchService (FR03, FR04, BR08)', () => {
     await run(true);
     expect(searches()).toBeGreaterThan(first);
   });
+
+  it('keeps desktop sessions when TVs search a lot (1.0, B6)', () => {
+    const { service } = setup({ a: () => rss(item('Night.of.the.Living.Dead.1968.720p', H1, 3)) });
+    const desktop = service.start(target);
+    const tv = Array.from({ length: 45 }, () => service.start(target, false, 'tv:one'));
+    expect(service.session(desktop)).not.toBeNull();
+    expect(service.ownerOf(desktop)).toBe('desktop');
+    // Each owner keeps its last 10 sessions.
+    expect(tv.filter((id) => service.session(id) !== null)).toHaveLength(10);
+    expect(service.ownerOf(tv.at(-1)!)).toBe('tv:one');
+    expect(service.session(tv[0]!)).toBeNull();
+  });
 });

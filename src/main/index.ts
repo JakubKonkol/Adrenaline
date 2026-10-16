@@ -15,6 +15,9 @@ import { registerSourcesHandlers } from './ipc/sources-handlers';
 import { registerDownloadsHandlers } from './ipc/downloads-handlers';
 import { registerLibraryHandlers } from './ipc/library-handlers';
 import { LibraryService } from './services/library-service';
+import { registerTvHandlers } from './ipc/tv-handlers';
+import { TvDevicesRepository } from './tv/devices';
+import { TvService } from './tv/tv-service';
 import { JobsRepository } from './persistence/repositories/jobs';
 import { DownloadService } from './services/download-service';
 import { SubtitleService } from './services/subtitle-service';
@@ -233,6 +236,9 @@ if (!app.requestSingleInstanceLock()) {
     ipc.handle('app:copyDiagnostics', async () => {
       await clipboard.writeText(JSON.stringify(getDiagnostics(), null, 2));
     });
+    // TV server (1.0): stopped first on quit so no TV can start anything while the rest shuts down.
+    let tvService: TvService | null = null;
+    lifecycle.addStep('tv', () => tvService?.stop(), 2_000);
     const subtitles = new SubtitleService({
       jobs,
       tasks: subtitleTasks,
@@ -298,6 +304,34 @@ if (!app.requestSingleInstanceLock()) {
       },
     });
     registerLibraryHandlers(ipc, library);
+    const tv = new TvService({
+      version: __ADRENALINE_VERSION__,
+      devices: new TvDevicesRepository(db),
+      catalog,
+      releases: releaseSearch,
+      downloads: () => downloadService,
+      library,
+      media,
+      settings,
+      subtitleAccountReady: () =>
+        settings.get().opensubtitlesUsername.trim() !== '' &&
+        secrets.get('opensubtitles.apiKey') !== null &&
+        secrets.get('opensubtitles.password') !== null,
+      log: log.child('tv'),
+      onPairingRequest: (name, code) => {
+        if (!Notification.isSupported()) return;
+        const notice = new Notification({
+          title: mainText.notice.tvPairingTitle,
+          body: mainText.notice.tvPairingBody.replace('{name}', name).replace('{code}', code),
+        });
+        notice.on('click', showWindow);
+        notice.show();
+      },
+    });
+    tvService = tv;
+    tv.on('status', (status) => send('tv:status', status));
+    registerTvHandlers(ipc, tv);
+    void tv.apply();
 
     lifecycle.addStep('jackett', () => jackett.stop(), 6_000);
     // Started in the background shortly after launch when a built-in source is enabled, otherwise on demand.

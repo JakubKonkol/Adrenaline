@@ -6,6 +6,7 @@ const common = {
   id,
   overview: z.string().nullable(),
   poster_path: z.string().nullable(),
+  backdrop_path: z.string().nullable().optional(),
   popularity: z.number(),
 };
 export const movieSchema = z.object({

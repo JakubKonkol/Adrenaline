@@ -15,6 +15,7 @@ import { CATALOG_LANGUAGE, type TmdbClient } from '../providers/tmdb/tmdb-client
 
 const SEARCH_TTL = 15 * 60_000;
 const DETAILS_TTL = 24 * 60 * 60_000;
+const TRENDING_TTL = 6 * 60 * 60_000;
 
 export class CatalogService {
   constructor(
@@ -41,6 +42,10 @@ export class CatalogService {
       );
       return groups.flat().sort((a, b) => b.popularity - a.popularity || a.title.localeCompare(b.title, 'en'));
     });
+  }
+
+  trending(type: MediaType) {
+    return this.cached(`trending:${type}`, z.array(catalogItemSchema), TRENDING_TTL, () => this.client.trending(type));
   }
 
   details(type: MediaType, tmdbId: number) {

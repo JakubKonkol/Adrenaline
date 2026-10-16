@@ -23,6 +23,11 @@ export const appSettingsSchema = z.object({
   onboardingDone: z.boolean(),
   theme: z.enum(['system', 'dark', 'light']),
   opensubtitlesUsername: z.string().max(200),
+  /** 1.0 (D-82): LAN server for the TV apps; off by default. */
+  tvServerEnabled: z.boolean(),
+  tvServerPort: z.number().int().min(1024).max(65535),
+  /** IPv4 address of the chosen network interface; empty = the first private LAN address. */
+  tvServerAddress: z.union([z.literal(''), z.ipv4()]),
 });
 export type AppSettings = z.infer<typeof appSettingsSchema>;
 
@@ -44,6 +49,9 @@ export const STATIC_DEFAULTS: Omit<AppSettings, 'downloadDir' | 'listenPort'> = 
   onboardingDone: false,
   theme: 'system',
   opensubtitlesUsername: '',
+  tvServerEnabled: false,
+  tvServerPort: 18790,
+  tvServerAddress: '',
 };
 
 /** Secrets the user can set from the renderer (write-only; the renderer only learns whether they exist). */

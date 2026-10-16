@@ -35,6 +35,7 @@ function movie(row: z.infer<typeof movieSchema>): CatalogItem {
     originalTitle: row.original_title,
     year: year(row.release_date),
     posterPath: row.poster_path,
+    backdropPath: row.backdrop_path ?? null,
     overview: row.overview ?? '',
     popularity: row.popularity,
   };
@@ -47,6 +48,7 @@ function tv(row: z.infer<typeof tvSchema>): CatalogItem {
     originalTitle: row.original_name,
     year: year(row.first_air_date),
     posterPath: row.poster_path,
+    backdropPath: row.backdrop_path ?? null,
     overview: row.overview ?? '',
     popularity: row.popularity,
   };
@@ -150,6 +152,13 @@ export class TmdbClient {
     return type === 'movie'
       ? (await this.request('search/movie', movieSearchSchema, params)).results.map(movie)
       : (await this.request('search/tv', tvSearchSchema, params)).results.map(tv);
+  }
+
+  /** Titles trending this week (TV home screen, 1.0). */
+  async trending(type: MediaType): Promise<CatalogItem[]> {
+    return type === 'movie'
+      ? (await this.request('trending/movie/week', movieSearchSchema)).results.map(movie)
+      : (await this.request('trending/tv/week', tvSearchSchema)).results.map(tv);
   }
 
   async details(type: MediaType, id: number): Promise<TitleDetails> {

@@ -10,6 +10,8 @@ export const catalogItemSchema = z.object({
   originalTitle: z.string(),
   year: z.number().int().nullable(),
   posterPath: z.string().nullable(),
+  /** Wide image for the TV home screen (1.0); missing in catalog entries cached by 0.9.0. */
+  backdropPath: z.string().nullable().optional(),
   overview: z.string(),
   popularity: z.number(),
 });

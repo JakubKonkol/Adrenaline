@@ -45,8 +45,16 @@ const hitSchema: z.ZodType<SourceHit> = z.object({
 });
 const cachedSessionSchema = z.object({ hits: z.array(hitSchema), sources: z.array(sessionSourceSchema) });
 
+/** Who started a search: the desktop UI or a paired TV (its device id). TVs never evict desktop sessions. */
+export type SessionOwner = 'desktop' | `tv:${string}`;
+
+/** Sessions kept per owner, and in total (TV sessions are dropped first). */
+const SESSIONS_PER_OWNER = 10;
+const SESSIONS_TOTAL = 40;
+
 interface Session {
   id: string;
+  owner: SessionOwner;
   target: SearchTarget;
   sources: SessionSource[];
   hits: SourceHit[];
@@ -93,9 +101,10 @@ export class ReleaseSearchService extends Emitter<{ update: ReleaseSession }> {
     return (this.opts.now ?? Date.now)();
   }
 
-  start(target: SearchTarget, refresh = false): string {
+  start(target: SearchTarget, refresh = false, owner: SessionOwner = 'desktop'): string {
     const session: Session = {
       id: randomUUID(),
+      owner,
       target,
       sources: [],
       hits: [],
@@ -108,13 +117,29 @@ export class ReleaseSearchService extends Emitter<{ update: ReleaseSession }> {
       controller: new AbortController(),
     };
     this.sessions.set(session.id, session);
-    // Keep memory bounded: only the last few sessions are kept for "Pobierz".
-    for (const id of [...this.sessions.keys()].slice(0, -10)) this.sessions.delete(id);
+    this.evict(owner);
     void this.run(session, refresh).catch((error: unknown) => {
       this.opts.log.error('release search failed', error);
       this.finish(session);
     });
     return session.id;
+  }
+
+  /** Keep memory bounded: the last few sessions per owner are kept for "Download", oldest TV sessions go first. */
+  private evict(owner: SessionOwner): void {
+    const drop = (s: Session) => {
+      s.controller.abort();
+      this.sessions.delete(s.id);
+    };
+    const own = [...this.sessions.values()].filter((s) => s.owner === owner);
+    for (const s of own.slice(0, -SESSIONS_PER_OWNER)) drop(s);
+    const all = [...this.sessions.values()];
+    const excess = all.length - SESSIONS_TOTAL;
+    if (excess > 0) for (const s of all.filter((x) => x.owner !== 'desktop').slice(0, excess)) drop(s);
+  }
+
+  ownerOf(id: string): SessionOwner | null {
+    return this.sessions.get(id)?.owner ?? null;
   }
 
   cancel(id: string): void {

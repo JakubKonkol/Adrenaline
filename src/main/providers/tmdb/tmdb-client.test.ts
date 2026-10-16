@@ -48,6 +48,16 @@ describe('TMDB contract (synthetic fixtures)', () => {
     expect(init?.redirect).toBe('error');
   });
 
+  it('lists trending titles of the week with their backdrops (TV home, 1.0)', async () => {
+    const withBackdrop = { results: [{ ...movies.results[0], backdrop_path: '/wide.jpg' }, movies.results[1]] };
+    const { client, fetch } = setup([json(withBackdrop), json(series)]);
+    const films = await client.trending('movie');
+    expect(films.map((f) => f.backdropPath)).toEqual(['/wide.jpg', null]);
+    expect(requestUrl(fetch.mock.calls[0]![0])).toContain('/3/trending/movie/week?');
+    expect((await client.trending('tv'))[0]?.type).toBe('tv');
+    expect(requestUrl(fetch.mock.calls[1]![0])).toContain('/3/trending/tv/week?');
+  });
+
   it('supports v3 API keys, TV names, empty results and missing optional metadata', async () => {
     const key = 'a'.repeat(32);
     const { client, fetch } = setup(
