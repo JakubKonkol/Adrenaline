@@ -6,9 +6,7 @@ import { libraryItemSchema } from './library';
  * TV API v1 (1.0, docs/1.0-adrenaline-tv/02-architecture-and-api.md). DTOs sent over the LAN never contain local
  * paths, hashes, download links or secrets. The API version is independent of the app version.
  */
-export const TV_API_VERSION = 1;
-export const TV_API_MIN = 1;
-export const TV_DEFAULT_PORT = 18790;
+export { TV_API_MIN, TV_API_VERSION, TV_DEFAULT_PORT } from './tv-constants';
 
 export const tvPlatformSchema = z.enum(['android', 'tizen', 'web']);
 export type TvPlatform = z.infer<typeof tvPlatformSchema>;
@@ -30,6 +28,14 @@ const deviceNameSchema = z
   .min(1)
   .max(60)
   .regex(/^[^\p{Cc}\p{Cf}<>]+$/u);
+
+export const tvSessionSchema = z.object({
+  device: z.object({ id: z.string(), name: z.string() }),
+  server: tvInfoSchema,
+  /** What the PC can do for this TV right now. */
+  features: z.object({ subtitles: z.boolean() }),
+});
+export type TvSession = z.infer<typeof tvSessionSchema>;
 
 export const pairingRequestSchema = z
   .object({

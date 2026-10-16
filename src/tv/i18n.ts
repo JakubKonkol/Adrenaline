@@ -1,0 +1,147 @@
+/** English UI texts of the TV app (D-77). `{name}` marks a parameter. */
+const en = {
+  app: { loading: 'Loading…', retry: 'Try again', back: 'Back', close: 'Close', cancel: 'Cancel' },
+  connect: {
+    title: 'Connect to your PC',
+    body: 'On your PC, open Adrenaline → TV and turn on the TV server. Then enter the address shown there.',
+    address: 'PC address',
+    placeholder: 'e.g. 192.168.1.20:18790',
+    connect: 'Connect',
+    connecting: 'Connecting…',
+    invalid: 'Enter the address shown in the TV tab on your PC, e.g. 192.168.1.20:18790.',
+    unreachable:
+      'Can’t reach {server}. Make sure Adrenaline is running on the PC, the TV server is on, and both are on the same network.',
+    notAdrenaline: 'Something answered at this address, but it is not Adrenaline.',
+    tooOld: 'Adrenaline on the PC is too old for this TV app. Update it on the PC.',
+    pairTitle: 'Approve this TV on your PC',
+    pairBody: 'Adrenaline on your PC shows a request from “{name}”. Approve it if the code matches:',
+    waiting: 'Waiting for approval…',
+    denied: 'The request was denied on the PC.',
+    expired: 'The request expired.',
+    busy: 'Too many TVs are waiting for approval on the PC. Approve or deny them first.',
+    revoked: 'This TV is no longer paired with the PC. Connect again.',
+    again: 'Start again',
+  },
+  offline: {
+    title: 'Can’t reach your PC',
+    body: 'Adrenaline on {server} is not answering. Is the PC on, with Adrenaline running and the TV server turned on?',
+    change: 'Connect to another PC',
+  },
+  nav: { discover: 'Discover', library: 'Library', settings: 'Settings' },
+  discover: {
+    search: 'Search movies and TV shows',
+    searchHint: 'Search',
+    trendingMovies: 'Trending movies',
+    trendingShows: 'Trending TV shows',
+    results: 'Results for “{query}”',
+    noResults: 'Nothing found for “{query}”.',
+    details: 'Details',
+    noKey: 'The movie catalog is not set up on the PC. Add a TMDB key in Adrenaline’s Settings on the PC.',
+  },
+  details: {
+    movie: 'Movie',
+    tv: 'TV show',
+    download: 'Download to PC',
+    play: 'Play',
+    resume: 'Resume',
+    inLibrary: 'In your library',
+    seasons: 'Seasons',
+    season: 'Season {n}',
+    episode: 'Episode {n}',
+    episodes: 'Episodes',
+    minutes: '{h} h {m} min',
+    minutesOnly: '{m} min',
+    noOverview: 'No description.',
+  },
+  releases: {
+    title: 'Choose a release',
+    searching: 'Searching sources… {done} of {total}',
+    found: '{count} releases',
+    none: 'No releases found. Try again later or check the sources on the PC.',
+    allFailed: 'The sources could not be searched. Check the internet connection and the sources on the PC.',
+    noSources: 'No sources are turned on. Turn them on in Adrenaline’s Settings → Sources on the PC.',
+    best: 'Best match',
+    seeders: '{n} seeders',
+    unknownSize: 'size unknown',
+    confirmTitle: 'Download to your PC?',
+    confirmBody: 'The file downloads on your PC. When it is done, it appears in your Library.',
+    subtitles: 'Subtitles',
+    subtitlesOn: 'On — in the language set on the PC',
+    subtitlesOff: 'Off',
+    subtitlesNoAccount: 'Not available — no OpenSubtitles account on the PC',
+    start: 'Download',
+    started: 'Downloading on your PC',
+    duplicate: 'This release is already in your downloads.',
+    gone: 'This search expired. Open the title again.',
+  },
+  library: {
+    continue: 'Continue watching',
+    downloading: 'Downloading on your PC',
+    movies: 'Movies',
+    shows: 'TV shows',
+    empty: 'Your library is empty',
+    emptyBody: 'Find something in Discover. It downloads on your PC and shows up here.',
+    missing: 'File missing on the PC',
+    episodes: '{count} episodes',
+    queued: 'Waiting',
+    metadata: 'Getting file list',
+    chooseOnPc: 'Choose the files on the PC',
+    paused: 'Paused',
+    checking: 'Checking files',
+    error: 'Needs attention on the PC',
+    subtitles: 'Getting subtitles',
+    ready: 'Ready',
+    pause: 'Pause',
+    resume: 'Resume',
+    removeFromQueue: 'Remove download',
+    removeHint: 'Files already downloaded stay on the PC.',
+  },
+  player: {
+    unsupported: 'This file can’t be played on this TV. Play it on your PC from the Library.',
+    missing: 'The file is no longer on the PC.',
+    subtitles: 'Subtitles',
+    off: 'Off',
+  },
+  settings: {
+    title: 'Settings',
+    pc: 'Connected PC',
+    device: 'This TV',
+    version: 'App version',
+    disconnect: 'Disconnect from this PC',
+    tmdb: 'This product uses the TMDB API but is not endorsed or certified by TMDB.',
+    about: 'Adrenaline finds and downloads on your PC; this TV app only browses, starts downloads and plays them.',
+  },
+  errors: {
+    NETWORK: 'Can’t reach your PC.',
+    TMDB_NO_KEY: 'The movie catalog is not set up on the PC.',
+    TMDB_UNAVAILABLE: 'The movie catalog is not available right now.',
+    TMDB_RATE_LIMITED: 'The movie catalog is busy. Try again in a moment.',
+    ENGINE_UNAVAILABLE: 'The download engine on the PC is not running.',
+    DISK_FULL: 'Not enough space on the PC.',
+    DUPLICATE_JOB: 'This release is already in your downloads.',
+    NOT_FOUND: 'Not found.',
+    FILE_MISSING: 'The file is no longer on the PC.',
+    TV_UNSUPPORTED_MEDIA: 'This file type can’t be streamed to the TV.',
+    TV_RATE_LIMITED: 'Too many requests. Wait a moment.',
+    default: 'Something went wrong on the PC ({code}).',
+  },
+};
+
+type Dict = typeof en;
+type Leaf<T, P extends string = ''> = {
+  [K in keyof T & string]: T[K] extends string ? `${P}${K}` : Leaf<T[K], `${P}${K}.`>;
+}[keyof T & string];
+export type TextKey = Leaf<Dict>;
+
+export function t(key: TextKey, params: Record<string, string | number> = {}): string {
+  let value: unknown = en;
+  for (const part of key.split('.')) value = (value as Record<string, unknown>)[part];
+  const text = typeof value === 'string' ? value : key;
+  return text.replace(/\{(\w+)\}/g, (_, name: string) => (name in params ? String(params[name]) : `{${name}}`));
+}
+
+/** User-facing text for an API error code. */
+export function errorText(code: string): string {
+  const known = (en.errors as Record<string, string>)[code];
+  return known ?? t('errors.default', { code });
+}

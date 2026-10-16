@@ -91,6 +91,41 @@ export default tseslint.config(
     },
   },
   {
+    // TV app (D-81): runs from local files on old Chromium (Tizen 5.5 = M69), no Node/Electron, no zod at runtime.
+    files: ['src/tv/**/*.{ts,tsx}'],
+    plugins: { 'react-hooks': reactHooks },
+    languageOptions: { globals: { ...globals.browser } },
+    rules: {
+      ...reactHooks.configs.recommended.rules,
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [{ name: 'electron', message: 'The TV app runs on the TV, not in Electron.' }],
+          patterns: [
+            {
+              group: ['node:*', '**/main/**', '**/preload/**', '**/renderer/**'],
+              message: 'TV app: browser code only.',
+            },
+            {
+              regex: '^@shared/(?!contracts/tv-constants$)',
+              allowTypeImports: true,
+              message: 'Import shared contracts as types only (keeps zod out of the TV bundle).',
+            },
+          ],
+        },
+      ],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            'MemberExpression[property.name=/^(at|replaceAll|matchAll|findLast|findLastIndex|toSorted|toReversed|toSpliced|hasOwn|groupBy)$/]',
+          message: 'Not available on Tizen 5.5/6.0 (Chromium 69/76).',
+        },
+        { selector: "Identifier[name='structuredClone']", message: 'Not available on Tizen (Chromium 69/76).' },
+      ],
+    },
+  },
+  {
     files: ['**/*.test.{ts,tsx}', 'tests/**/*.ts'],
     rules: {
       '@typescript-eslint/no-non-null-assertion': 'off',

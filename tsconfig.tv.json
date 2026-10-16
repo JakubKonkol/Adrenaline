@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.cache/tsbuildinfo/tv.tsbuildinfo",
+    // TVs run old Chromium (Tizen 5.5 = M69). Syntax is lowered by the build (target chrome69); newer runtime APIs
+    // are blocked in src/tv by an ESLint rule (shared contracts need the newer lib for their own code).
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "types": ["vite/client"],
+    "paths": { "@shared/*": ["./src/shared/*"] }
+  },
+  "include": ["src/tv/**/*.ts", "src/tv/**/*.tsx", "src/shared/**/*"]
+}

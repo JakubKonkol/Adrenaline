@@ -8,6 +8,7 @@
   "exclude": ["tests/smoke/**"],
   "include": [
     "electron.vite.config.ts",
+    "vite.tv.config.ts",
     "vitest.config.ts",
     "playwright.config.ts",
     "src/main/**/*",

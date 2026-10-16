@@ -1,0 +1,1167 @@
+/*
+ * TV styles (D-81). Designed for 1920×1080; 1rem = 16px there and scales with the screen width (Android TV WebViews
+ * often report 960×540). Old Chromium (Tizen 5.5 = M69, 6.0 = M76): no flex `gap`, no `aspect-ratio`, no `inset`,
+ * no :focus-visible — margins, padding boxes and explicit offsets instead.
+ */
+:root {
+  --bg: #08090b;
+  --bg-raised: #15171c;
+  --bg-glass: rgba(30, 33, 40, 0.72);
+  --text: #f5f6f8;
+  --text-dim: #a9afba;
+  --text-faint: #6f7682;
+  --accent: #ff7a3d;
+  --accent-soft: rgba(255, 122, 61, 0.18);
+  --focus-ring: #ffffff;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  --radius: 0.75rem;
+  --radius-large: 1.1rem;
+  --page-x: 5rem;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+html {
+  font-size: calc(100vw / 120);
+  background: var(--bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter Variable', 'Inter', 'Samsung One', Roboto, sans-serif;
+  font-size: 1.375rem;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  cursor: default;
+}
+
+#root {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+img {
+  display: block;
+}
+
+.focusable {
+  outline: none;
+}
+
+/* ---------------------------------------------------------------- layout */
+
+.screen {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+.screen::-webkit-scrollbar,
+.row::-webkit-scrollbar {
+  display: none;
+}
+
+.screen.center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.screen-header {
+  padding: 4rem var(--page-x) 1.5rem;
+}
+
+.screen-header h1 {
+  font-size: 3rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.screen-subtitle {
+  margin-top: 0.4rem;
+  color: var(--text-dim);
+  font-size: 1.5rem;
+}
+
+.screen-status {
+  margin-top: 0.6rem;
+  min-height: 1.6rem;
+  color: var(--text-faint);
+}
+
+.eyebrow {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--accent);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* ---------------------------------------------------------------- top bar and tabs */
+
+.topbar {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 7rem;
+  padding: 0 var(--page-x);
+}
+
+.topbar-logo {
+  position: absolute;
+  left: var(--page-x);
+  top: 2.25rem;
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+.tabs {
+  display: flex;
+  padding: 0.35rem;
+  border-radius: 999px;
+  background: var(--bg-glass);
+}
+
+.tab {
+  margin: 0 0.15rem;
+  padding: 0.6rem 1.8rem;
+  border-radius: 999px;
+  color: var(--text-dim);
+  font-size: 1.375rem;
+  font-weight: 600;
+  transition:
+    background 160ms var(--ease),
+    color 160ms var(--ease),
+    transform 160ms var(--ease);
+}
+
+.tab.is-active {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.tab:focus {
+  color: #0b0c0f;
+  background: var(--focus-ring);
+  transform: scale(1.06);
+}
+
+.tab-icon {
+  position: absolute;
+  right: var(--page-x);
+  top: 2.15rem;
+  width: 3.2rem;
+  height: 3.2rem;
+  padding: 0.65rem;
+  background: var(--bg-glass);
+}
+
+/* ---------------------------------------------------------------- buttons, chips, badges */
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 1.75rem;
+}
+
+.actions > * {
+  margin: 0 1rem 1rem 0;
+}
+
+.center-actions {
+  justify-content: center;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.9rem 2rem;
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--text);
+  font-size: 1.375rem;
+  font-weight: 600;
+  transition:
+    transform 160ms var(--ease),
+    background 160ms var(--ease),
+    color 160ms var(--ease);
+}
+
+.btn-primary {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.btn:focus {
+  background: var(--focus-ring);
+  color: #0b0c0f;
+  transform: scale(1.06);
+  box-shadow: 0 0.8rem 2rem rgba(0, 0, 0, 0.45);
+}
+
+.btn-icon {
+  display: inline-block;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-right: 0.75rem;
+}
+
+.is-disabled {
+  opacity: 0.4;
+}
+
+.chips {
+  display: flex;
+  overflow-x: auto;
+  margin: 1.75rem calc(var(--page-x) * -1) 0;
+  padding: 0.5rem var(--page-x);
+  scroll-behavior: smooth;
+}
+
+.chip {
+  flex: 0 0 auto;
+  margin-right: 0.75rem;
+  padding: 0.55rem 1.4rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-dim);
+  font-weight: 600;
+  transition: transform 160ms var(--ease);
+}
+
+.chip.is-active {
+  background: rgba(255, 255, 255, 0.22);
+  color: var(--text);
+}
+
+.chip:focus {
+  background: var(--focus-ring);
+  color: #0b0c0f;
+  transform: scale(1.06);
+}
+
+.badge {
+  display: inline-block;
+  margin: 0 0.5rem 0.4rem 0;
+  padding: 0.15rem 0.6rem;
+  border-radius: 0.4rem;
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-dim);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.badge-accent {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.pill {
+  color: var(--success);
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------------- rows and cards */
+
+.row-section {
+  margin-bottom: 2.5rem;
+}
+
+.row-title {
+  padding: 0 var(--page-x);
+  margin-bottom: 0.25rem;
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.row {
+  position: relative;
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 1.25rem var(--page-x) 1.5rem;
+  scroll-behavior: smooth;
+}
+
+.card {
+  position: relative;
+  flex: 0 0 auto;
+  margin-right: 1.5rem;
+  transition: transform 200ms var(--ease);
+}
+
+.card:last-child {
+  margin-right: var(--page-x);
+}
+
+.card-image,
+.picture-fallback {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius);
+  object-fit: cover;
+  background: var(--bg-raised);
+}
+
+.picture-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  color: var(--text-faint);
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Fixed frames (no aspect-ratio on old Chromium): 16:9 and 2:3 boxes. */
+.card-wide {
+  width: 24rem;
+  padding-top: 13.5rem;
+}
+
+.card-poster {
+  width: 13rem;
+  padding-top: 19.5rem;
+}
+
+.card .card-image,
+.card .picture-fallback {
+  height: auto;
+  bottom: auto;
+}
+
+.card-wide .card-image,
+.card-wide .picture-fallback {
+  height: 13.5rem;
+}
+
+.card-poster .card-image,
+.card-poster .picture-fallback {
+  height: 19.5rem;
+}
+
+.card-caption {
+  display: flex;
+  flex-direction: column;
+  padding-top: 0.7rem;
+}
+
+.card-title {
+  overflow: hidden;
+  font-size: 1.2rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.card-meta {
+  color: var(--text-faint);
+  font-size: 1rem;
+}
+
+.card:focus {
+  z-index: 2;
+  transform: scale(1.08);
+}
+
+.card:focus .card-image,
+.card:focus .picture-fallback {
+  box-shadow:
+    0 0 0 0.25rem var(--focus-ring),
+    0 1.5rem 3rem rgba(0, 0, 0, 0.6);
+}
+
+.card:focus .card-title {
+  color: var(--text);
+}
+
+.card.is-missing .card-image {
+  opacity: 0.35;
+}
+
+.card .progress {
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  top: 18rem;
+}
+
+.card-wide .progress {
+  top: 12rem;
+}
+
+.poster-grid {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 1.25rem var(--page-x);
+}
+
+.poster-grid .card {
+  margin: 0 1.5rem 2rem 0;
+}
+
+.grid-section {
+  padding-top: 0.5rem;
+}
+
+/* ---------------------------------------------------------------- progress, spinner, messages */
+
+.progress {
+  height: 0.35rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+}
+
+.progress-large {
+  height: 0.5rem;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 400ms linear;
+}
+
+.spinner-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 0;
+  color: var(--text-dim);
+}
+
+.spinner-wrap > span {
+  margin-top: 1.25rem;
+}
+
+.spinner {
+  width: 3.5rem;
+  height: 3.5rem;
+  border: 0.3rem solid rgba(255, 255, 255, 0.15);
+  border-top-color: var(--text);
+  border-radius: 50%;
+  animation: spin 900ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.message {
+  max-width: 60rem;
+  margin: 6rem auto 0;
+  padding: 0 var(--page-x);
+  text-align: center;
+}
+
+.message h2 {
+  font-size: 2.25rem;
+  font-weight: 700;
+}
+
+.message p {
+  margin-top: 1rem;
+  color: var(--text-dim);
+}
+
+.message .btn {
+  margin-top: 2rem;
+}
+
+.error-text {
+  margin-top: 1rem;
+  color: var(--danger);
+}
+
+.toast {
+  position: fixed;
+  bottom: 4rem;
+  left: 50%;
+  z-index: 50;
+  padding: 1rem 2rem;
+  border-radius: 999px;
+  background: var(--bg-glass);
+  font-weight: 600;
+  transform: translateX(-50%);
+  box-shadow: 0 1rem 2.5rem rgba(0, 0, 0, 0.5);
+}
+
+/* ---------------------------------------------------------------- connect */
+
+.connect {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at 50% 0%, #1d2027 0%, var(--bg) 65%);
+}
+
+.connect-logo {
+  height: 4.5rem;
+  margin-bottom: 3rem;
+}
+
+.connect-card {
+  width: 52rem;
+  text-align: center;
+}
+
+.connect-card h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+}
+
+.connect-card > p {
+  margin-top: 1rem;
+  color: var(--text-dim);
+}
+
+.connect-card .btn {
+  margin-top: 2rem;
+}
+
+.text-field {
+  margin: 2.5rem auto 0;
+  width: 36rem;
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.1);
+  transition: transform 160ms var(--ease);
+}
+
+.text-field input {
+  width: 100%;
+  padding: 1.1rem 1.5rem;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 1.6rem;
+  text-align: center;
+  outline: none;
+}
+
+.text-field:focus,
+.text-field input:focus {
+  background: rgba(255, 255, 255, 0.95);
+  color: #0b0c0f;
+  transform: scale(1.03);
+}
+
+.text-field:focus input,
+.text-field input:focus {
+  color: #0b0c0f;
+}
+
+.pair-code {
+  margin: 2.5rem 0 1rem;
+  font-size: 6rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  font-variant-numeric: tabular-nums;
+}
+
+.pair-gap {
+  display: inline-block;
+  width: 2.5rem;
+}
+
+/* ---------------------------------------------------------------- discover */
+
+.search-bar {
+  padding: 0 var(--page-x) 1rem;
+}
+
+.search-bar .text-field {
+  margin: 0;
+  width: 40rem;
+}
+
+.search-bar .text-field input {
+  text-align: left;
+  font-size: 1.375rem;
+  padding: 0.85rem 1.5rem;
+}
+
+.hero {
+  position: relative;
+  height: 34rem;
+  margin: 0 var(--page-x) 2.5rem;
+  border-radius: var(--radius-large);
+  overflow: hidden;
+}
+
+.hero-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hero-shade {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    linear-gradient(90deg, rgba(8, 9, 11, 0.92) 0%, rgba(8, 9, 11, 0.55) 45%, rgba(8, 9, 11, 0) 75%),
+    linear-gradient(0deg, rgba(8, 9, 11, 0.7) 0%, rgba(8, 9, 11, 0) 40%);
+}
+
+.hero-body {
+  position: absolute;
+  left: 3.5rem;
+  bottom: 3rem;
+  width: 46rem;
+}
+
+.hero-title {
+  font-size: 3.75rem;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.hero-meta {
+  display: block;
+  margin-top: 0.6rem;
+  color: var(--text-dim);
+}
+
+.hero-overview {
+  display: -webkit-box;
+  margin-top: 1rem;
+  overflow: hidden;
+  color: var(--text-dim);
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+/* ---------------------------------------------------------------- details */
+
+.backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+}
+
+.backdrop-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.backdrop-blur {
+  filter: blur(2.5rem) saturate(1.2);
+  transform: scale(1.15);
+  opacity: 0.6;
+}
+
+.backdrop-shade {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    linear-gradient(90deg, rgba(8, 9, 11, 0.96) 0%, rgba(8, 9, 11, 0.75) 45%, rgba(8, 9, 11, 0.2) 100%),
+    linear-gradient(0deg, rgba(8, 9, 11, 0.9) 0%, rgba(8, 9, 11, 0) 50%);
+}
+
+.details-body {
+  position: relative;
+  max-width: 78rem;
+  padding: 9rem var(--page-x) 5rem;
+}
+
+.details-title {
+  max-width: 60rem;
+  font-size: 4.25rem;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.details-meta {
+  margin-top: 1rem;
+  color: var(--text-dim);
+  font-size: 1.375rem;
+}
+
+.details-overview {
+  display: -webkit-box;
+  max-width: 52rem;
+  margin-top: 1.25rem;
+  overflow: hidden;
+  color: var(--text-dim);
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+}
+
+.episodes {
+  margin-top: 1.25rem;
+  max-width: 70rem;
+}
+
+.episode {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius);
+  transition:
+    background 160ms var(--ease),
+    transform 160ms var(--ease);
+}
+
+.episode:focus {
+  background: rgba(255, 255, 255, 0.14);
+  transform: scale(1.015);
+}
+
+.episode-number {
+  flex: 0 0 6rem;
+  color: var(--text-faint);
+  font-size: 1.375rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.episode-text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.episode-title {
+  font-weight: 600;
+}
+
+.episode-overview {
+  overflow: hidden;
+  color: var(--text-faint);
+  font-size: 1.1rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.episode-action {
+  flex: 0 0 2.25rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin-left: 1.5rem;
+  color: var(--text-faint);
+}
+
+.episode-action.is-owned {
+  color: var(--success);
+}
+
+.episode-progress {
+  flex: 0 0 10rem;
+  margin-left: 1.5rem;
+}
+
+/* ---------------------------------------------------------------- releases */
+
+.release-list {
+  padding: 0 var(--page-x) 4rem;
+}
+
+.release {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.6rem;
+  padding: 1.1rem 1.5rem;
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.05);
+  transition:
+    background 160ms var(--ease),
+    transform 160ms var(--ease);
+}
+
+.release:focus {
+  background: rgba(255, 255, 255, 0.92);
+  color: #0b0c0f;
+  transform: scale(1.01);
+}
+
+.release:focus .badge {
+  background: rgba(0, 0, 0, 0.1);
+  color: #2a2d33;
+}
+
+.release:focus .badge-accent {
+  background: var(--accent);
+  color: #fff;
+}
+
+.release:focus .release-name,
+.release:focus .release-side {
+  color: #2a2d33;
+}
+
+.release-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.release-name {
+  display: block;
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: 1.15rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.release-side {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  margin-left: 2rem;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.release-side > span {
+  margin-left: 2rem;
+}
+
+.release-match {
+  min-width: 4rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+/* ---------------------------------------------------------------- library */
+
+.library {
+  padding-bottom: 3rem;
+}
+
+.card-download .progress {
+  top: 18.4rem;
+}
+
+/* ---------------------------------------------------------------- modal */
+
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.65);
+}
+
+.modal {
+  width: 56rem;
+  padding: 3rem;
+  border-radius: var(--radius-large);
+  background: #1a1d23;
+  box-shadow: 0 2rem 5rem rgba(0, 0, 0, 0.6);
+}
+
+.modal-title {
+  font-size: 2.25rem;
+  font-weight: 700;
+}
+
+.modal-text {
+  margin-top: 1rem;
+  color: var(--text-dim);
+}
+
+.modal-release {
+  margin-top: 1rem;
+  overflow: hidden;
+  color: var(--text-faint);
+  font-size: 1.1rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.modal-hint {
+  color: var(--text-faint);
+  font-size: 1.05rem;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 2rem;
+  padding: 1rem 1.5rem;
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.toggle-row:focus {
+  background: rgba(255, 255, 255, 0.92);
+  color: #0b0c0f;
+}
+
+.toggle {
+  color: var(--text-faint);
+  font-weight: 600;
+}
+
+.toggle.is-on {
+  color: var(--success);
+}
+
+.toggle-row:focus .toggle {
+  color: #2a2d33;
+}
+
+/* ---------------------------------------------------------------- settings */
+
+.facts {
+  margin: 0;
+  padding: 0 var(--page-x);
+}
+
+.fact {
+  display: flex;
+  padding: 1rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.fact dt {
+  flex: 0 0 18rem;
+  color: var(--text-faint);
+}
+
+.fact dd {
+  margin: 0;
+}
+
+.settings .actions,
+.settings-about,
+.attribution {
+  padding: 0 var(--page-x);
+}
+
+.settings-about {
+  max-width: 70rem;
+  margin-top: 1rem;
+  color: var(--text-dim);
+}
+
+.attribution {
+  display: flex;
+  align-items: center;
+  margin-top: 2.5rem;
+  color: var(--text-faint);
+  font-size: 1.05rem;
+}
+
+.attribution img {
+  height: 1.5rem;
+  margin-right: 1.25rem;
+}
+
+/* ---------------------------------------------------------------- player */
+
+.player {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #000;
+}
+
+/* AVPlay draws video on a plane behind the page: the page itself must be transparent. */
+.player.is-avplay {
+  background: transparent;
+}
+
+.player-plane,
+.player-video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.player .spinner-wrap {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  padding: 0;
+  transform: translate(-50%, -50%);
+}
+
+.player-message {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.subtitle-line {
+  position: absolute;
+  z-index: 2;
+  left: 10%;
+  right: 10%;
+  bottom: 9%;
+  transition: bottom 300ms var(--ease);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.subtitle-line span {
+  margin-top: 0.3rem;
+  padding: 0.15rem 0.7rem;
+  border-radius: 0.35rem;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 2.4rem;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: pre-wrap;
+}
+
+.player-controls {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 6rem var(--page-x) 3.5rem;
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0) 100%);
+  opacity: 0;
+  transition: opacity 300ms var(--ease);
+}
+
+.player-controls.is-visible {
+  opacity: 1;
+}
+
+/* Subtitles move above the controls while those are shown. */
+.player.controls-on .subtitle-line {
+  bottom: 24%;
+}
+
+.player-title {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.player-bar {
+  display: flex;
+  align-items: center;
+  margin-top: 1.25rem;
+}
+
+.player-bar .progress {
+  flex: 1 1 auto;
+  margin: 0 1.5rem;
+}
+
+.player-time {
+  min-width: 6rem;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.player-time:last-child {
+  text-align: right;
+}
+
+.player-hint {
+  min-height: 2rem;
+  margin-top: 0.75rem;
+  font-size: 1.5rem;
+}
+
+.player-menu {
+  position: absolute;
+  top: 5rem;
+  right: var(--page-x);
+  width: 22rem;
+  padding: 1.5rem;
+  border-radius: var(--radius-large);
+  background: rgba(26, 29, 35, 0.94);
+}
+
+.player-menu h3 {
+  margin-bottom: 0.75rem;
+  color: var(--text-faint);
+  font-size: 1.1rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.player-option {
+  padding: 0.7rem 1rem;
+  border-radius: var(--radius);
+}
+
+.player-option.is-focused {
+  background: var(--focus-ring);
+  color: #0b0c0f;
+}

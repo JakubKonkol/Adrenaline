@@ -29,6 +29,15 @@ export default defineConfig({
           include: ['src/renderer/**/*.test.{ts,tsx}'],
         },
       },
+      {
+        resolve: { alias },
+        define: { __TV_VERSION__: JSON.stringify('test') },
+        test: {
+          name: 'tv',
+          environment: 'happy-dom',
+          include: ['src/tv/**/*.test.{ts,tsx}'],
+        },
+      },
     ],
   },
 });

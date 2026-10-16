@@ -14,6 +14,7 @@ import {
   type TvInfo,
   type TvLibraryItem,
   type TvPlayback,
+  type TvSession,
   tvProgressSchema,
   tvSelectionSchema,
 } from '@shared/contracts/tv';
@@ -147,7 +148,12 @@ export function tvRoutes(deps: TvApiDeps): Route[] {
       handler: (ctx) => {
         const version = ctx.query.get('clientVersion')?.slice(0, 40);
         deps.devices.seen(ctx.device!.id, ctx.address, version);
-        return { device: { id: ctx.device!.id, name: ctx.device!.name }, server: info() };
+        const session: TvSession = {
+          device: { id: ctx.device!.id, name: ctx.device!.name },
+          server: info(),
+          features: { subtitles: deps.subtitleAccountReady() },
+        };
+        return session;
       },
     },
 
