@@ -14,9 +14,15 @@ Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka no
 
 **Ostatnie wydanie:** [v0.7.0](https://github.com/JakubKonkol/Adrenaline/releases/tag/v0.7.0) — opublikowane 15.10.2026 19:05 UTC ([Release 38789174329](https://github.com/JakubKonkol/Adrenaline/actions/runs/38789174329) zielony). Wcześniej v0.6.0 i v0.1.0.
 
-## Blokady wymagające właściciela
+## Sesja Codex — wydanie i plan TV
+
+**Sesja Codex 16.10.2026 — plan 1.0.0:** [research i plan TV](../1.0-andrenalive-tv/README.md) gotowe: analiza kodu i oficjalnych źródeł Jellyfin/Android/Samsung, architektura/API, deploy/bundling, etapy P0–P7 i kryteria odbioru obu platform. D-79 zapisuje rozszerzenie zakresu na życzenie właściciela. Nie implementowano TV ani nie wykonano testów sprzętowych. Commit wydania 0.9.0: `122d45d`, lokalny anotowany tag `v0.9.0`; plan ma osobny commit po tagu. Niczego nie pushowano.
 
 **Sesja Codex 16.10.2026 — przygotowanie 0.9.0:** wersja aplikacji i głównego pakietu lockfile podniesiona z 0.7.0 do 0.9.0. Wersje UI i silnika release są wyprowadzane z `package.json`. Lokalny commit wydania i anotowany tag `v0.9.0` przygotowywane na `main`; push oraz publikacja przez Actions pozostają po stronie właściciela zgodnie z jego poleceniem. `npm run check`: 345 testów zaliczonych, 6 pominiętych; lint i typecheck zaliczone. `npm audit --omit=dev`: 0 podatności. Odbiory ręczne i publikacja 8.7 nadal otwarte — przygotowanie taga nie oznacza ich zaliczenia.
+
+**Weryfikacja końcowa:** build zaliczony, smoke Electron na Windows zaliczony (1/1, FakeEngine, Jackett wyłączony, NFR01 p95 58,4 ms). Pierwsze uruchomienie pobierało binarkę Electron i zakończyło się błędem EPERM przy sprzątaniu katalogu tymczasowego; trace wskazywał etap launch. Powtórzenie po pobraniu runtime przeszło bez zmian kodu. Nie wykonywano testu swarm ani rzeczywistych pobrań torrentów. Właściciel dodatkowo zabronił pobierania torrentów na tym komputerze; dalsza implementacja ma respektować to ograniczenie. Lokalne odnośniki nowego planu i `git diff --check` poprawne.
+
+## Blokady wymagające właściciela
 
 - [x] Wybór źródła aktualizacji (D-07): upublicznienie `Adrenaline`, Releases w tym samym repo (decyzja 15.10.2026).
 - [ ] Test ręczny etapu 1 (do potwierdzenia przez Jakuba): instalacja 0.1.0 → baner aktualizacji do 0.1.1 → restart w 0.1.1.
