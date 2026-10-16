@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { TvPlayback, TvSubtitleTrack } from '@shared/contracts/tv';
 import { ApiError, type PlaybackRequest } from '../api';
 import { invalidate } from '../data';
@@ -68,10 +68,10 @@ export function Player({ itemId }: { itemId: string }) {
     return true;
   }, !playback || !!error);
 
-  const restart = (next: Request) => {
+  const restart = useCallback((next: Request) => {
     setPlayback(null);
     setRequest(next);
-  };
+  }, []);
 
   if (error) return <Message title={error} action={t('app.back')} onAction={nav.pop} />;
   if (!playback) return <Spinner />;

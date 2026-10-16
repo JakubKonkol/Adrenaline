@@ -295,7 +295,13 @@ export function tvRoutes(deps: TvApiDeps): Route[] {
         const progress = deps.devices.progress(ctx.device!.id);
         return (await deps.library.list()).map(({ jobId: _jobId, ...item }) => {
           const p = progress.get(item.id);
-          return { ...item, resumeMs: p?.positionMs ?? null, durationMs: p?.durationMs ?? null };
+          // Watched to the end: not "continue watching" any more, the next play starts from the beginning.
+          const watched = p?.durationMs ? p.positionMs >= p.durationMs * WATCHED_RATIO : false;
+          return {
+            ...item,
+            resumeMs: p && !watched && p.positionMs > 5_000 ? p.positionMs : null,
+            durationMs: p?.durationMs ?? null,
+          };
         });
       },
     },

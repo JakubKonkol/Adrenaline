@@ -56,7 +56,7 @@ class PlayerActivity : ComponentActivity() {
             val track = tracks!!.getJSONObject(i)
             val url = track.optString("url").takeIf { it.isNotEmpty() && it != "null" } ?: continue
             // Embedded tracks of a direct-play file are read by Media3 from the file itself.
-            if (track.optString("kind") != "external" && request.optString("mimeType") != MimeTypes.APPLICATION_M3U8) continue
+            if (track.optString("kind") != "external" && !hls) continue
             subtitles += MediaItem.SubtitleConfiguration.Builder(Uri.parse(url))
                 .setMimeType(MimeTypes.TEXT_VTT)
                 .setLabel(track.optString("label"))
@@ -67,7 +67,7 @@ class PlayerActivity : ComponentActivity() {
         }
         val item = MediaItem.Builder()
             .setUri(Uri.parse(request.getString("url")))
-            .setMimeType(request.optString("mimeType").takeIf { it == MimeTypes.APPLICATION_M3U8 })
+            .setMimeType(if (hls) MimeTypes.APPLICATION_M3U8 else null)
             .setSubtitleConfigurations(subtitles)
             .build()
         player.setMediaItem(item, request.optLong("startMs", 0))
@@ -97,7 +97,7 @@ class PlayerActivity : ComponentActivity() {
     /** The audio track chosen in the app (ffprobe index → n-th audio track of the file) for direct play. */
     private var audioApplied = false
     private fun selectRequestedAudio(tracks: androidx.media3.common.Tracks) {
-        if (audioApplied || request.optString("mimeType") == MimeTypes.APPLICATION_M3U8) return
+        if (audioApplied || hls) return
         val list = request.optJSONArray("audioTracks") ?: return
         val wanted = (0 until list.length()).firstOrNull { list.getJSONObject(it).optBoolean("selected") } ?: return
         val groups = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
@@ -108,14 +108,61 @@ class PlayerActivity : ComponentActivity() {
             .build()
     }
 
-    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        when (keyCode) {
-            KeyEvent.KEYCODE_MEDIA_STOP -> {
-                close(ended = false)
-                return true
+    /** The PC answers `application/vnd.apple.mpegurl`; Media3 names it `application/x-mpegURL`. */
+    private val hls
+        get() = request.optString("mimeType").lowercase().let {
+            it == "application/vnd.apple.mpegurl" || it == MimeTypes.APPLICATION_M3U8.lowercase()
+        }
+
+    /**
+     * HLS from the PC grows while it is converted (D-85): a seek past what exists, or before the start of this stream,
+     * asks the app for a new stream from that position (`restart` event). The file itself is sought normally.
+     */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        // Left/right always seek in a converted stream (the controls stay reachable with up/down and OK).
+        if (hls && event.action == KeyEvent.ACTION_DOWN) {
+            when (event.keyCode) {
+                KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
+                    seekBy(30_000)
+                    return true
+                }
+                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_MEDIA_REWIND -> {
+                    seekBy(-10_000)
+                    return true
+                }
             }
         }
-        return super.onKeyDown(keyCode, event)
+        if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_MEDIA_STOP) {
+            close(ended = false)
+            return true
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
+    private fun seekBy(deltaMs: Long) {
+        val target = player.currentPosition + deltaMs
+        val available = player.duration
+        val total = request.optLong("durationMs", -1)
+        val absolute = (offsetMs + target).coerceIn(0, if (total > 0) total - 1_000 else Long.MAX_VALUE)
+        if (target >= 0 && available != C.TIME_UNSET && target < available - 2_000) player.seekTo(target)
+        else restart(absolute)
+    }
+
+    private fun restart(absoluteMs: Long) {
+        if (closed) return
+        closed = true
+        val tracks = request.optJSONArray("audioTracks")
+        val audio = (0 until (tracks?.length() ?: 0)).map { tracks!!.getJSONObject(it) }.firstOrNull { it.optBoolean("selected") }
+        val subs = request.optJSONArray("subtitleTracks")
+        val burned = (0 until (subs?.length() ?: 0)).map { subs!!.getJSONObject(it) }.firstOrNull { it.optBoolean("burnedIn") }
+        val event = JSONObject()
+            .put("type", "restart")
+            .put("itemId", request.optString("itemId"))
+            .put("positionMs", absoluteMs)
+            .put("audioIndex", audio?.optInt("index") ?: JSONObject.NULL)
+            .put("subtitleId", burned?.optString("id") ?: JSONObject.NULL)
+        setResult(Activity.RESULT_OK, Intent().putExtra(EXTRA_EVENT, event.toString()))
+        finish()
     }
 
     private var closed = false
