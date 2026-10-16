@@ -16,9 +16,9 @@ describe('pid file', () => {
   it('stops a leftover process with the expected executable', () => {
     const file = setup('4242');
     const kill = vi.fn();
-    expect(killStaleProcess(file, 'JackettConsole.exe', nullLogger, { imageName: () => 'JackettConsole.exe', kill })).toBe(
-      true,
-    );
+    expect(
+      killStaleProcess(file, 'JackettConsole.exe', nullLogger, { imageName: () => 'JackettConsole.exe', kill }),
+    ).toBe(true);
     expect(kill).toHaveBeenCalledWith(4242);
     expect(existsSync(file)).toBe(false);
   });
@@ -26,7 +26,9 @@ describe('pid file', () => {
   it('never kills a reused PID that belongs to another program', () => {
     const file = setup('4242');
     const kill = vi.fn();
-    expect(killStaleProcess(file, 'JackettConsole.exe', nullLogger, { imageName: () => 'chrome.exe', kill })).toBe(false);
+    expect(killStaleProcess(file, 'JackettConsole.exe', nullLogger, { imageName: () => 'chrome.exe', kill })).toBe(
+      false,
+    );
     expect(kill).not.toHaveBeenCalled();
     expect(existsSync(file)).toBe(false);
   });
