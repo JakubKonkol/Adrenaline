@@ -112,11 +112,14 @@ async function until(cond: () => boolean, ms = 4000) {
 }
 
 describe('DownloadService (etap 6)', () => {
-  it('runs a job from magnet to seeding with the default file choice (FR09, FR10)', async () => {
-    const { svc, add } = await setup();
+  it('runs a job from magnet to completed with the default file choice (FR09, FR10)', async () => {
+    const { svc, add, fake } = await setup();
     const job = await add(release(1));
     expect(job.saveDir).toMatch(/Film \(2020\)[\\/]Film\.2020\.1080p\.Release1$/);
-    await until(() => svc.get(job.id).state === 'seeding');
+    await until(() => svc.get(job.id).state === 'completed');
+    // D-80: no seeding — the torrent left the engine, the job and its files stay.
+    expect(fake.storedJob(job.id)).toBeUndefined();
+    expect(svc.totals()).toMatchObject({ up: 0, active: 0 });
     const done = svc.get(job.id);
     expect(done.files.filter((f) => f.selected).map((f) => f.path)).toEqual([
       'Film.2020.1080p.Release1/Film.2020.1080p.Release1.mkv',
@@ -203,7 +206,7 @@ describe('DownloadService (etap 6)', () => {
     await until(() => svc.get(job.id).state === 'awaiting_file_selection');
     expect(svc.get(job.id).suggestedFiles).toEqual([0]);
     await svc.selectFiles(job.id, [0, 1]);
-    await until(() => svc.get(job.id).state === 'seeding');
+    await until(() => svc.get(job.id).state === 'completed');
     expect(svc.get(job.id).files.every((f) => f.selected)).toBe(true);
   });
 
@@ -219,11 +222,31 @@ describe('DownloadService (etap 6)', () => {
 
     const second = await setup({}, { db: first.db, base: first.base, fake: first.fake });
     await until(
-      () => second.svc.get(running.id).state === 'downloading' || second.svc.get(running.id).state === 'seeding',
+      () => second.svc.get(running.id).state === 'downloading' || second.svc.get(running.id).state === 'completed',
     );
     expect(second.svc.get(paused.id)).toMatchObject({ state: 'paused', pauseReason: 'user' });
     expect(second.svc.get(running.id).files.filter((f) => f.selected)).toHaveLength(1);
     expect(first.fake.launches).toBe(2);
+  });
+
+  it('completes seeding jobs from 0.9.0 on start without adding them to the engine (D-80)', async () => {
+    const first = await setup();
+    const seeding = await first.add(release(1));
+    const stopped = await first.add(release(2));
+    await until(() => [seeding, stopped].every((j) => first.svc.get(j.id).state === 'completed'));
+    // A 0.9.0 profile: finished jobs that were still seeding, or stopped by the seed limit.
+    const jobs = new JobsRepository(first.db);
+    jobs.update(seeding.id, { state: 'seeding' });
+    jobs.update(stopped.id, { state: 'stopped' });
+    await first.engine.stop();
+
+    const second = await setup({}, { db: first.db, base: first.base, fake: first.fake });
+    await until(() => [seeding, stopped].every((j) => second.svc.get(j.id).state === 'completed'));
+    expect(first.fake.storedJob(seeding.id)).toBeUndefined();
+    expect(first.fake.storedJob(stopped.id)).toBeUndefined();
+    // Pause and resume of a finished job do nothing.
+    expect((await second.svc.pause(seeding.id)).state).toBe('completed');
+    expect((await second.svc.resume(seeding.id)).state).toBe('completed');
   });
 
   it('re-adds jobs after an engine crash (NFR04)', async () => {

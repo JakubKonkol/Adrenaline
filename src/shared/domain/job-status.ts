@@ -63,7 +63,7 @@ export function deriveJobStatus(
   const selected = files.filter((f) => f.selected);
   const filesComplete =
     // A paused complete job (e.g. seeding paused by the user) still has its film ready.
-    ['downloaded', 'seeding', 'stopped', 'paused'].includes(job.state) &&
+    ['downloaded', 'seeding', 'stopped', 'completed', 'paused'].includes(job.state) &&
     selected.length > 0 &&
     selected.every((f) => f.doneBytes >= f.size);
   const seeding = job.state === 'seeding';

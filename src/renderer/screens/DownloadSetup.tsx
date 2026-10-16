@@ -68,20 +68,11 @@ function SetupForm({
   const [wantSubtitles, setWantSubtitles] = useState(settings.subtitlesEnabled && accountReady);
   const [lang, setLang] = useState<LanguageCode>(settings.subtitleLang);
   const [fallback, setFallback] = useState<LanguageCode | ''>(settings.subtitleFallbackLang ?? '');
-  const [ratio, setRatio] = useState(settings.seedRatioLimit === null ? '' : String(settings.seedRatioLimit));
-  const [minutes, setMinutes] = useState(settings.seedTimeLimitMin === null ? '' : String(settings.seedTimeLimitMin));
   const [folderError, setFolderError] = useState<unknown>(null);
   const ref = { sessionId, releaseId };
   const preflight = usePreflight(ref, { saveDir, renameOnConflict: rename });
   const create = useCreateDownload();
   const p = preflight.data;
-
-  const parseNum = (v: string, int: boolean) => {
-    const s = v.trim().replace(',', '.');
-    if (!s) return null;
-    const n = Number(s);
-    return Number.isFinite(n) && n >= 0 ? (int ? Math.round(n) : n) : null;
-  };
 
   const blocked = !p || !p.writable || p.enoughSpace === false || p.folderExists || p.duplicateJobId !== null;
 
@@ -93,8 +84,9 @@ function SetupForm({
           saveDir,
           subtitleLang: wantSubtitles ? lang : null,
           subtitleFallbackLang: wantSubtitles && fallback && fallback !== lang ? fallback : null,
-          seedRatioLimit: parseNum(ratio, false),
-          seedTimeLimitMin: parseNum(minutes, true),
+          // D-80: finished downloads are not seeded.
+          seedRatioLimit: null,
+          seedTimeLimitMin: null,
           renameOnConflict: rename,
         },
       },
@@ -239,30 +231,6 @@ function SetupForm({
           ) : null}
         </Section>
 
-        <Section title={t('downloadSetup.seeding')} description={t('downloadSetup.seedingHint')}>
-          <Field label={t('settings.transfer.seedRatio')} hint={t('settings.transfer.emptyNoLimit')}>
-            {(a) => (
-              <TextInput
-                {...a}
-                className={styles.narrow}
-                inputMode="decimal"
-                value={ratio}
-                onChange={(e) => setRatio(e.target.value)}
-              />
-            )}
-          </Field>
-          <Field label={t('settings.transfer.seedMinutes')} hint={t('settings.transfer.emptyNoLimit')}>
-            {(a) => (
-              <TextInput
-                {...a}
-                className={styles.narrow}
-                inputMode="numeric"
-                value={minutes}
-                onChange={(e) => setMinutes(e.target.value)}
-              />
-            )}
-          </Field>
-        </Section>
       </div>
     </Page>
   );

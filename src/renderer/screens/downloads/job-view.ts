@@ -1,4 +1,5 @@
 import type { DownloadJob, JobProgress } from '@shared/contracts/downloads';
+import { COMPLETE_STATES } from '@shared/domain/job-state';
 import { type DerivedJobStatus, deriveJobStatus } from '@shared/domain/job-status';
 
 /** Job + live progress → derived status (BR02) and selected byte totals. */
@@ -20,4 +21,4 @@ export function episodeLabel(job: DownloadJob): string | null {
   return t.kind === 'episode' ? `S${String(t.season).padStart(2, '0')}E${String(t.episode).padStart(2, '0')}` : null;
 }
 
-export const isFinished = (job: DownloadJob) => ['downloaded', 'seeding', 'stopped'].includes(job.state);
+export const isFinished = (job: DownloadJob) => COMPLETE_STATES.includes(job.state);

@@ -63,7 +63,7 @@ export class SubtitleService {
         }
         // A finished download paused by the user (e.g. while seeding) still has a complete video.
         if (
-          ['downloaded', 'seeding', 'stopped', 'paused'].includes(job.state) &&
+          ['downloaded', 'seeding', 'stopped', 'completed', 'paused'].includes(job.state) &&
           file.size > 0 &&
           file.doneBytes >= file.size
         )

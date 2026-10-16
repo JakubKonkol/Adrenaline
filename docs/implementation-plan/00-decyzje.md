@@ -80,7 +80,7 @@ Wersje sprawdzone w npm 15.10.2026. Etap 0 przypina je dokładnie w `package.jso
 
 | ID | Decyzja | Status |
 |---|---|---|
-| D-70 | Seedowanie po pobraniu: stop przy ratio 1.0 **albo** po 60 minutach, co nastąpi wcześniej. Widoczne i edytowalne w Ustawieniach i per zadanie. | domyślna |
+| D-70 | Seedowanie po pobraniu: stop przy ratio 1.0 **albo** po 60 minutach, co nastąpi wcześniej. Widoczne i edytowalne w Ustawieniach i per zadanie. | **zastąpiona 16.10.2026 → D-80** |
 | D-71 | Zamknięcie okna chowa aplikację do zasobnika (z jednorazowym powiadomieniem). „Zakończ” z menu zasobnika zapisuje stan i zatrzymuje silnik oraz Jackett. Przełącznik w Ustawieniach. | domyślna |
 | D-72 | MVP: film i **pojedynczy odcinek** (także wybrany z paczki sezonu). Pełne sezony po MVP. | przyjęta |
 | D-73 | Interfejs po polsku. | **zmieniona 15.10.2026 → D-77** |
@@ -95,3 +95,4 @@ Wersje sprawdzone w npm 15.10.2026. Etap 0 przypina je dokładnie w `package.jso
 | ID | Decyzja | Status |
 |---|---|---|
 | D-79 | Na polecenie Jakuba plan 1.0.0 obejmuje zbundlowanych klientów **Android TV i Samsung Tizen**, zakładkę TV / Deploy to TV oraz desktop jako serwer pobierający pliki na PC. D-02 zostaje rozszerzona wyłącznie o klientów TV; desktop/serwer nadal tylko Windows x64, bez macOS/Linux. Dotychczasowe funkcjonalności desktopu pozostają. Szczegóły: [plan TV](../1.0-adrenaline-tv/README.md). | Zakres przyjęty; obecna sesja obejmuje wyłącznie research i plan, bez implementacji. Technologie, minimum OS, transport i odtwarzanie są rekomendacjami/bramkami P0, nie wynikami testów. |
+| D-80 | **Po pobraniu bez seedowania** (polecenie Jakuba 16.10.2026, zastępuje D-70). Gdy silnik zgłosi `downloaded` (wszystkie wybrane pliki zweryfikowane i zapisane na dysk), main wysyła `remove` bez kasowania plików (silnik usuwa też dane resume) i zadanie przechodzi do nowego stanu `completed`. Zadanie i pliki zostają — trafiają do biblioteki. `completed` nie wraca do silnika po restarcie; zadania `downloaded/seeding/stopped` (oraz wstrzymane z kompletnymi plikami) z profili ≤0.9.0 przechodzą do `completed` przy pierwszym starcie silnika. Pola `seed_ratio_limit/seed_time_limit_min` i ustawienia zostają w schemacie (zgodność), ale UI ich nie pokazuje. Audyt procesów: silnik kończy się po zamknięciu stdin; Jackett nie pilnuje rodzica, więc oba procesy zapisują PID (`engine/engine.pid`, `jackett/adrenaline-jackett.pid`), a przy kolejnym starcie pozostałość po awarii jest zatrzymywana, jeśli PID nadal należy do procesu o tej samej nazwie pliku. | przyjęta |

@@ -1,7 +1,9 @@
 /**
  * Download job states and allowed transitions (01-architektura.md, "Stany").
- * queued → fetching_metadata → awaiting_file_selection → downloading ⇄ paused → checking → downloaded → seeding → stopped;
+ * queued → fetching_metadata → awaiting_file_selection → downloading ⇄ paused → checking → downloaded → completed;
  * any active state → error (resume returns to the previous stage); any → removed.
+ * D-80: a finished download is released from the engine right away (`completed`: no seeding, files stay on disk).
+ * `seeding` and `stopped` only exist in profiles from 0.9.0 and earlier; they become `completed` on the next start.
  */
 export const JOB_STATES = [
   'queued',
@@ -13,6 +15,7 @@ export const JOB_STATES = [
   'downloaded',
   'seeding',
   'stopped',
+  'completed',
   'error',
   'removed',
 ] as const;
@@ -35,13 +38,15 @@ const ALLOWED: Record<JobState, readonly JobState[]> = {
     'downloaded',
     'seeding',
     'stopped',
+    'completed',
     'error',
     'removed',
   ],
   checking: ['downloading', 'downloaded', 'seeding', 'paused', 'error', 'removed'],
-  downloaded: ['seeding', 'stopped', 'checking', 'downloading', 'paused', 'error', 'removed'],
-  seeding: ['stopped', 'paused', 'checking', 'downloading', 'error', 'removed'],
-  stopped: ['seeding', 'checking', 'downloading', 'paused', 'error', 'removed'],
+  downloaded: ['completed', 'seeding', 'stopped', 'checking', 'downloading', 'paused', 'error', 'removed'],
+  seeding: ['completed', 'stopped', 'paused', 'checking', 'downloading', 'error', 'removed'],
+  stopped: ['completed', 'seeding', 'checking', 'downloading', 'paused', 'error', 'removed'],
+  completed: ['removed'],
   error: ['queued', 'fetching_metadata', 'awaiting_file_selection', 'downloading', 'checking', 'paused', 'removed'],
   removed: [],
 };
@@ -62,7 +67,7 @@ export const ENGINE_STATES: readonly JobState[] = [
 ];
 
 /** Finished downloads (files complete). */
-export const COMPLETE_STATES: readonly JobState[] = ['downloaded', 'seeding', 'stopped'];
+export const COMPLETE_STATES: readonly JobState[] = ['downloaded', 'seeding', 'stopped', 'completed'];
 
 export function canTransition(from: JobState, to: JobState): boolean {
   return from === to || ALLOWED[from].includes(to);

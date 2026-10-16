@@ -54,7 +54,9 @@ type Ref = { sessionId: string; releaseId: string };
 
 /**
  * Download jobs (etap 6): SQLite is the source of truth; the engine is told what to do. Main runs the queue (D-43):
- * at most `maxActiveDownloads` jobs fetch metadata, download or check at once; seeding does not take a slot.
+ * at most `maxActiveDownloads` jobs fetch metadata, download or check at once.
+ * D-80: once every selected file is verified on disk the torrent is removed from the engine (no seeding) and the job
+ * becomes `completed`; the files stay where they are and the job shows up in the library.
  */
 export class DownloadService extends Emitter<DownloadEvents> {
   private inEngine = new Set<string>();
@@ -432,6 +434,11 @@ export class DownloadService extends Emitter<DownloadEvents> {
   private async onEngineReady(): Promise<void> {
     this.inEngine.clear();
     for (const job of this.deps.jobs.active()) {
+      // D-80: finished jobs are never added again (profiles from 0.9.0 kept them seeding).
+      if (this.isFinished(job)) {
+        this.complete(job);
+        continue;
+      }
       if (!ENGINE_STATES.includes(job.state) && job.state !== 'error') continue;
       if (job.state === 'error' && !job.resumeState) continue;
       const paused = job.state === 'paused' || job.state === 'stopped' || job.state === 'error';
@@ -446,6 +453,33 @@ export class DownloadService extends Emitter<DownloadEvents> {
     await this.deps.engine
       .request('setLimits', { downloadBps: s.downloadLimitKBps * 1024, uploadBps: s.uploadLimitKBps * 1024 })
       .catch((e: unknown) => this.deps.log.warn('setLimits failed', e));
+  }
+
+  /** Files complete: a finished state, or a paused job whose selected files are all on disk (paused seeding). */
+  private isFinished(job: JobRow): boolean {
+    if (job.state === 'downloaded' || job.state === 'seeding' || job.state === 'stopped') return true;
+    if (job.state !== 'paused') return false;
+    const selected = this.deps.jobs.files(job.id).filter((f) => f.selected);
+    return selected.length > 0 && selected.every((f) => f.size > 0 && f.doneBytes >= f.size);
+  }
+
+  private complete(job: JobRow): void {
+    this.progress.delete(job.id);
+    this.setState(job, 'completed', { pauseReason: null, errorCode: null, completedAt: job.completedAt ?? this.now() });
+  }
+
+  /** D-80: stop sharing a finished torrent: remove it from the engine (resume data too), keep the files. */
+  private async release(jobId: string): Promise<void> {
+    try {
+      await this.deps.engine.request('remove', { deleteFiles: false }, jobId, { timeoutMs: 15_000 });
+      this.inEngine.delete(jobId);
+    } catch (error) {
+      // The engine went away: the job stays `downloaded` and is completed (not re-added) on the next engine start.
+      this.deps.log.warn(`could not release ${jobId} from the engine`, error);
+      return;
+    }
+    const job = this.deps.jobs.get(jobId);
+    if (job && job.state !== 'removed') this.complete(job);
   }
 
   private markStale() {
@@ -541,7 +575,7 @@ export class DownloadService extends Emitter<DownloadEvents> {
     error: { code: string; message: string } | undefined,
   ): Promise<void> {
     const job = this.deps.jobs.get(jobId);
-    if (!job || job.state === 'removed') return;
+    if (!job || job.state === 'removed' || job.state === 'completed') return;
     switch (state) {
       case 'fetching_metadata':
         if (job.state === 'queued') this.setState(job, 'fetching_metadata');
@@ -572,13 +606,15 @@ export class DownloadService extends Emitter<DownloadEvents> {
       case 'downloaded':
         this.persistProgress(jobId, true);
         this.setState(job, 'downloaded', { completedAt: job.completedAt ?? this.now(), errorCode: null });
+        await this.release(jobId);
         break;
       case 'seeding':
+        // Normally the job is released on `downloaded`; a seeding torrent left in the engine is released here.
         if (job.state === 'paused') break;
-        this.setState(this.deps.jobs.get(jobId)!, 'seeding');
+        await this.release(jobId);
         break;
       case 'stopped':
-        this.setState(job, 'stopped');
+        await this.release(jobId);
         break;
       case 'error':
         this.setState(job, 'error', {
@@ -646,7 +682,7 @@ export class DownloadService extends Emitter<DownloadEvents> {
   /** FR11: the state becomes "paused" only after the engine confirmed the pause. */
   async pause(jobId: string): Promise<DownloadJob> {
     const job = this.require(jobId);
-    if (job.state === 'paused') return this.toDto(job);
+    if (job.state === 'paused' || job.state === 'completed') return this.toDto(job);
     if (!this.inEngine.has(jobId)) {
       this.setState(job, 'paused', { pauseReason: 'user' });
       return this.get(jobId);

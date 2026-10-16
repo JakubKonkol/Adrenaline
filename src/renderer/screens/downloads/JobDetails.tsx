@@ -54,6 +54,8 @@ function Details({ job }: { job: DownloadJob }) {
   const [deleteFiles, setDeleteFiles] = useState(false);
   const ep = episodeLabel(job);
   const onError = { onError: setActionError };
+  // D-80: a finished download has left the engine; only the folder and removal remain.
+  const completed = job.state === 'completed';
 
   return (
     <Page
@@ -92,7 +94,7 @@ function Details({ job }: { job: DownloadJob }) {
         ) : null}
         {actionError ? <ErrorNotice error={actionError} compact /> : null}
         <div className={styles.actions}>
-          {['paused', 'error', 'stopped'].includes(job.state) ? (
+          {completed ? null : ['paused', 'error', 'stopped'].includes(job.state) ? (
             <Button variant="primary" onClick={() => resume.mutate(job.id, onError)} disabled={resume.isPending}>
               <Play size={13} aria-hidden /> {job.state === 'error' ? t('downloads.retry') : t('downloads.resume')}
             </Button>
@@ -104,7 +106,7 @@ function Details({ job }: { job: DownloadJob }) {
           <Button onClick={() => void openJobFolder(job.id).catch(setActionError)}>
             <FolderOpen size={13} aria-hidden /> {t('downloads.openFolder')}
           </Button>
-          {job.files.length > 0 ? (
+          {job.files.length > 0 && !completed ? (
             <Button variant="ghost" onClick={() => recheck.mutate(job.id, onError)} disabled={recheck.isPending}>
               <RefreshCw size={13} aria-hidden /> {t('downloads.recheck')}
             </Button>
@@ -150,13 +152,6 @@ function Details({ job }: { job: DownloadJob }) {
             {job.subtitleLang
               ? `${languageName(job.subtitleLang)}${job.subtitleFallbackLang ? ` → ${languageName(job.subtitleFallbackLang)}` : ''}`
               : t('downloads.noSubtitles')}
-          </dd>
-          <dt className="label">{t('downloads.seedPolicy')}</dt>
-          <dd>
-            {t('downloads.seedPolicyValue', {
-              ratio: job.seedRatioLimit === null ? t('downloads.noLimit') : job.seedRatioLimit,
-              minutes: job.seedTimeLimitMin === null ? t('downloads.noLimit') : job.seedTimeLimitMin,
-            })}
           </dd>
           <dt className="label">{t('downloads.sources')}</dt>
           <dd>{job.sources.join(', ')}</dd>

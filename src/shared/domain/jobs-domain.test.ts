@@ -18,6 +18,10 @@ describe('job-state transitions', () => {
     ['downloading', 'error'],
     ['error', 'downloading'],
     ['seeding', 'removed'],
+    ['downloaded', 'completed'],
+    ['seeding', 'completed'],
+    ['stopped', 'completed'],
+    ['paused', 'completed'],
   ])('allows %s → %s', (from, to) => {
     expect(canTransition(from, to)).toBe(true);
   });
@@ -28,6 +32,10 @@ describe('job-state transitions', () => {
     ['queued', 'seeding'],
     ['downloading', 'stopped'],
     ['fetching_metadata', 'seeding'],
+    ['downloading', 'completed'],
+    ['completed', 'downloading'],
+    ['completed', 'seeding'],
+    ['completed', 'paused'],
   ])('rejects %s → %s', (from, to) => {
     expect(canTransition(from, to)).toBe(false);
   });
@@ -59,6 +67,11 @@ describe('deriveJobStatus (BR02, BR03)', () => {
   it('treats disabled subtitles as done', () => {
     expect(deriveJobStatus({ state: 'stopped', pauseReason: null }, done, [{ state: 'disabled' }]).kind).toBe('ready');
     expect(deriveJobStatus({ state: 'downloaded', pauseReason: null }, done, []).kind).toBe('ready');
+    expect(deriveJobStatus({ state: 'completed', pauseReason: null }, done, [])).toMatchObject({
+      kind: 'ready',
+      seeding: false,
+      filesComplete: true,
+    });
   });
 
   it('D-78: skipped subtitles never hold back readiness, whatever their tasks say', () => {

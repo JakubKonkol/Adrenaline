@@ -144,18 +144,6 @@ function SettingsForm({ settings }: { settings: AppSettings }) {
             {...group}
           />
           <NumberField label={t('settings.transfer.port')} field="listenPort" {...group} />
-          <NumberField
-            label={t('settings.transfer.seedRatio')}
-            hint={t('settings.transfer.emptyNoLimit')}
-            field="seedRatioLimit"
-            {...group}
-          />
-          <NumberField
-            label={t('settings.transfer.seedMinutes')}
-            hint={t('settings.transfer.emptyNoLimit')}
-            field="seedTimeLimitMin"
-            {...group}
-          />
         </Section>
 
         <Section title={t('settings.accounts.title')} description={t('settings.accounts.description')}>
