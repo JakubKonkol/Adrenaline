@@ -9,10 +9,12 @@ import type { Logger } from '../logger';
 import { redact } from '../redact';
 import type { Secrets } from '../secrets';
 import { Emitter } from '../util/emitter';
+import { clearPidFile, killStaleProcess, type ProcessProbe, writePidFile } from '../util/pid-file';
 import { JackettAdmin } from './jackett-admin';
 
 /** Running Jackett process (real child or a test double). */
 export interface JackettProcess {
+  pid?: number;
   onExit(listener: (code: number | null) => void): void;
   kill(): void;
 }
@@ -41,6 +43,8 @@ export interface JackettManagerOptions {
   maxCrashes?: number;
   crashWindowMs?: number;
   now?: () => number;
+  /** Process lookup used to stop a Jackett left over by a crashed run (tests inject a stub). */
+  probe?: ProcessProbe;
 }
 
 const API_KEY_SECRET = 'jackett.apiKey';
@@ -66,6 +70,7 @@ function spawnJackett(exe: string, args: string[], log: Logger): JackettProcess 
     done(null);
   });
   return {
+    ...(child.pid ? { pid: child.pid } : {}),
     onExit: (l) => void exitListeners.push(l),
     // D-56: the hidden console process ignores a graceful close; Jackett writes its config when it changes.
     kill: () => {
@@ -178,15 +183,20 @@ export class JackettManager extends Emitter<{ status: JackettStatus }> {
     const port = await (this.opts.freePort ?? freeLoopbackPort)();
     const apiKey = this.prepareConfig(port);
     const baseUrl = `http://127.0.0.1:${port}`;
+    // Jackett does not watch its parent: after a crash of Adrenaline the old process keeps running.
+    const pidFile = join(this.opts.dataDir, 'adrenaline-jackett.pid');
+    killStaleProcess(pidFile, 'JackettConsole.exe', this.opts.log, this.opts.probe);
     const proc = (this.opts.spawn ?? spawnJackett)(
       this.opts.exePath!,
       ['--NoUpdates', '--NoRestart', '--ListenPrivate', '--DataFolder', this.opts.dataDir],
       this.opts.log,
     );
     this.process = proc;
+    writePidFile(pidFile, proc.pid);
     let exited = false;
     proc.onExit((code) => {
       exited = true;
+      clearPidFile(pidFile);
       this.onExit(proc, code);
     });
 

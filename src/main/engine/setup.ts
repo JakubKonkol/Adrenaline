@@ -1,5 +1,6 @@
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import type { Logger } from '../logger';
+import { killStaleProcess } from '../util/pid-file';
 import { EngineSupervisor, type EngineLauncher, resolveEnginePath, spawnEngine } from './engine-process';
 import { FakeEngine } from './fake-engine';
 
@@ -48,11 +49,15 @@ export function setupEngine(opts: EngineSetupOptions): EngineSetup {
     return { supervisor: null, fake: null, binaryPath: null };
   }
   const dataDir = join(opts.userDataDir, 'engine');
+  const pidFile = join(dataDir, 'engine.pid');
+  // A previous run that crashed may have left its engine running (it holds the port and the resume files).
+  killStaleProcess(pidFile, basename(binaryPath), log);
   const launch: EngineLauncher = () =>
     spawnEngine({
       binaryPath,
       args: ['--data-dir', dataDir, '--listen-port', String(opts.listenPort())],
       log,
+      pidFile,
     });
   return {
     supervisor: new EngineSupervisor({ launch, log, clientVersion: opts.clientVersion }),

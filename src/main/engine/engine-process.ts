@@ -8,6 +8,7 @@ import type { EngineStatus } from '@shared/contracts/app';
 import type { Logger } from '../logger';
 import { redact } from '../redact';
 import { Emitter } from '../util/emitter';
+import { clearPidFile, writePidFile } from '../util/pid-file';
 import { EngineClient, type EngineTransport, type RequestOptions } from './engine-client';
 
 /** One running engine instance (real child process or FakeEngine). */
@@ -22,11 +23,14 @@ export interface SpawnOptions {
   binaryPath: string;
   args: string[];
   log: Logger;
+  /** Written while the process runs, so a leftover engine can be stopped after a crash of main. */
+  pidFile?: string;
 }
 
 /** Spawns the engine binary: absolute path, no shell, hidden window; stdout = protocol, stderr = log. */
 export function spawnEngine(opts: SpawnOptions): EngineInstance {
   const child = spawn(opts.binaryPath, opts.args, { shell: false, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
+  if (opts.pidFile) writePidFile(opts.pidFile, child.pid);
   const lineListeners: ((line: string) => void)[] = [];
   const closeListeners: (() => void)[] = [];
   let closed = false;
@@ -41,6 +45,7 @@ export function spawnEngine(opts: SpawnOptions): EngineInstance {
   createInterface({ input: child.stderr }).on('line', (line) => opts.log.debug(`stderr: ${redact(line)}`));
   child.on('exit', (code, signal) => {
     opts.log.info(`engine exited (code ${code ?? 'null'}, signal ${signal ?? 'none'})`);
+    if (opts.pidFile) clearPidFile(opts.pidFile);
     close();
   });
   child.on('error', (error) => {
