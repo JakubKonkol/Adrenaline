@@ -16,6 +16,8 @@ Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka no
 
 ## Blokady wymagające właściciela
 
+**Sesja Codex 16.10.2026 — przygotowanie 0.9.0:** wersja aplikacji i głównego pakietu lockfile podniesiona z 0.7.0 do 0.9.0. Wersje UI i silnika release są wyprowadzane z `package.json`. Lokalny commit wydania i anotowany tag `v0.9.0` przygotowywane na `main`; push oraz publikacja przez Actions pozostają po stronie właściciela zgodnie z jego poleceniem. `npm run check`: 345 testów zaliczonych, 6 pominiętych; lint i typecheck zaliczone. `npm audit --omit=dev`: 0 podatności. Odbiory ręczne i publikacja 8.7 nadal otwarte — przygotowanie taga nie oznacza ich zaliczenia.
+
 - [x] Wybór źródła aktualizacji (D-07): upublicznienie `Adrenaline`, Releases w tym samym repo (decyzja 15.10.2026).
 - [ ] Test ręczny etapu 1 (do potwierdzenia przez Jakuba): instalacja 0.1.0 → baner aktualizacji do 0.1.1 → restart w 0.1.1.
 - [ ] Zmiana widoczności repo `JakubKonkol/Adrenaline` na publiczną. Potrzebne przed etapem 1.4.
