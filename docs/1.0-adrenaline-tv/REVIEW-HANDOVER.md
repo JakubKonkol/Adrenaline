@@ -4,6 +4,8 @@
 
 Właściciel zlecił dokończenie, commit na main oraz push z tagiem v1.0.0. Wersja package/lockfile i zbudowanych klientów: **1.0.0**. Aktualny postęp i ograniczenia: [STATUS.md](STATUS.md).
 
+**Zakończone:** commit `061051e` i anotowany tag `v1.0.0` wysłane na origin. [Release workflow](https://github.com/JakubKonkol/Adrenaline/actions/runs/39018081348) w całości zielony. [Wydanie v1.0.0](https://github.com/JakubKonkol/Adrenaline/releases/tag/v1.0.0) publiczne od 17.10.2026 08:44:32 UTC; instalator CI 232 241 553 B, SHA-256 `216aaa1ef27fd269592364200b1d66fbfb337909fbfd76fb9bdc4a9a29cccee4`, blockmap i latest.yml. To instalator z CI jest artefaktem wydania; lokalny próbny NSIS opisano niżej. Serwer demo i aplikacja TV zamknięte po odbiorze, autor/certyfikaty pozostawione.
+
 - Samsung QE65Q77BATXXH, Tizen 6.5, 192.168.1.212: realny automatyczny DeployService, fallback legacy po odrzuceniu nowego łańcucha, aktualizacja z zachowanym autorem, start i auto-parowanie — `handshake done`.
 - Ostatnia funkcja sprawdzona na tym TV przez CDP i stan AVPlay: pilotem wybrano **Next episode** w S01E01 → S01E02 PLAYING, bez przycisku następnego odcinka (ostatni dostępny). Ponownie S01E01, seek do ostatnich 4 s → prawdziwe zdarzenie końca → **Up next / S01E02 · Drift / Starts in 10 s** → automatycznie S01E02 PLAYING. Nie podmieniano listenera ani stanu React.
 - Trzy nowe testy nextEpisode/episodeLabel: nieposortowana biblioteka, kolejny sezon, brak pliku, inny serial, film, nieznany element i koniec biblioteki.

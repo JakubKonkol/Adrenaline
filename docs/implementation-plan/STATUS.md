@@ -2,6 +2,8 @@
 
 Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka notatka, jeśli coś odbiega od planu). Zadania odpowiadają numeracji w `etapy/`.
 
+**Aktualne wydanie: [v1.0.0](https://github.com/JakubKonkol/Adrenaline/releases/tag/v1.0.0)** — opublikowane 17.10.2026 08:44 UTC, commit `061051e`, [Release CI](https://github.com/JakubKonkol/Adrenaline/actions/runs/39018081348) zielony. Poniższy stan bety i starsze wpisy są historią; aktualny odbiór TV w [STATUS 1.0](../1.0-adrenaline-tv/STATUS.md).
+
 **Bieżący etap:** 8 — kod gotowy do bety v0.9.0; otwarte są wyłącznie odbiory ręczne właściciela (live OpenSubtitles 7.1, czysty Windows/Sandbox 8.5, pełny przegląd Tab/czytnika 8.2, końcowe nasłuchy/logi 8.6) i samo wydanie 8.7.
 
 **1.0 (TV, biblioteka, bez seedowania) — odbiór 17.10.2026:** wersja 1.0.0, D-80…D-87, check 456/4 skipped, build/TV/APK, smoke Windows, silnik 4/4 i NSIS zaliczone. Fizyczny Samsung: deploy, 12 formatów, seek, napisy, pauza i następny odcinek; Android: emulator TV 14. Postęp i pozostałe odbiory ręczne w [../1.0-adrenaline-tv/STATUS.md](../1.0-adrenaline-tv/STATUS.md).

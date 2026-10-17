@@ -4,6 +4,8 @@
 
 Ten plik jest źródłem bieżącego postępu. Plan: [04-implementation-plan.md](04-implementation-plan.md), decyzje D-80…D-87: [00-decyzje.md](../implementation-plan/00-decyzje.md).
 
+**Wydano:** [v1.0.0](https://github.com/JakubKonkol/Adrenaline/releases/tag/v1.0.0), commit `061051e`, push main + anotowany tag. [Release workflow 39018081348](https://github.com/JakubKonkol/Adrenaline/actions/runs/39018081348) zakończony sukcesem (test, engine, Android, package), publikacja 17.10.2026 08:44:32 UTC. Instalator z CI: 232 241 553 B, SHA-256 `216aaa1ef27fd269592364200b1d66fbfb337909fbfd76fb9bdc4a9a29cccee4`; dołączone blockmap i latest.yml.
+
 ## Zakres i decyzje
 
 - D-80: po pobraniu torrent usuwany z silnika bez kasowania plików; stan `completed`, brak seedowania w tle. Desktop Windows x64 pozostaje serwerem; Samsung Tizen i Android TV przeglądają katalog, pobierają na PC i odtwarzają bibliotekę.
@@ -36,7 +38,7 @@ Smoke używa wolnego portu, aby działać obok serwera demo, i zamyka Electron r
 
 ## Następne kroki i ograniczenia
 
-1. Commit na main i push z tagiem v1.0.0 zgodnie z poleceniem właściciela; Release workflow buduje i publikuje instalator z artefaktami CI.
+1. Wydanie zakończone: main i v1.0.0 wysłane, instalator z artefaktami CI opublikowany.
 2. Odbiory ręczne: fizyczny Android TV (passthrough/DV), AVR i ocena obrazu/dźwięku oraz wyglądu OSD na ekranie TV. Przeglądarka i stan PLAYING nie zastępują oceny widza.
 3. Android bez sekretów release używa stałego klucza deweloperskiego. Zmiana klucza wymaga reinstalacji. Odnowienie łańcucha autora Tizen przed 2027-01-01 musi zachować klucz; nie usuwać `author.json`.
 4. `npm audit --omit=dev`: 1 high, node-forge GHSA-86w9-cpqp-85rv, brak poprawki. Dotyczy weryfikacji RSA PKCS#1, której kod aplikacji nie używa: forge generuje/parsuje przypięte certyfikaty, a podpisy WGT weryfikuje Node crypto w testach. Ocena zakresu: brak wywołania podatnej operacji w obecnej ścieżce. Audyt pozostaje nieczysty; aktualizacja zależności po wydaniu poprawki.
