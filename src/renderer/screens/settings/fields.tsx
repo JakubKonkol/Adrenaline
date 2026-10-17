@@ -184,3 +184,22 @@ export function OpenSubtitlesFields(props: GroupProps & { status?: SecretsStatus
     </>
   );
 }
+
+export function Napisy24Fields(props: GroupProps & { status?: SecretsStatus }) {
+  return (
+    <>
+      <Field label={t('subtitles.n24Username')} hint={t('subtitles.n24Hint')}>
+        {(a) => (
+          <TextInput
+            {...a}
+            autoComplete="off"
+            spellCheck={false}
+            value={props.draft.napisy24Username}
+            onChange={(e) => props.set('napisy24Username', e.target.value)}
+          />
+        )}
+      </Field>
+      <SecretInput {...props} name="napisy24.password" label={t('subtitles.n24Password')} />
+    </>
+  );
+}

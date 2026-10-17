@@ -21,14 +21,24 @@ export function useSecretsStatus() {
   return useQuery({ queryKey: SECRETS, queryFn: () => unwrap(api().settings.secretsStatus()), staleTime: Infinity });
 }
 
-/** Whether an OpenSubtitles account is fully saved (API key, username, password); undefined while loading. */
+/** At least one enabled provider supports the configured languages. */
 export function useSubtitleAccountReady(): boolean | undefined {
   const { data: settings } = useSettings();
   const { data: secrets, isError } = useSecretsStatus();
   if (!settings) return undefined;
   // Unknown secrets status (IPC error) counts as "no account": subtitles then start switched off.
   if (!secrets) return isError ? false : undefined;
+  const polish = settings.subtitleLang === 'pl' || settings.subtitleFallbackLang === 'pl';
+  if (polish && settings.subtitleProviders.includes('napiprojekt')) return true;
+  if (
+    polish &&
+    settings.subtitleProviders.includes('napisy24') &&
+    settings.napisy24Username.trim() &&
+    secrets.set['napisy24.password']
+  )
+    return true;
   return (
+    settings.subtitleProviders.includes('opensubtitles') &&
     settings.opensubtitlesUsername.trim() !== '' &&
     secrets.set['opensubtitles.apiKey'] === true &&
     secrets.set['opensubtitles.password'] === true

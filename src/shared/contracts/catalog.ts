@@ -1,4 +1,14 @@
 import { z } from 'zod';
+export const catalogCollectionSchema = z.enum([
+  'top_rated',
+  'now_playing',
+  'upcoming',
+  'on_the_air',
+  'action',
+  'comedy',
+  'scifi',
+]);
+export type CatalogCollection = z.infer<typeof catalogCollectionSchema>;
 
 export const mediaTypeSchema = z.enum(['movie', 'tv']);
 export const tmdbIdSchema = z.number().int().positive();

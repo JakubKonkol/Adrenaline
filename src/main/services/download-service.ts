@@ -229,6 +229,8 @@ export class DownloadService extends Emitter<DownloadEvents> {
         sources: [...new Set(release.hits.map((h) => h.sourceName))],
         size: release.size,
         suggestedFiles: [],
+        ...(options.subtitleChoice ? { subtitleChoice: options.subtitleChoice } : {}),
+        ...(options.subtitleProvider ? { subtitleProvider: options.subtitleProvider } : {}),
       },
       sourceKind: source.magnet ? 'magnet' : 'torrent',
       magnet: source.magnet,
@@ -457,13 +459,22 @@ export class DownloadService extends Emitter<DownloadEvents> {
 
   /** Files complete: a finished state, or a paused job whose selected files are all on disk (paused seeding). */
   private isFinished(job: JobRow): boolean {
-    if (job.state === 'downloaded' || job.state === 'seeding' || job.state === 'stopped') return true;
+    if (job.state === 'completed' || job.state === 'downloaded' || job.state === 'seeding' || job.state === 'stopped')
+      return true;
     if (job.state !== 'paused') return false;
     const selected = this.deps.jobs.files(job.id).filter((f) => f.selected);
     return selected.length > 0 && selected.every((f) => f.size > 0 && f.doneBytes >= f.size);
   }
 
   private complete(job: JobRow): void {
+    // The final progress tick may precede the engine's verified completion event.
+    // Persist the verified sizes before dropping live progress, including on restore.
+    const files = this.deps.jobs.files(job.id).filter((f) => f.selected);
+    this.deps.jobs.saveProgress(
+      job.id,
+      files.reduce((sum, f) => sum + f.size, 0),
+      files.map((f) => ({ index: f.index, doneBytes: f.size })),
+    );
     this.progress.delete(job.id);
     this.setState(job, 'completed', { pauseReason: null, errorCode: null, completedAt: job.completedAt ?? this.now() });
   }
@@ -605,6 +616,15 @@ export class DownloadService extends Emitter<DownloadEvents> {
       }
       case 'downloaded':
         this.persistProgress(jobId, true);
+        {
+          const files = this.deps.jobs.files(jobId).filter((f) => f.selected);
+          this.deps.jobs.saveProgress(
+            jobId,
+            files.reduce((sum, f) => sum + f.size, 0),
+            files.map((f) => ({ index: f.index, doneBytes: f.size })),
+          );
+          this.progress.delete(jobId);
+        }
         this.setState(job, 'downloaded', { completedAt: job.completedAt ?? this.now(), errorCode: null });
         await this.release(jobId);
         break;
@@ -629,6 +649,8 @@ export class DownloadService extends Emitter<DownloadEvents> {
   private onProgress(statuses: JobStatus[]) {
     const out: JobProgress[] = [];
     for (const s of statuses) {
+      const state = this.deps.jobs.get(s.jobId)?.state;
+      if (!state || ['completed', 'downloaded', 'removed'].includes(state)) continue;
       const p: JobProgress = {
         jobId: s.jobId,
         selectedBytes: s.selectedBytes,

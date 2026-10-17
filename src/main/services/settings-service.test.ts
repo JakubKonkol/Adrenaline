@@ -13,6 +13,17 @@ afterEach(() => {
 });
 
 describe('SettingsService', () => {
+  it('keeps provider preferences and Napisy24 configuration when an unrelated setting changes', () => {
+    db = openDatabase(':memory:', { log: nullLogger });
+    const service = new SettingsService(db, defaults);
+    service.update({ subtitleProviders: ['napiprojekt'], napisy24Username: 'agent' });
+    service.update({ closeToTray: false });
+    expect(service.get()).toMatchObject({
+      subtitleProviders: ['napiprojekt'],
+      napisy24Username: 'agent',
+      closeToTray: false,
+    });
+  });
   it('starts with defaults and stores a random port once', () => {
     db = openDatabase(':memory:', { log: nullLogger });
     const s = new SettingsService(db, defaults);

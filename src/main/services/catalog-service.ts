@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { CatalogCollection } from '@shared/contracts/catalog';
 import {
   catalogItemSchema,
   catalogSelectionSchema,
@@ -46,6 +47,12 @@ export class CatalogService {
 
   trending(type: MediaType) {
     return this.cached(`trending:${type}`, z.array(catalogItemSchema), TRENDING_TTL, () => this.client.trending(type));
+  }
+
+  collection(type: MediaType, collection: CatalogCollection) {
+    return this.cached(`collection:${type}:${collection}`, z.array(catalogItemSchema), TRENDING_TTL, () =>
+      this.client.collection(type, collection),
+    );
   }
 
   details(type: MediaType, tmdbId: number) {

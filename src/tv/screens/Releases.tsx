@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react';
 import type { Release, ReleaseSession } from '@shared/contracts/releases';
+import type { TvSubtitleChoices } from '@shared/contracts/tv';
+import type { SubtitleProvider } from '@shared/contracts/subtitles';
+import { SUBTITLE_PROVIDERS } from '@shared/domain/subtitle-providers';
+import type { ReleaseSort } from '@shared/domain/match';
+import { filterReleases, RESOLUTION_FILTERS, type ResolutionFilter } from '@shared/domain/release-list';
 import { ApiError, type Selection } from '../api';
 import { invalidate } from '../data';
 import { errorText, t } from '../i18n';
@@ -34,6 +39,10 @@ export function Releases({
   const [error, setError] = useState<string | null>(null);
   const [chosen, setChosen] = useState<Release | null>(null);
   const [nonce, setNonce] = useState(0);
+  const [quality, setQuality] = useState<ResolutionFilter>('all');
+  const [sort, setSort] = useState<ReleaseSort>('match');
+  const [source, setSource] = useState('all');
+  const [codec, setCodec] = useState('all');
 
   useEffect(() => {
     let alive = true;
@@ -74,7 +83,11 @@ export function Releases({
   };
   const done = data?.sources.filter((s) => s.state !== 'pending').length ?? 0;
   const total = data?.sources.length ?? 0;
-  const releases = data?.releases.filter((r) => r.downloadable) ?? [];
+  const available = data?.releases.filter((r) => r.downloadable) ?? [];
+  const releases = filterReleases(available, quality, sort, source, codec);
+  const sources = ['all', ...new Set(available.flatMap((r) => (r.parsed.source ? [r.parsed.source] : [])))];
+  const codecs = ['all', ...new Set(available.flatMap((r) => (r.parsed.codec ? [r.parsed.codec] : [])))];
+  const sorts: ReleaseSort[] = ['match', 'seeders', 'size'];
 
   return (
     <div className="screen releases" data-page="">
@@ -90,11 +103,58 @@ export function Releases({
               : ''}
         </p>
       </header>
+      {data && available.length > 0 ? (
+        <div className="release-filters">
+          <div className="actions" role="group" aria-label={t('releases.quality')}>
+            {RESOLUTION_FILTERS.map((q) => (
+              <Button
+                key={q}
+                primary={quality === q}
+                group="quality"
+                focusKey={`quality-${q}`}
+                onSelect={() => setQuality(q)}
+              >
+                {q === 'all' ? t('releases.all') : q === 'other' ? t('releases.other') : q === '2160p' ? '4K' : q}
+              </Button>
+            ))}
+          </div>
+          <div className="actions">
+            <Button focusKey="release-sort" onSelect={() => setSort(sorts[(sorts.indexOf(sort) + 1) % sorts.length]!)}>
+              {t('releases.sort')}: {t(`releases.sorts.${sort}`)}
+            </Button>
+            <Button
+              focusKey="release-source"
+              onSelect={() => setSource(sources[(sources.indexOf(source) + 1) % sources.length]!)}
+            >
+              {t('releases.source')}: {source === 'all' ? t('releases.all') : source}
+            </Button>
+            <Button
+              focusKey="release-codec"
+              onSelect={() => setCodec(codecs[(codecs.indexOf(codec) + 1) % codecs.length]!)}
+            >
+              {t('releases.codec')}: {codec === 'all' ? t('releases.all') : codec}
+            </Button>
+            {quality !== 'all' || source !== 'all' || codec !== 'all' ? (
+              <Button
+                focusKey="release-clear"
+                onSelect={() => {
+                  setQuality('all');
+                  setSource('all');
+                  setCodec('all');
+                }}
+              >
+                {t('releases.clear')}
+              </Button>
+            ) : null}
+          </div>
+          <p className="screen-status">{t('releases.filtered', { count: releases.length, total: available.length })}</p>
+        </div>
+      ) : null}
       {error ? (
         <Message title={error} action={t('app.retry')} onAction={retry} />
       ) : !data ? (
         <Spinner />
-      ) : releases.length === 0 && data.done ? (
+      ) : available.length === 0 && data.done ? (
         <Message
           title={
             data.outcome === 'no_sources'
@@ -108,6 +168,7 @@ export function Releases({
         />
       ) : (
         <div className="release-list">
+          {releases.length === 0 ? <Message title={t('releases.noFilterResults')} /> : null}
           {releases.map((r, i) => (
             <Focusable
               key={r.id}
@@ -119,7 +180,7 @@ export function Releases({
             >
               <div className="release-main">
                 <div className="release-chips">
-                  {i === 0 ? <span className="badge badge-accent">{t('releases.best')}</span> : null}
+                  {r.id === available[0]?.id ? <span className="badge badge-accent">{t('releases.best')}</span> : null}
                   {chips(r).map((c) => (
                     <span key={c} className="badge">
                       {c}
@@ -143,11 +204,12 @@ export function Releases({
       {chosen && sessionId ? (
         <Confirm
           release={chosen}
+          sessionId={sessionId}
           subtitlesAvailable={session.features.subtitles}
           onClose={() => setChosen(null)}
-          onStart={async (subtitles) => {
+          onStart={async (subtitles, choice) => {
             try {
-              await api.createDownload(sessionId, chosen.id, subtitles);
+              await api.createDownload(sessionId, chosen.id, subtitles, choice);
               invalidate('downloads');
               nav.showToast(t('releases.started'));
               nav.reset({ name: 'home', tab: 'library' });
@@ -171,60 +233,128 @@ export function Releases({
 
 function Confirm({
   release,
+  sessionId,
   subtitlesAvailable,
   onClose,
   onStart,
 }: {
   release: Release;
+  sessionId: string;
   subtitlesAvailable: boolean;
   onClose: () => void;
-  onStart: (subtitles: boolean) => Promise<void>;
+  onStart: (
+    subtitles: boolean,
+    choice?: { subtitleFileId?: number; subtitleProvider?: SubtitleProvider },
+  ) => Promise<void>;
 }) {
-  const [subtitles, setSubtitles] = useState(subtitlesAvailable);
+  const { api } = useSession();
+  const [step, setStep] = useState<'question' | 'files'>('question');
+  const [choices, setChoices] = useState<TvSubtitleChoices | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const start = (subtitles: boolean, choice?: { subtitleFileId?: number; subtitleProvider?: SubtitleProvider }) => {
+    if (busy) return;
+    setBusy(true);
+    void onStart(subtitles, choice).finally(() => setBusy(false));
+  };
+  const load = () => {
+    setStep('files');
+    setError(null);
+    void api
+      .subtitleChoices(sessionId, release.id)
+      .then(setChoices, (e: unknown) => setError(errorText(e instanceof ApiError ? e.code : 'NETWORK')));
+  };
   return (
-    <Modal title={t('releases.confirmTitle')} onClose={onClose}>
+    <Modal title={t(step === 'question' ? 'releases.subtitleQuestion' : 'releases.subtitleFiles')} onClose={onClose}>
       <p className="modal-text">{t('releases.confirmBody')}</p>
       <p className="modal-release">
         {release.name} · {formatSize(release.size)}
       </p>
-      <Focusable
-        className="toggle-row"
-        focusKey="confirm-subtitles"
-        disabled={!subtitlesAvailable}
-        onSelect={() => setSubtitles((s) => !s)}
-      >
-        <span>{t('releases.subtitles')}</span>
-        <span className={`toggle ${subtitles ? 'is-on' : ''}`}>
-          {!subtitlesAvailable
-            ? t('releases.subtitlesNoAccount')
-            : subtitles
-              ? t('releases.subtitlesOn')
-              : t('releases.subtitlesOff')}
-        </span>
-      </Focusable>
-      <div className="actions">
-        {busy ? (
-          <Spinner />
-        ) : (
-          <>
+      {busy ? (
+        <Spinner />
+      ) : step === 'question' ? (
+        <>
+          {!subtitlesAvailable ? <p className="modal-hint">{t('releases.subtitlesNoAccount')}</p> : null}
+          <div className="actions">
             <Button
               primary
-              autoFocus
-              focusKey="confirm-start"
-              onSelect={() => {
-                setBusy(true);
-                void onStart(subtitles).finally(() => setBusy(false));
-              }}
+              autoFocus={subtitlesAvailable}
+              focusKey="confirm-yes"
+              disabled={!subtitlesAvailable}
+              onSelect={load}
             >
-              {t('releases.start')}
+              {t('releases.withSubtitles')}
+            </Button>
+            <Button
+              primary={!subtitlesAvailable}
+              autoFocus={!subtitlesAvailable}
+              focusKey="confirm-no"
+              onSelect={() => start(false)}
+            >
+              {t('releases.withoutSubtitles')}
             </Button>
             <Button focusKey="confirm-cancel" onSelect={onClose}>
               {t('app.cancel')}
             </Button>
-          </>
-        )}
-      </div>
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="modal-hint">{t('releases.subtitleFilesHint')}</p>
+          {error ? (
+            <Message title={error} action={t('app.retry')} onAction={load} />
+          ) : !choices ? (
+            <Spinner />
+          ) : (
+            <>
+              {choices.errorCode ? <p role="status">{t('releases.subtitleSearchFailed')}</p> : null}
+              <div className="subtitle-choices" key="subtitle-files">
+                {choices.candidates.map((c, index) => (
+                  <Focusable
+                    key={c.fileId}
+                    group="subtitle-files"
+                    focusKey={`subtitle-${c.fileId}`}
+                    autoFocus={index === 0}
+                    className="subtitle-choice"
+                    onSelect={() => start(true, { subtitleFileId: c.fileId })}
+                  >
+                    <span className="badge">
+                      {SUBTITLE_PROVIDERS[c.provider ?? 'opensubtitles']} · {c.language.toUpperCase()} · {c.confidence}
+                    </span>
+                    <span>{c.fileName || c.release}</span>
+                    {c.release && c.fileName ? <small>{c.release}</small> : null}
+                  </Focusable>
+                ))}
+              </div>
+              {!choices.candidates.length ? <p className="modal-hint">{t('releases.noSubtitleFiles')}</p> : null}
+              <div className="actions subtitle-actions">
+                {choices.providers
+                  .filter((p) => p !== 'opensubtitles')
+                  .map((provider) => (
+                    <Button
+                      key={provider}
+                      focusKey={`subtitle-provider-${provider}`}
+                      onSelect={() => start(true, { subtitleProvider: provider })}
+                    >
+                      {t('releases.matchByFile', { provider: SUBTITLE_PROVIDERS[provider] })}
+                    </Button>
+                  ))}
+                <Button focusKey="subtitle-auto" onSelect={() => start(true)}>
+                  {t('releases.subtitleAuto')}
+                </Button>
+              </div>
+            </>
+          )}
+          <div className="actions">
+            <Button focusKey="subtitle-skip" onSelect={() => start(false)}>
+              {t('releases.withoutSubtitles')}
+            </Button>
+            <Button focusKey="subtitle-back" onSelect={() => setStep('question')}>
+              {t('app.back')}
+            </Button>
+          </div>
+        </>
+      )}
     </Modal>
   );
 }

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { JOB_STATES } from '../domain/job-state';
 import { libraryItemSchema } from './library';
+import { rankedSubtitleSchema, subtitleProviderSchema } from './subtitles';
 
 /**
  * TV API v1 (1.0, docs/1.0-adrenaline-tv/02-architecture-and-api.md). DTOs sent over the LAN never contain local
@@ -36,6 +37,14 @@ export const tvSessionSchema = z.object({
   features: z.object({ subtitles: z.boolean() }),
 });
 export type TvSession = z.infer<typeof tvSessionSchema>;
+
+export const tvSubtitleChoicesSchema = z.object({
+  candidates: z.array(rankedSubtitleSchema),
+  providers: z.array(subtitleProviderSchema),
+  language: z.string(),
+  errorCode: z.string().nullable(),
+});
+export type TvSubtitleChoices = z.infer<typeof tvSubtitleChoicesSchema>;
 
 export const pairingRequestSchema = z
   .object({
@@ -85,8 +94,10 @@ export const tvCreateDownloadSchema = z
   .object({
     sessionId: z.string().max(100),
     releaseId: z.string().max(200),
-    /** Subtitles in the language set on the PC (only when an OpenSubtitles account is set up there). */
+    /** Subtitles in the languages set on the PC, through any enabled available provider. */
     subtitles: z.boolean(),
+    subtitleFileId: z.number().int().positive().optional(),
+    subtitleProvider: subtitleProviderSchema.optional(),
   })
   .strict();
 

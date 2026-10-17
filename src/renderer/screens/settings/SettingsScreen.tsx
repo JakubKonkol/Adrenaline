@@ -9,7 +9,16 @@ import { ErrorNotice } from '../../ui/ErrorNotice';
 import { Field, Section, Select, TextInput, Toggle } from '../../ui/Form';
 import { Page } from '../../ui/Page';
 import { changedSecrets, type DraftErrors, fromDraft, type SettingsDraft, toDraft } from './draft';
-import { type DraftSetter, FolderField, OpenSubtitlesFields, rangeError, SubtitleFields, TmdbField } from './fields';
+import {
+  type DraftSetter,
+  FolderField,
+  OpenSubtitlesFields,
+  Napisy24Fields,
+  rangeError,
+  SubtitleFields,
+  TmdbField,
+} from './fields';
+import { SUBTITLE_PROVIDERS, type SubtitleProvider } from '@shared/contracts/subtitles';
 import styles from './Settings.module.css';
 import { SourcesSection } from './SourcesSection';
 import { SubtitleAccount } from './SubtitleAccount';
@@ -83,7 +92,12 @@ function SettingsForm({ settings }: { settings: AppSettings }) {
       for (const s of changedSecrets(draft)) await setSecret.mutateAsync(s);
       setDraft((d) => ({
         ...d,
-        secrets: { 'tmdb.token': '', 'opensubtitles.apiKey': '', 'opensubtitles.password': '' },
+        secrets: {
+          'tmdb.token': '',
+          'opensubtitles.apiKey': '',
+          'opensubtitles.password': '',
+          'napisy24.password': '',
+        },
       }));
       setSaved(true);
     } catch (e) {
@@ -128,6 +142,20 @@ function SettingsForm({ settings }: { settings: AppSettings }) {
 
         <Section title={t('settings.subtitles.title')}>
           <SubtitleFields {...group} />
+          {(Object.entries(SUBTITLE_PROVIDERS) as [SubtitleProvider, string][]).map(([provider, label]) => (
+            <Toggle
+              key={provider}
+              label={label}
+              description={provider === 'napiprojekt' ? t('subtitles.napiHint') : undefined}
+              checked={draft.subtitleProviders.includes(provider)}
+              onChange={(on) =>
+                set(
+                  'subtitleProviders',
+                  on ? [...draft.subtitleProviders, provider] : draft.subtitleProviders.filter((p) => p !== provider),
+                )
+              }
+            />
+          ))}
         </Section>
 
         <Section title={t('settings.transfer.title')} description={t('settings.transfer.seedingHint')}>
@@ -168,6 +196,7 @@ function SettingsForm({ settings }: { settings: AppSettings }) {
               draft.opensubtitlesUsername !== settings.opensubtitlesUsername
             }
           />
+          <Napisy24Fields {...group} {...(secrets ? { status: secrets } : {})} />
         </Section>
 
         <Section title={t('settings.sources.title')}>

@@ -10,6 +10,7 @@ import { JobsRepository } from '../persistence/repositories/jobs';
 import { SubtitlesRepository } from '../persistence/repositories/subtitles';
 import type { OpenSubtitlesClient } from '../providers/opensubtitles/opensubtitles-client';
 import { SubtitleService } from './subtitle-service';
+import { rankSubtitles } from '@shared/domain/subtitle-ranking';
 
 const cleanups: (() => void)[] = [];
 afterEach(() => {
@@ -244,4 +245,41 @@ it('a complete download paused by the user still gets its subtitles after a rest
   service.restore();
   await service.idle();
   expect(tasks.list('job')[0]?.state).toBe('ready');
+});
+
+it('remembers the subtitle file chosen on TV through metadata discovery and restart', async () => {
+  const { service, jobs, tasks, client } = setup();
+  const chosen = rankSubtitles([{ ...candidate, fileId: 42 }], 'Film')[0]!;
+  const job = jobs.get('job')!;
+  jobs.update('job', { state: 'completed', release: { ...job.release, subtitleChoice: chosen } });
+  jobs.saveProgress('job', 131072, [{ index: 0, doneBytes: 131072 }]);
+  service.restore();
+  await service.idle();
+  expect(client.search).not.toHaveBeenCalled();
+  expect(client.downloadLink).toHaveBeenCalledExactlyOnceWith(42);
+  expect(tasks.list('job')[0]?.state).toBe('ready');
+});
+
+it('tries the fallback language when the primary provider is unavailable', async () => {
+  const { service, client, tasks } = setup();
+  client.search
+    .mockRejectedValueOnce(new AppError('SUBS_UNAVAILABLE'))
+    .mockResolvedValueOnce([{ ...candidate, language: 'en' }]);
+  service.complete('job', 0);
+  await service.idle();
+  expect(tasks.list('job')[0]).toMatchObject({ state: 'ready', lang: 'en' });
+});
+
+it('keeps a completed movie complete after missing credentials or a failed subtitle search, and allows a manual retry', async () => {
+  const { service, jobs, tasks, client } = setup();
+  jobs.update('job', { state: 'completed', subtitleFallbackLang: null });
+  jobs.saveProgress('job', 131072, [{ index: 0, doneBytes: 131072 }]);
+  client.search.mockRejectedValueOnce(new AppError('SUBS_NO_KEY'));
+  service.restore();
+  await service.idle();
+  expect(jobs.get('job')?.state).toBe('completed');
+  expect(tasks.list('job')[0]).toMatchObject({ state: 'error', errorCode: 'SUBS_NO_KEY' });
+  await service.retry('job', tasks.list('job')[0]!.id);
+  expect(tasks.list('job')[0]?.state).toBe('ready');
+  expect(jobs.get('job')?.state).toBe('completed');
 });

@@ -3,6 +3,15 @@ import { expect, it } from 'vitest';
 import { validateSubtitle, MAX_SUBTITLE_BYTES } from './subtitle-file';
 
 const srt = '1\n00:00:01,000 --> 00:00:03,000\nZażółć gęślą jaźń.\n';
+
+it('converts Polish time-based TXT and frame-based MicroDVD to SRT for TV playback', () => {
+  expect(validateSubtitle(Buffer.from('0:00:01:Hello|world\n0:00:03:Next'), 'napi.txt', 'pl')).toEqual({
+    extension: '.srt',
+    text: '1\n00:00:01,000 --> 00:00:03,000\nHello\nworld\n\n2\n00:00:03,000 --> 00:00:07,000\nNext\n',
+  });
+  const converted = validateSubtitle(Buffer.from('{1}{1}25.0\n{25}{75}{y:i}Hello|world'), 'napi.sub', 'pl', 25);
+  expect(converted).toEqual({ extension: '.srt', text: '1\n00:00:01,000 --> 00:00:03,000\nHello\nworld\n' });
+});
 function zip(name: string, data: Buffer, declared = data.length) {
   const encoded = Buffer.from(name),
     compressed = deflateRawSync(data);

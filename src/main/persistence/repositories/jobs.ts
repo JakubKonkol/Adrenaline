@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { rankedSubtitleSchema, subtitleProviderSchema } from '@shared/contracts/subtitles';
 import type { JobState, PauseReason } from '@shared/domain/job-state';
 import { type SearchTarget, searchTargetSchema } from '@shared/domain/search-target';
 import type { Database } from '../db';
@@ -10,6 +11,8 @@ export const jobReleaseSchema = z.object({
   size: z.number().nullable(),
   /** File selection the user must confirm (awaiting_file_selection). */
   suggestedFiles: z.array(z.number().int()).default([]),
+  subtitleChoice: rankedSubtitleSchema.optional(),
+  subtitleProvider: subtitleProviderSchema.optional(),
 });
 export type JobRelease = z.infer<typeof jobReleaseSchema>;
 

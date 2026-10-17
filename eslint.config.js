@@ -109,7 +109,7 @@ export default tseslint.config(
               message: 'TV app: browser code only.',
             },
             {
-              regex: '^@shared/(?!contracts/tv-constants$)',
+              regex: '^@shared/(?!(?:contracts/tv-constants|domain/release-list|domain/subtitle-providers)$)',
               allowTypeImports: true,
               message: 'Import shared contracts as types only (keeps zod out of the TV bundle).',
             },

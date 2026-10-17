@@ -4,7 +4,7 @@ import { AppError } from '@shared/errors';
 import { resolveInside } from '../../fs/safe-path';
 
 export const MAX_SUBTITLE_BYTES = 5 * 1024 * 1024;
-const EXTENSIONS = new Set(['.srt', '.ass', '.ssa', '.vtt', '.sub']);
+const EXTENSIONS = new Set(['.srt', '.ass', '.ssa', '.vtt', '.sub', '.txt']);
 function bad(): never {
   throw new AppError('SUBS_BAD_FILE');
 }
@@ -68,7 +68,12 @@ function unzip(data: Buffer): { data: Buffer; name: string } {
 }
 
 /** OpenSubtitles promises UTF-8; tolerate legacy Polish uploads without accepting binary/HTML responses. */
-export function validateSubtitle(input: Buffer, name: string, language: string): { text: string; extension: string } {
+export function validateSubtitle(
+  input: Buffer,
+  name: string,
+  language: string,
+  frameRate?: number,
+): { text: string; extension: string } {
   try {
     if (!input.length || input.length > MAX_SUBTITLE_BYTES) return bad();
     let data = input;
@@ -77,7 +82,7 @@ export function validateSubtitle(input: Buffer, name: string, language: string):
       data = gunzipSync(input, { maxOutputLength: MAX_SUBTITLE_BYTES });
       name = name.replace(/\.gz$/i, '');
     }
-    const extension = extname(name).toLowerCase();
+    let extension = extname(name).toLowerCase();
     if (!EXTENSIONS.has(extension) || data.length > MAX_SUBTITLE_BYTES) return bad();
     let text: string;
     try {
@@ -92,6 +97,35 @@ export function validateSubtitle(input: Buffer, name: string, language: string):
     // eslint-disable-next-line no-control-regex
     if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\ufffd]/.test(text) || /<!doctype|<html|<script/i.test(text))
       return bad();
+    if (extension === '.txt') {
+      if (/^\{\d+\}\{\d+\}/m.test(text)) extension = '.sub';
+      else if (/\d{2}:\d{2}:\d{2}[,.]\d{3}\s+-->/.test(text)) extension = '.srt';
+      else {
+        const rows = [...text.matchAll(/^(\d{1,2}):(\d{2}):(\d{2}):(.*)$/gm)];
+        if (!rows.length) return bad();
+        text = rows
+          .map((r, i) => {
+            const start = (Number(r[1]) * 3600 + Number(r[2]) * 60 + Number(r[3])) * 1000;
+            const next = rows[i + 1];
+            const end = next ? (Number(next[1]) * 3600 + Number(next[2]) * 60 + Number(next[3])) * 1000 : start + 4000;
+            if (end <= start) return bad();
+            return `${i + 1}\n${srtTime(start)} --> ${srtTime(end)}\n${r[4]!.replace(/\|/g, '\n')}\n`;
+          })
+          .join('\n');
+        extension = '.srt';
+      }
+    }
+    if (extension === '.sub' && frameRate && frameRate >= 1 && frameRate <= 240) {
+      const rows = [...text.matchAll(/^\{(\d+)\}\{(\d+)\}(.*)$/gm)].filter((r) => Number(r[2]) > Number(r[1]));
+      if (!rows.length) return bad();
+      text = rows
+        .map(
+          (r, i) =>
+            `${i + 1}\n${srtTime((Number(r[1]) * 1000) / frameRate)} --> ${srtTime((Number(r[2]) * 1000) / frameRate)}\n${r[3]!.replace(/\{[^}]*\}/g, '').replace(/\|/g, '\n')}\n`,
+        )
+        .join('\n');
+      extension = '.srt';
+    }
     const stamp =
       extension === '.ass' || extension === '.ssa'
         ? /^Dialogue:\s*[^,]*,\d+:\d{2}:\d{2}\.\d{2},\d+:\d{2}:\d{2}\.\d{2},/m
@@ -103,4 +137,9 @@ export function validateSubtitle(input: Buffer, name: string, language: string):
   } catch {
     return bad();
   }
+}
+
+function srtTime(ms: number): string {
+  const value = Math.max(0, Math.round(ms));
+  return `${String(Math.floor(value / 3600000)).padStart(2, '0')}:${String(Math.floor(value / 60000) % 60).padStart(2, '0')}:${String(Math.floor(value / 1000) % 60).padStart(2, '0')},${String(value % 1000).padStart(3, '0')}`;
 }

@@ -23,6 +23,8 @@ import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.Renderer
+import androidx.media3.exoplayer.RenderersFactory
 import androidx.media3.ui.PlayerView
 import org.json.JSONObject
 
@@ -38,6 +40,7 @@ class PlayerActivity : ComponentActivity() {
     private lateinit var player: ExoPlayer
     private lateinit var request: JSONObject
     private lateinit var view: PlayerView
+    @Volatile private var subtitleDelayMs = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,7 +48,13 @@ class PlayerActivity : ComponentActivity() {
         request = JSONObject(intent.getStringExtra(EXTRA_REQUEST) ?: "{}")
 
         // Decoders of the TV first, FFmpeg-free; audio goes out bit-exact when the sink supports the encoding.
-        val renderers = DefaultRenderersFactory(this).setEnableDecoderFallback(true)
+        val defaults = DefaultRenderersFactory(this).setEnableDecoderFallback(true)
+        val renderers = RenderersFactory { handler, video, audio, text, metadata ->
+            defaults.createRenderers(handler, video, audio, text, metadata).map { renderer ->
+                if (renderer.trackType == C.TRACK_TYPE_TEXT) SubtitleSyncRenderer(renderer) { subtitleDelayMs * 1_000 }
+                else renderer
+            }.toTypedArray()
+        }
         player = ExoPlayer.Builder(this, renderers).build()
         view = PlayerView(this).apply {
             this.player = this@PlayerActivity.player
@@ -55,7 +64,7 @@ class PlayerActivity : ComponentActivity() {
         }
         val root = FrameLayout(this)
         root.addView(view)
-        if (hls && pcChoices().isNotEmpty()) {
+        run {
             // Shown with the controls: where the PC's tracks are.
             val hint = TextView(this).apply {
                 text = "MENU  ·  Audio & subtitles"
@@ -162,7 +171,7 @@ class PlayerActivity : ComponentActivity() {
             close(ended = false)
             return true
         }
-        if (hls && event.action == KeyEvent.ACTION_DOWN &&
+        if (event.action == KeyEvent.ACTION_DOWN &&
             (event.keyCode == KeyEvent.KEYCODE_MENU || event.keyCode == KeyEvent.KEYCODE_MEDIA_AUDIO_TRACK)
         ) {
             showPcChoices()
@@ -203,11 +212,32 @@ class PlayerActivity : ComponentActivity() {
     private fun selectedAudio(): Int? = list("audioTracks").firstOrNull { it.optBoolean("selected") }?.optInt("index")
 
     private fun showPcChoices() {
-        val choices = pcChoices()
+        val choices = (if (hls) pcChoices() else emptyList()).toMutableList()
+        if (list("subtitleTracks").none { it.optBoolean("burnedIn") })
+            choices += "Subtitle sync (earlier / later)" to { showSubtitleSync() }
         if (choices.isEmpty()) return
         AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle("Audio & subtitles")
             .setItems(choices.map { it.first }.toTypedArray()) { _, which -> choices[which].second() }
+            .show()
+    }
+
+    private fun showSubtitleSync() {
+        val seconds = String.format(java.util.Locale.US, "%+.2f s", subtitleDelayMs / 1_000.0)
+        val choices = arrayOf("Earlier (-0.25 s)", "Later (+0.25 s)", "Reset to 0", "Done")
+        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle("Subtitle sync: $seconds")
+            .setItems(choices) { _, which ->
+                if (which == 3) return@setItems
+                subtitleDelayMs = when (which) {
+                    0 -> (subtitleDelayMs - 250).coerceAtLeast(-60_000)
+                    1 -> (subtitleDelayMs + 250).coerceAtMost(60_000)
+                    else -> 0
+                }
+                // Re-read cues discarded by the text renderer when moving their timeline backwards.
+                player.seekTo((player.currentPosition - 1).coerceAtLeast(0))
+                showSubtitleSync()
+            }
             .show()
     }
 
@@ -255,5 +285,20 @@ class PlayerActivity : ComponentActivity() {
     companion object {
         const val EXTRA_REQUEST = "request"
         const val EXTRA_EVENT = "event"
+    }
+}
+
+/** Positive delay displays cues later while leaving the audio and video clock untouched. */
+@OptIn(UnstableApi::class)
+private class SubtitleSyncRenderer(
+    private val delegate: Renderer,
+    private val delayUs: () -> Long,
+) : Renderer by delegate {
+    override fun render(positionUs: Long, elapsedRealtimeUs: Long) {
+        delegate.render(positionUs - delayUs(), elapsedRealtimeUs)
+    }
+
+    override fun resetPosition(positionUs: Long) {
+        delegate.resetPosition(positionUs - delayUs())
     }
 }

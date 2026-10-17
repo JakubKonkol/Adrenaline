@@ -1,6 +1,6 @@
 import { basename } from 'node:path';
 import type { SubtitleTaskDto } from '@shared/contracts/downloads';
-import type { RankedSubtitle } from '@shared/contracts/subtitles';
+import type { RankedSubtitle, SubtitleCandidate } from '@shared/contracts/subtitles';
 import { fileKind } from '@shared/domain/file-selection';
 import { automaticSubtitle, rankSubtitles } from '@shared/domain/subtitle-ranking';
 import { AppError } from '@shared/errors';
@@ -8,14 +8,16 @@ import { subtitleVideoPath, writeSubtitle } from '../fs/subtitle-sidecar';
 import type { JobsRepository } from '../persistence/repositories/jobs';
 import type { SubtitlesRepository } from '../persistence/repositories/subtitles';
 import { movieHash } from '../providers/opensubtitles/movie-hash';
-import type { OpenSubtitlesClient, SubtitleQuery } from '../providers/opensubtitles/opensubtitles-client';
+import type { SubtitleQuery } from '../providers/opensubtitles/opensubtitles-client';
+import type { SubtitleClient } from './subtitle-providers';
 import { validateSubtitle } from '../providers/opensubtitles/subtitle-file';
 
 interface Deps {
   jobs: JobsRepository;
   tasks: SubtitlesRepository;
-  client: Pick<OpenSubtitlesClient, 'search' | 'downloadLink' | 'fetchFile'>;
+  client: SubtitleClient;
   changed: (jobId: string) => void;
+  frameRate?: (video: string, size: number) => Promise<number | null>;
 }
 
 /** Independent of EngineSupervisor: retrying subtitles can never restart a movie download. */
@@ -96,6 +98,9 @@ export class SubtitleService {
     if (!job || job.state === 'removed') throw new AppError('JOB_NOT_FOUND');
     await this.cancel(jobId);
     this.deps.jobs.update(jobId, { subtitleLang: language, subtitleFallbackLang: fallback });
+    this.deps.jobs.update(jobId, {
+      release: { ...job.release, subtitleChoice: undefined, subtitleProvider: undefined },
+    });
     for (const task of this.deps.tasks.list(jobId))
       this.deps.tasks.update(task.id, {
         lang: language ?? task.lang,
@@ -168,8 +173,9 @@ export class SubtitleService {
       update({ state: chosen ? 'downloading' : 'searching', errorCode: null, quotaResetAt: null });
       const video = await subtitleVideoPath(job.saveDir, file.relPath);
       if (!this.valid(jobId, task)) return;
-      let language = chosen?.language ?? job.subtitleLang;
-      let selected = chosen ?? null;
+      let selected = chosen ?? job.release.subtitleChoice ?? null;
+      let language = selected?.language ?? job.subtitleLang;
+      if (selected) update({ state: 'downloading', lang: language, candidates: [selected] });
       if (!selected) {
         const hash = await movieHash(video);
         if (!this.valid(jobId, task)) return;
@@ -177,17 +183,27 @@ export class SubtitleService {
         const query: SubtitleQuery = {
           languages: [language],
           moviehash: hash,
+          videoPath: video,
+          query: job.target.originalTitle,
+          provider: job.release.subtitleProvider,
           ...(target.kind === 'movie'
             ? { tmdbId: target.tmdbId }
             : { parentTmdbId: target.tmdbId, season: target.season, episode: target.episode }),
         };
-        let results = (await this.deps.client.search(query)).filter((c) => c.language === language);
+        const matches = (c: SubtitleCandidate) =>
+          c.language === language &&
+          (!job.release.subtitleProvider || (c.provider ?? 'opensubtitles') === job.release.subtitleProvider);
+        let results: SubtitleCandidate[];
+        try {
+          results = (await this.deps.client.search(query)).filter(matches);
+        } catch (error) {
+          if (!job.subtitleFallbackLang || job.subtitleFallbackLang === language) throw error;
+          results = [];
+        }
         if (!this.valid(jobId, task)) return;
         if (!results.length && job.subtitleFallbackLang && job.subtitleFallbackLang !== language) {
           language = job.subtitleFallbackLang;
-          results = (await this.deps.client.search({ ...query, languages: [language] })).filter(
-            (c) => c.language === language,
-          );
+          results = (await this.deps.client.search({ ...query, languages: [language] })).filter(matches);
           if (!this.valid(jobId, task)) return;
         }
         const candidates = rankSubtitles(results, basename(file.relPath));
@@ -201,11 +217,24 @@ export class SubtitleService {
         if (!selected) return;
       }
       if (!this.valid(jobId, task)) return;
-      const link = await this.deps.client.downloadLink(selected.fileId);
+      let data: Buffer;
+      let fileName: string;
+      if (this.deps.client.downloadCandidate) {
+        ({ data, fileName } = await this.deps.client.downloadCandidate(selected, video));
+      } else {
+        const link = await this.deps.client.downloadLink(selected.fileId);
+        if (!this.valid(jobId, task)) return;
+        data = await this.deps.client.fetchFile(link.link);
+        fileName = link.fileName;
+      }
       if (!this.valid(jobId, task)) return;
-      const data = await this.deps.client.fetchFile(link.link);
-      if (!this.valid(jobId, task)) return;
-      const subtitle = validateSubtitle(data, link.fileName, language);
+      let subtitle = validateSubtitle(data, fileName, language);
+      if (subtitle.extension === '.sub') {
+        const fps =
+          Number(/^\{[01]\}\{[01]\}(\d+(?:[.,]\d+)?)/m.exec(subtitle.text)?.[1]?.replace(',', '.')) ||
+          (await this.deps.frameRate?.(video, file.size));
+        if (fps) subtitle = validateSubtitle(data, fileName, language, fps);
+      }
       await subtitleVideoPath(job.saveDir, file.relPath);
       if (!this.valid(jobId, task)) return;
       const targetPath = await writeSubtitle(video, language, subtitle.extension, subtitle.text);

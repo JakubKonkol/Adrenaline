@@ -1,6 +1,11 @@
 import { hostname } from 'node:os';
 import type { z } from 'zod';
 import { mediaTypeSchema } from '@shared/contracts/catalog';
+import { catalogCollectionSchema } from '@shared/contracts/catalog';
+import type { TvSubtitleChoices } from '@shared/contracts/tv';
+import { rankSubtitles } from '@shared/domain/subtitle-ranking';
+import type { SubtitleProviders } from '../services/subtitle-providers';
+import { languageCodeSchema } from '@shared/contracts/settings';
 import type { DownloadJob, JobProgress } from '@shared/contracts/downloads';
 import type { ReleaseSession } from '@shared/contracts/releases';
 import {
@@ -59,8 +64,9 @@ export interface TvApiDeps {
   library: LibraryService;
   media: MediaRepository;
   settings: SettingsService;
-  /** OpenSubtitles account saved on the PC (D-78): only then a TV can ask for subtitles. */
+  /** At least one enabled provider supports the languages configured on the PC. */
   subtitleAccountReady: () => boolean;
+  subtitleProviders?: SubtitleProviders;
   /** Probe, plan and HLS sessions (D-85). */
   playback: PlaybackApi;
   /** A paired TV talked to the server (Deploy to TV waits for this). */
@@ -76,7 +82,7 @@ function parse<T extends z.ZodType>(schema: T, value: unknown): z.output<T> {
 }
 
 const owner = (ctx: RequestContext): SessionOwner => `tv:${ctx.device!.id}`;
-const MAX_RELEASES_FOR_TV = 60;
+const MAX_RELEASES_FOR_TV = 300;
 /** Treat the item as watched near the end: the next play starts from the beginning. */
 const WATCHED_RATIO = 0.95;
 
@@ -124,6 +130,18 @@ function trimSession(session: ReleaseSession): ReleaseSession {
 
 /** Routes of the TV API v1 (02-architecture-and-api.md). Local-only powers (folders, sources, secrets) are absent. */
 export function tvRoutes(deps: TvApiDeps): Route[] {
+  const subtitleChoices = new Map<string, TvSubtitleChoices>();
+  const choicesKey = (ctx: RequestContext, sessionId: string, releaseId: string) => {
+    const s = deps.settings.get();
+    return JSON.stringify([
+      owner(ctx),
+      sessionId,
+      releaseId,
+      s.subtitleLang,
+      s.subtitleFallbackLang,
+      s.subtitleProviders,
+    ]);
+  };
   const requireDownloads = () => {
     const d = deps.downloads();
     if (!d) throw new AppError('ENGINE_UNAVAILABLE');
@@ -187,6 +205,16 @@ export function tvRoutes(deps: TvApiDeps): Route[] {
     // ------------------------------------------------------------ catalog
     {
       method: 'GET',
+      path: '/api/v1/catalog/collection',
+      auth: 'device',
+      handler: (ctx) =>
+        deps.catalog.collection(
+          parse(mediaTypeSchema, ctx.query.get('type') ?? 'movie'),
+          parse(catalogCollectionSchema, ctx.query.get('collection')),
+        ),
+    },
+    {
+      method: 'GET',
       path: '/api/v1/catalog/trending',
       auth: 'device',
       handler: (ctx) => deps.catalog.trending(parse(mediaTypeSchema, ctx.query.get('type') ?? 'movie')),
@@ -246,6 +274,52 @@ export function tvRoutes(deps: TvApiDeps): Route[] {
     },
 
     // ------------------------------------------------------------ downloads
+    {
+      method: 'GET',
+      path: '/api/v1/release-searches/:id/subtitles',
+      auth: 'device',
+      handler: async (ctx): Promise<TvSubtitleChoices> => {
+        const id = ctx.params['id']!;
+        const releaseId = ctx.query.get('releaseId') ?? '';
+        if (deps.releases.ownerOf(id) !== owner(ctx)) throw new AppError('NOT_FOUND');
+        const info = deps.releases.downloadInfo(id, releaseId);
+        if (!info) throw new AppError('NOT_FOUND');
+        const key = choicesKey(ctx, id, releaseId);
+        const cached = subtitleChoices.get(key);
+        if (cached) return cached;
+        const settings = deps.settings.get();
+        const languages = [
+          settings.subtitleLang,
+          ...(settings.subtitleFallbackLang ? [settings.subtitleFallbackLang] : []),
+        ];
+        const providers =
+          deps.subtitleProviders?.available().filter((p) => p === 'opensubtitles' || languages.includes('pl')) ?? [];
+        const result: TvSubtitleChoices = {
+          candidates: [],
+          providers,
+          language: settings.subtitleLang,
+          errorCode: null,
+        };
+        const target = info.target;
+        try {
+          result.candidates = rankSubtitles(
+            (await deps.subtitleProviders?.search({
+              languages,
+              query: target.originalTitle,
+              ...(target.kind === 'movie'
+                ? { tmdbId: target.tmdbId }
+                : { parentTmdbId: target.tmdbId, season: target.season, episode: target.episode }),
+            })) ?? [],
+            info.release.name,
+          ).slice(0, 60);
+        } catch (error) {
+          result.errorCode = error instanceof AppError ? error.code : 'SUBS_UNAVAILABLE';
+        }
+        if (!result.errorCode) subtitleChoices.set(key, result);
+        while (subtitleChoices.size > 100) subtitleChoices.delete(subtitleChoices.keys().next().value!);
+        return result;
+      },
+    },
     { method: 'GET', path: '/api/v1/downloads', auth: 'device', handler: listDownloads },
     {
       method: 'POST',
@@ -256,15 +330,26 @@ export function tvRoutes(deps: TvApiDeps): Route[] {
         if (deps.releases.ownerOf(input.sessionId) !== owner(ctx)) throw new AppError('NOT_FOUND');
         const s = deps.settings.get();
         const subtitles = input.subtitles && deps.subtitleAccountReady();
+        const choice =
+          input.subtitleFileId === undefined
+            ? undefined
+            : subtitleChoices
+                .get(choicesKey(ctx, input.sessionId, input.releaseId))
+                ?.candidates.find((c) => c.fileId === input.subtitleFileId);
+        if (input.subtitleFileId !== undefined && (!subtitles || !choice)) throw new AppError('BAD_REQUEST');
+        if (input.subtitleProvider && !deps.subtitleProviders?.available().includes(input.subtitleProvider))
+          throw new AppError('BAD_REQUEST');
         const job = await requireDownloads().create(
           { sessionId: input.sessionId, releaseId: input.releaseId },
           {
             // The folder is always chosen on the PC (default download folder); a TV never sends paths.
-            subtitleLang: subtitles ? s.subtitleLang : null,
+            subtitleLang: subtitles ? languageCodeSchema.parse(choice?.language ?? s.subtitleLang) : null,
             subtitleFallbackLang: subtitles ? s.subtitleFallbackLang : null,
             seedRatioLimit: null,
             seedTimeLimitMin: null,
             renameOnConflict: true,
+            ...(choice ? { subtitleChoice: choice } : {}),
+            ...(subtitles && input.subtitleProvider ? { subtitleProvider: input.subtitleProvider } : {}),
           },
         );
         return toTvDownload(job, undefined, deps.media);

@@ -17,6 +17,8 @@ export interface SettingsDraft {
   theme: AppSettings['theme'];
   betaUpdates: boolean;
   opensubtitlesUsername: string;
+  subtitleProviders: AppSettings['subtitleProviders'];
+  napisy24Username: string;
   secrets: Record<UserSecretName, string>;
 }
 
@@ -38,7 +40,9 @@ export function toDraft(s: AppSettings): SettingsDraft {
     theme: s.theme,
     betaUpdates: s.betaUpdates,
     opensubtitlesUsername: s.opensubtitlesUsername,
-    secrets: { 'tmdb.token': '', 'opensubtitles.apiKey': '', 'opensubtitles.password': '' },
+    subtitleProviders: s.subtitleProviders,
+    napisy24Username: s.napisy24Username,
+    secrets: { 'tmdb.token': '', 'opensubtitles.apiKey': '', 'opensubtitles.password': '', 'napisy24.password': '' },
   };
 }
 
@@ -93,6 +97,8 @@ export function fromDraft(d: SettingsDraft): { patch: SettingsPatch; errors: Dra
     theme: d.theme,
     betaUpdates: d.betaUpdates,
     opensubtitlesUsername: d.opensubtitlesUsername.trim(),
+    subtitleProviders: d.subtitleProviders,
+    napisy24Username: d.napisy24Username.trim(),
   };
   if (typeof maxActiveDownloads === 'number') patch.maxActiveDownloads = maxActiveDownloads;
   if (typeof downloadLimitKBps === 'number') patch.downloadLimitKBps = downloadLimitKBps;

@@ -1,5 +1,8 @@
 import type { CatalogItem, SeasonDetails, TitleDetails } from '@shared/contracts/catalog';
 import type { ReleaseSession } from '@shared/contracts/releases';
+import type { CatalogCollection } from '@shared/contracts/catalog';
+import type { TvSubtitleChoices } from '@shared/contracts/tv';
+import type { SubtitleProvider } from '@shared/contracts/subtitles';
 import type { DeviceProfile } from '@shared/domain/playback';
 import type {
   PairingCreated,
@@ -111,6 +114,15 @@ export class Api {
 
   session = () => this.call<TvSession>('GET', `/api/v1/session?clientVersion=${encodeURIComponent(__TV_VERSION__)}`);
   trending = (type: 'movie' | 'tv') => this.call<CatalogItem[]>('GET', `/api/v1/catalog/trending?type=${type}`);
+  collection = (type: 'movie' | 'tv', collection: CatalogCollection) =>
+    this.call<CatalogItem[]>('GET', `/api/v1/catalog/collection?type=${type}&collection=${collection}`);
+  subtitleChoices = (sessionId: string, releaseId: string) =>
+    this.call<TvSubtitleChoices>(
+      'GET',
+      `/api/v1/release-searches/${encodeURIComponent(sessionId)}/subtitles?releaseId=${encodeURIComponent(releaseId)}`,
+      undefined,
+      30_000,
+    );
   search = (q: string) => this.call<CatalogItem[]>('GET', `/api/v1/catalog/search?q=${encodeURIComponent(q)}`);
   details = (type: 'movie' | 'tv', id: number) => this.call<TitleDetails>('GET', `/api/v1/catalog/${type}/${id}`);
   season = (id: number, n: number) => this.call<SeasonDetails>('GET', `/api/v1/catalog/tv/${id}/seasons/${n}`);
@@ -119,8 +131,12 @@ export class Api {
   releaseSession = (id: string) => this.call<ReleaseSession>('GET', `/api/v1/release-searches/${id}`);
   cancelReleaseSearch = (id: string) => this.call<void>('DELETE', `/api/v1/release-searches/${id}`);
   downloads = () => this.call<TvDownload[]>('GET', '/api/v1/downloads');
-  createDownload = (sessionId: string, releaseId: string, subtitles: boolean) =>
-    this.call<TvDownload>('POST', '/api/v1/downloads', { sessionId, releaseId, subtitles });
+  createDownload = (
+    sessionId: string,
+    releaseId: string,
+    subtitles: boolean,
+    choice?: { subtitleFileId?: number; subtitleProvider?: SubtitleProvider },
+  ) => this.call<TvDownload>('POST', '/api/v1/downloads', { sessionId, releaseId, subtitles, ...choice });
   downloadAction = (id: string, action: 'pause' | 'resume') =>
     this.call<TvDownload>('POST', `/api/v1/downloads/${id}/actions`, { action });
   removeDownload = (id: string) => this.call<void>('DELETE', `/api/v1/downloads/${id}`);

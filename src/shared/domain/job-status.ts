@@ -31,7 +31,7 @@ export type JobStatusKind =
 
 export interface DerivedJobStatus {
   kind: JobStatusKind;
-  /** BR02: every selected file verified and every subtitle ready or disabled. */
+  /** Every selected video is complete; subtitles never block the movie. */
   ready: boolean;
   /** Seeding is shown next to the status, not instead of it. */
   seeding: boolean;
@@ -54,7 +54,7 @@ export interface FileInput {
 
 const ATTENTION: readonly SubtitleState[] = ['not_found', 'quota_exceeded', 'error', 'needs_selection'];
 
-/** Status shown in the UI (BR02, BR03): readiness requires the files and the subtitles. */
+/** Subtitle work is reported independently of the completed download. */
 export function deriveJobStatus(
   job: JobStatusInput,
   files: FileInput[],
@@ -94,7 +94,6 @@ export function deriveJobStatus(
   }
   const subs = job.subtitleLang === null ? [] : subtitles.filter((s) => s.state !== 'disabled');
   if (subs.every((s) => s.state === 'ready')) return { kind: 'ready', ready: true, ...base };
-  if (subs.some((s) => ATTENTION.includes(s.state)))
-    return { kind: 'ready_subtitles_attention', ready: false, ...base };
-  return { kind: 'subtitles_in_progress', ready: false, ...base };
+  if (subs.some((s) => ATTENTION.includes(s.state))) return { kind: 'ready_subtitles_attention', ready: true, ...base };
+  return { kind: 'subtitles_in_progress', ready: true, ...base };
 }

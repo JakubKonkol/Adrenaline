@@ -19,6 +19,7 @@ import { registerTvHandlers } from './ipc/tv-handlers';
 import { TvDevicesRepository } from './tv/devices';
 import { TvService } from './tv/tv-service';
 import { resolveFfmpeg } from './media/ffmpeg-path';
+import { probeFile } from './media/probe';
 import { createMediaService } from './media/media-service';
 import { DeployService } from './tv/deploy/deploy-service';
 import { detectToolchain } from './tv/deploy/toolchain';
@@ -27,6 +28,8 @@ import { DownloadService } from './services/download-service';
 import { SubtitleService } from './services/subtitle-service';
 import { SubtitlesRepository } from './persistence/repositories/subtitles';
 import { OpenSubtitlesClient } from './providers/opensubtitles/opensubtitles-client';
+import { HashSubtitlesClient } from './providers/hash-subtitles';
+import { SubtitleProviders } from './services/subtitle-providers';
 import { JackettManager } from './jackett/jackett-manager';
 import { SourcesRepository } from './persistence/repositories/sources';
 import { TorznabClient } from './providers/torznab/torznab-client';
@@ -243,10 +246,36 @@ if (!app.requestSingleInstanceLock()) {
     // TV server (1.0): stopped first on quit so no TV can start anything while the rest shuts down.
     let tvService: TvService | null = null;
     lifecycle.addStep('tv', () => tvService?.stop(), 2_000);
+    const ffmpeg = resolveFfmpeg({
+      env: process.env,
+      isPackaged: app.isPackaged,
+      resourcesPath: process.resourcesPath,
+      appRoot: app.getAppPath(),
+    });
+    const subtitleProviders = new SubtitleProviders({
+      open: subtitlesClient,
+      hash: new HashSubtitlesClient({
+        username: () => settings.get().napisy24Username,
+        password: () => secrets.get('napisy24.password'),
+      }),
+      available: () =>
+        settings.get().subtitleProviders.filter((provider) => {
+          if (provider === 'napiprojekt') return true;
+          if (provider === 'napisy24')
+            return !!settings.get().napisy24Username.trim() && secrets.has('napisy24.password');
+          return (
+            !!settings.get().opensubtitlesUsername.trim() &&
+            secrets.has('opensubtitles.apiKey') &&
+            secrets.has('opensubtitles.password')
+          );
+        }),
+    });
     const subtitles = new SubtitleService({
       jobs,
       tasks: subtitleTasks,
-      client: subtitlesClient,
+      client: subtitleProviders,
+      frameRate: async (video, size) =>
+        ffmpeg ? ((await probeFile(ffmpeg.ffprobe, video, size)).video?.frameRate ?? null) : null,
       changed: (id) => downloadService?.emitJob(id),
     });
     ipc.handle('subtitles:retry', ({ jobId, taskId }) => subtitles.retry(jobId, taskId));
@@ -308,12 +337,6 @@ if (!app.requestSingleInstanceLock()) {
       },
     });
     registerLibraryHandlers(ipc, library);
-    const ffmpeg = resolveFfmpeg({
-      env: process.env,
-      isPackaged: app.isPackaged,
-      resourcesPath: process.resourcesPath,
-      appRoot: app.getAppPath(),
-    });
     if (!ffmpeg) log.warn('ffmpeg not found: TVs get direct play only');
     const playback = createMediaService({ userData, db, library, settings, tools: ffmpeg, log: log.child('media') });
     const tv = new TvService({
@@ -327,9 +350,15 @@ if (!app.requestSingleInstanceLock()) {
       media,
       settings,
       subtitleAccountReady: () =>
-        settings.get().opensubtitlesUsername.trim() !== '' &&
-        secrets.get('opensubtitles.apiKey') !== null &&
-        secrets.get('opensubtitles.password') !== null,
+        subtitleProviders
+          .available()
+          .some(
+            (p) =>
+              p === 'opensubtitles' ||
+              settings.get().subtitleLang === 'pl' ||
+              settings.get().subtitleFallbackLang === 'pl',
+          ),
+      subtitleProviders,
       log: log.child('tv'),
       onPairingRequest: (name, code) => {
         if (!Notification.isSupported()) return;

@@ -282,6 +282,42 @@ describe('DownloadService restart without resume data', () => {
 });
 
 describe('DownloadService event order', () => {
+  it('persists 100% when verified completion arrives before the final progress tick, and repairs old completed jobs', async () => {
+    const first = await setup({ rate: 1 });
+    const job = await first.add(release(8));
+    await until(() => first.svc.get(job.id).state === 'downloading');
+    const files = first.svc.get(job.id).files.filter((f) => f.selected);
+    const repo = new JobsRepository(first.db);
+    repo.saveProgress(
+      job.id,
+      files[0]!.size - 1,
+      files.map((f) => ({ index: f.index, doneBytes: f.size - 1 })),
+    );
+    first.engine.emit('event', { v: 1, seq: 999, event: 'state', data: { jobId: job.id, state: 'downloaded' } });
+    await until(() => first.svc.get(job.id).state === 'completed');
+    expect(
+      first.svc
+        .get(job.id)
+        .files.filter((f) => f.selected)
+        .every((f) => f.doneBytes === f.size),
+    ).toBe(true);
+    await first.engine.stop();
+    // A 1.0 database can already contain a completed job with the penultimate progress sample.
+    repo.saveProgress(
+      job.id,
+      files[0]!.size - 1,
+      files.map((f) => ({ index: f.index, doneBytes: f.size - 1 })),
+    );
+    const second = await setup({}, { db: first.db, base: first.base, fake: first.fake });
+    await until(() =>
+      second.svc
+        .get(job.id)
+        .files.filter((f) => f.selected)
+        .every((f) => f.doneBytes === f.size),
+    );
+    expect(first.fake.storedJob(job.id)).toBeUndefined();
+  });
+
   it('the last emitted job state carries the chosen files', async () => {
     const { svc, add, changes } = await setup({ rate: 1 });
     const job = await add(release(7));

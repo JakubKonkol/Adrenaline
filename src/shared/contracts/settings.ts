@@ -23,6 +23,8 @@ export const appSettingsSchema = z.object({
   onboardingDone: z.boolean(),
   theme: z.enum(['system', 'dark', 'light']),
   opensubtitlesUsername: z.string().max(200),
+  subtitleProviders: z.array(z.enum(['opensubtitles', 'napiprojekt', 'napisy24'])).max(3),
+  napisy24Username: z.string().max(200),
   /** 1.0 (D-82): LAN server for the TV apps; off by default. */
   tvServerEnabled: z.boolean(),
   tvServerPort: z.number().int().min(1024).max(65535),
@@ -60,6 +62,8 @@ export const STATIC_DEFAULTS: Omit<AppSettings, 'downloadDir' | 'listenPort'> = 
   onboardingDone: false,
   theme: 'system',
   opensubtitlesUsername: '',
+  subtitleProviders: ['opensubtitles', 'napiprojekt', 'napisy24'],
+  napisy24Username: '',
   tvServerEnabled: false,
   tvServerPort: 18790,
   tvServerAddress: '',
@@ -73,7 +77,12 @@ export const STATIC_DEFAULTS: Omit<AppSettings, 'downloadDir' | 'listenPort'> = 
 };
 
 /** Secrets the user can set from the renderer (write-only; the renderer only learns whether they exist). */
-export const USER_SECRET_NAMES = ['tmdb.token', 'opensubtitles.apiKey', 'opensubtitles.password'] as const;
+export const USER_SECRET_NAMES = [
+  'tmdb.token',
+  'opensubtitles.apiKey',
+  'opensubtitles.password',
+  'napisy24.password',
+] as const;
 export const userSecretNameSchema = z.enum(USER_SECRET_NAMES);
 export type UserSecretName = z.infer<typeof userSecretNameSchema>;
 

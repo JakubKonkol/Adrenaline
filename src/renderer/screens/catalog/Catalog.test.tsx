@@ -92,7 +92,12 @@ beforeEach(() => {
   secrets.mockResolvedValue(
     success({
       encryptionAvailable: true,
-      set: { 'tmdb.token': true, 'opensubtitles.apiKey': false, 'opensubtitles.password': false },
+      set: {
+        'tmdb.token': true,
+        'opensubtitles.apiKey': false,
+        'opensubtitles.password': false,
+        'napisy24.password': false,
+      },
     }),
   );
   search.mockResolvedValue(success([movie, { ...movie, tmdbId: 19185, year: 1990, posterPath: '/fixture1990.jpg' }]));
@@ -160,7 +165,12 @@ describe('catalog screens', () => {
     secrets.mockResolvedValue(
       success({
         encryptionAvailable: true,
-        set: { 'tmdb.token': false, 'opensubtitles.apiKey': false, 'opensubtitles.password': false },
+        set: {
+          'tmdb.token': false,
+          'opensubtitles.apiKey': false,
+          'opensubtitles.password': false,
+          'napisy24.password': false,
+        },
       }),
     );
     mount('/?q=Night');

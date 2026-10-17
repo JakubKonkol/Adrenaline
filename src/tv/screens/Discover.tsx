@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { CatalogItem } from '@shared/contracts/catalog';
+import type { CatalogCollection } from '@shared/contracts/catalog';
 import { image } from '../api';
 import { useDebounced, useQuery } from '../data';
 import { errorText, t } from '../i18n';
@@ -88,6 +89,33 @@ function Hero({ item }: { item: CatalogItem }) {
   );
 }
 
+function CollectionRow({ type, collection }: { type: 'movie' | 'tv'; collection: CatalogCollection }) {
+  const { api } = useSession();
+  const id = `collection:${type}:${collection}`;
+  const result = useQuery(id, () => api.collection(type, collection));
+  if (result.loading) return <Spinner label={t(`discover.collections.${collection}`)} />;
+  if (result.error)
+    return (
+      <Message
+        title={t(`discover.collections.${collection}`)}
+        body={errorText(result.error.code)}
+        action={t('app.retry')}
+        onAction={result.reload}
+      />
+    );
+  if (!result.data?.length) return null;
+  return (
+    <Row
+      title={`${t(`discover.collections.${collection}`)} · ${t(type === 'movie' ? 'details.movie' : 'details.tv')}`}
+      id={id}
+    >
+      {result.data.map((item) => (
+        <PosterCard key={item.tmdbId} item={item} group={id} />
+      ))}
+    </Row>
+  );
+}
+
 export function Discover() {
   const { api } = useSession();
   const [query, setQuery] = useState('');
@@ -153,6 +181,14 @@ export function Discover() {
               ))}
             </Row>
           ) : null}
+          <CollectionRow type="movie" collection="now_playing" />
+          <CollectionRow type="movie" collection="top_rated" />
+          <CollectionRow type="tv" collection="top_rated" />
+          <CollectionRow type="tv" collection="on_the_air" />
+          <CollectionRow type="movie" collection="action" />
+          <CollectionRow type="movie" collection="comedy" />
+          <CollectionRow type="movie" collection="scifi" />
+          <CollectionRow type="movie" collection="upcoming" />
         </>
       )}
     </div>

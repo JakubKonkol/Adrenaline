@@ -918,11 +918,47 @@ img {
 }
 
 .modal {
+  max-height: 90vh;
+  overflow-y: auto;
   width: 56rem;
   padding: 3rem;
   border-radius: var(--radius-large);
   background: #1a1d23;
   box-shadow: 0 2rem 5rem rgba(0, 0, 0, 0.6);
+}
+
+.release-filters {
+  margin: 0 4rem 2rem;
+}
+.release-filters .actions {
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+.subtitle-choices {
+  max-height: 31vh;
+  overflow-y: auto;
+  margin: 1.5rem 0;
+  padding: 0.5rem;
+}
+.subtitle-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.2rem;
+  margin: 0.4rem 0;
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.05);
+  overflow-wrap: break-word;
+}
+.subtitle-choice .badge {
+  align-self: flex-start;
+}
+.subtitle-choice small {
+  color: var(--text-dim);
+}
+.subtitle-actions {
+  flex-wrap: wrap;
+  margin: 1rem 0;
 }
 
 .modal-title {

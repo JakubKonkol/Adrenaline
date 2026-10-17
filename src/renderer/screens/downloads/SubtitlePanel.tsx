@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import type { DownloadJob, SubtitleTaskDto } from '@shared/contracts/downloads';
 import { languageCodeSchema } from '@shared/contracts/settings';
+import { SUBTITLE_PROVIDERS } from '@shared/contracts/subtitles';
 import { LANGUAGE_CODES, languageName } from '@shared/domain/languages';
 import { isAppErrorCode } from '@shared/errors';
 import { api, ApiError, unwrap } from '../../api/bridge';
@@ -139,7 +140,8 @@ function Task({ job, task }: { job: DownloadJob; task: SubtitleTaskDto }) {
               <li key={c.fileId}>
                 <span className="mono">{c.release || c.fileName}</span>
                 <span>
-                  {t(`subtitles.confidence.${c.confidence}`)} · {languageName(c.language)} ·{' '}
+                  {SUBTITLE_PROVIDERS[c.provider ?? 'opensubtitles']} · {t(`subtitles.confidence.${c.confidence}`)} ·{' '}
+                  {languageName(c.language)} ·{' '}
                   {t('subtitles.popularity', { downloads: c.downloadCount, rating: c.ratings })}
                 </span>
                 <span>
@@ -154,6 +156,11 @@ function Task({ job, task }: { job: DownloadJob; task: SubtitleTaskDto }) {
                 <Button disabled={busy || quota} onClick={() => choose.mutate(c.fileId)}>
                   {t('subtitles.choose')}
                 </Button>
+                {c.provider === 'napisy24' && /^napisy24:[1-9]\d*$/.test(c.id) ? (
+                  <a href={`https://napisy24.pl/komentarze?napisId=${c.id.slice(9)}`} target="_blank" rel="noreferrer">
+                    {t('subtitles.comment')}
+                  </a>
+                ) : null}
               </li>
             ))}
           </ul>

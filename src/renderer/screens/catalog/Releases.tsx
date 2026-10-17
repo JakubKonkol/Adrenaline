@@ -2,7 +2,8 @@ import { AlertTriangle, ArrowLeft, CheckCircle2, CircleDashed, Download, Refresh
 import { type KeyboardEvent, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import type { Release, SessionSource } from '@shared/contracts/releases';
-import { compareReleases, type ReleaseSort } from '@shared/domain/match';
+import { type ReleaseSort } from '@shared/domain/match';
+import { filterReleases, RESOLUTION_FILTERS, type ResolutionFilter } from '@shared/domain/release-list';
 import { searchTargetSchema } from '@shared/domain/search-target';
 import { ApiError } from '../../api/bridge';
 import { useReleaseSearch } from '../../api/releases';
@@ -13,15 +14,6 @@ import { ErrorNotice, errorText } from '../../ui/ErrorNotice';
 import { Select } from '../../ui/Form';
 import { Card, Page } from '../../ui/Page';
 import styles from './Releases.module.css';
-
-type ResolutionFilter = 'all' | '2160p' | '1080p' | '720p' | 'other';
-const RESOLUTION_FILTERS: ResolutionFilter[] = ['all', '2160p', '1080p', '720p', 'other'];
-
-function matchesFilter(r: Release, f: ResolutionFilter): boolean {
-  if (f === 'all') return true;
-  if (f === 'other') return !['2160p', '1080p', '720p'].includes(r.parsed.resolution ?? '');
-  return r.parsed.resolution === f;
-}
 
 function SourceIcon({ s }: { s: SessionSource }) {
   if (s.state === 'pending') return <CircleDashed size={13} aria-hidden className={styles.spin} />;
@@ -50,10 +42,7 @@ export function Releases() {
   const [sort, setSort] = useState<ReleaseSort>('match');
 
   const releases = useMemo(() => {
-    const list = (session?.releases ?? []).filter((r) => matchesFilter(r, filter));
-    return [...list].sort((a, b) =>
-      compareReleases({ ...a, seeders: a.seeders?.value ?? null }, { ...b, seeders: b.seeders?.value ?? null }, sort),
-    );
+    return filterReleases(session?.releases ?? [], filter, sort);
   }, [session, filter, sort]);
 
   const back = target ? `/title/${target.kind === 'movie' ? 'movie' : 'tv'}/${target.tmdbId}` : '/';

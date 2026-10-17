@@ -1,13 +1,19 @@
 /** English UI dictionary (D-22, D-77). Every UI string goes through `t()`. `{name}` marks a parameter. */
 export const en = {
   subtitles: {
+    napiHint: 'Polish subtitles matched to the video file. No account or token needed.',
+    n24Username: 'Napisy24 API user agent',
+    n24Password: 'Napisy24 API password',
+    n24Hint:
+      'Use the API access issued by Napisy24 for your application. Polish subtitles are matched after the video finishes downloading.',
+    comment: 'Comment on Napisy24',
     title: 'Subtitles',
     hint: 'Subtitles are searched for once the video file is complete. You can retry them without touching the movie.',
     language: 'Subtitle language',
     fallback: 'If nothing is found',
     noFallback: 'No fallback language',
     change: 'Change language',
-    attribution: 'Subtitles are provided by OpenSubtitles.com.',
+    attribution: 'Subtitle providers: OpenSubtitles.com, NapiProjekt and Napisy24.pl.',
     retry: 'Search again',
     choose: 'Download these subtitles',
     candidates: 'Available subtitles ({count})',
@@ -26,7 +32,8 @@ export const en = {
     skipping: 'Skipping…',
     get: 'Get subtitles',
     getting: 'Starting…',
-    noAccount: 'No OpenSubtitles account is set up yet, so subtitles cannot be downloaded.',
+    noAccount:
+      'No enabled subtitle provider is available for the selected languages. Configure a provider in Settings.',
     noAccountAction: 'Add an account in Settings',
     confidence: { high: 'Matches the file', medium: 'Matches the release', low: 'Check the match' },
     state: {

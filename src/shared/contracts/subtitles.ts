@@ -1,6 +1,10 @@
 import { z } from 'zod';
 
+export const subtitleProviderSchema = z.enum(['opensubtitles', 'napiprojekt', 'napisy24']);
+export type SubtitleProvider = z.infer<typeof subtitleProviderSchema>;
+export { SUBTITLE_PROVIDERS } from '../domain/subtitle-providers';
 export const subtitleCandidateSchema = z.object({
+  provider: subtitleProviderSchema.optional(),
   id: z.string(),
   fileId: z.number().int().positive(),
   fileName: z.string().nullable(),

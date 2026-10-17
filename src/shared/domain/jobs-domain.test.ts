@@ -86,7 +86,7 @@ describe('deriveJobStatus (BR02, BR03)', () => {
     for (const state of ['not_found', 'quota_exceeded', 'error', 'needs_selection'] as const) {
       expect(deriveJobStatus({ state: 'seeding', pauseReason: null }, done, [{ state }])).toMatchObject({
         kind: 'ready_subtitles_attention',
-        ready: false,
+        ready: true,
         filesComplete: true,
       });
     }

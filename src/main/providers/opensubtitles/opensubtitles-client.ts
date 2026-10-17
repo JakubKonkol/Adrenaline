@@ -2,10 +2,12 @@ import { z } from 'zod';
 import { AppError } from '@shared/errors';
 import { readBodyLimited } from '../http';
 
-import type { SubtitleCandidate } from '@shared/contracts/subtitles';
+import type { SubtitleCandidate, SubtitleProvider } from '@shared/contracts/subtitles';
 export type { SubtitleCandidate } from '@shared/contracts/subtitles';
 
 export interface SubtitleQuery {
+  provider?: SubtitleProvider;
+  videoPath?: string;
   tmdbId?: number;
   parentTmdbId?: number;
   season?: number;
@@ -300,6 +302,7 @@ export class OpenSubtitlesClient {
     return data.data.flatMap((d) => {
       const a = d.attributes;
       return a.files.map((file) => ({
+        provider: 'opensubtitles' as const,
         id: d.id,
         fileId: file.file_id,
         fileName: file.file_name ?? null,

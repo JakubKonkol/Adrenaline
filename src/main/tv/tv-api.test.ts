@@ -2,7 +2,11 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { TvSubtitleChoices } from '@shared/contracts/tv';
+import type { SubtitleCandidate } from '@shared/contracts/subtitles';
+import { HashSubtitlesClient } from '../providers/hash-subtitles';
+import { SubtitleProviders } from '../services/subtitle-providers';
 import movieFixture from '../../../tests/fixtures/tmdb/movie.json';
 import searchFixture from '../../../tests/fixtures/tmdb/search-movie.json';
 import { FakeJackett } from '../../../tests/helpers/fake-jackett';
@@ -43,7 +47,7 @@ afterEach(async () => {
   for (const c of cleanups.splice(0).reverse()) await c();
 });
 
-async function setup() {
+async function setup(withSubtitles = false) {
   const base = mkdtempSync(join(tmpdir(), 'adr-tv-'));
   cleanups.push(() => rmSync(base, { recursive: true, force: true }));
   const db: Database = openDatabase(':memory:', { log: nullLogger });
@@ -53,7 +57,12 @@ async function setup() {
 
   const tmdbFetch: typeof fetch = (input) => {
     const url = new URL(input instanceof Request ? input.url : input.toString());
-    const body = url.pathname.includes('/trending/') ? searchFixture : movieFixture;
+    const body =
+      url.pathname.includes('/trending/') ||
+      /\/(top_rated|now_playing|upcoming)$/.test(url.pathname) ||
+      url.pathname.includes('/discover/')
+        ? searchFixture
+        : movieFixture;
     return Promise.resolve(new Response(JSON.stringify(body)));
   };
   const tmdb = new TmdbClient({ token: () => 'token', fetch: tmdbFetch });
@@ -110,6 +119,28 @@ async function setup() {
     tools: null,
     log: nullLogger,
   });
+  const subtitleSearch = vi.fn().mockResolvedValue([
+    {
+      provider: 'opensubtitles',
+      id: 'os:1',
+      fileId: 42,
+      fileName: `${NAME}.srt`,
+      language: 'pl',
+      release: NAME,
+      hearingImpaired: false,
+      foreignPartsOnly: false,
+      moviehashMatch: false,
+      downloadCount: 1,
+      ratings: 1,
+      fromTrusted: true,
+      machineTranslated: false,
+    } satisfies SubtitleCandidate,
+  ]);
+  const subtitleProviders = new SubtitleProviders({
+    open: { search: subtitleSearch, downloadLink: vi.fn(), fetchFile: vi.fn() },
+    hash: new HashSubtitlesClient(),
+    available: () => (withSubtitles ? ['opensubtitles', 'napiprojekt'] : []),
+  });
   const tv = new TvService({
     playback,
     version: '1.0.0-test',
@@ -120,12 +151,13 @@ async function setup() {
     library,
     media,
     settings,
-    subtitleAccountReady: () => false,
+    subtitleAccountReady: () => withSubtitles,
+    subtitleProviders,
     log: nullLogger,
     addresses: () => [{ address: '127.0.0.1', interfaceName: 'lo', private: true }],
   });
   cleanups.push(() => tv.stop());
-  settings.update({ tvServerEnabled: true, tvServerPort: port });
+  settings.update({ tvServerEnabled: true, tvServerPort: port, subtitleLang: withSubtitles ? 'pl' : 'en' });
   await tv.apply();
   expect(tv.status()).toMatchObject({ state: 'running', url: `http://127.0.0.1:${port}` });
 
@@ -169,7 +201,7 @@ async function setup() {
     }
     throw new Error('timeout');
   };
-  return { tv, call, pair, until, url, downloads, settings };
+  return { tv, call, pair, until, url, downloads, settings, jobs, subtitleSearch };
 }
 
 /** `fetch` always sends the real Host; DNS rebinding sends another name. */
@@ -300,6 +332,50 @@ describe('TV API v1 on loopback (B7)', () => {
     expect((await call('POST', '/api/v1/pairings', { body: { deviceName: '<script>', platform: 'web' } })).status).toBe(
       400,
     );
+  });
+
+  it('offers curated collections and binds subtitle file choices to the paired TV and release before persisting them', async () => {
+    const { call, pair, until, jobs, subtitleSearch } = await setup(true);
+    const token = await pair('TV');
+    const other = await pair('Other');
+    const collection = await call<unknown[]>('GET', '/api/v1/catalog/collection?type=movie&collection=top_rated', {
+      token,
+    });
+    expect(collection.status).toBe(200);
+    expect(collection.body.length).toBeGreaterThan(0);
+    expect((await call('GET', '/api/v1/catalog/collection?type=tv&collection=upcoming', { token })).status).toBe(400);
+    expect((await call('GET', '/api/v1/catalog/collection?type=movie&collection=invalid', { token })).status).toBe(400);
+    const search = await call<{ sessionId: string }>('POST', '/api/v1/release-searches', {
+      token,
+      body: { type: 'movie', tmdbId: 10331 },
+    });
+    const session = await until(
+      () => call<ReleaseSession>('GET', `/api/v1/release-searches/${search.body.sessionId}`, { token }),
+      (r) => r.body.done,
+    );
+    const releaseId = session.body.releases[0]!.id;
+    const url = `/api/v1/release-searches/${search.body.sessionId}/subtitles?releaseId=${encodeURIComponent(releaseId)}`;
+    expect((await call('GET', url, { token: other })).status).toBe(404);
+    const choices = await call<TvSubtitleChoices>('GET', url, { token });
+    expect(choices.status).toBe(200);
+    expect(choices.body).toMatchObject({
+      providers: ['opensubtitles', 'napiprojekt'],
+      language: 'pl',
+      candidates: [{ fileId: 42 }],
+    });
+    expect(JSON.stringify(choices.body)).not.toMatch(/saveDir|magnet|Videos/);
+    await call('GET', url, { token });
+    expect(subtitleSearch).toHaveBeenCalledOnce();
+    const body = { sessionId: search.body.sessionId, releaseId, subtitles: true, subtitleFileId: 42 };
+    expect((await call('POST', '/api/v1/downloads', { token: other, body })).status).toBe(404);
+    expect((await call('POST', '/api/v1/downloads', { token, body: { ...body, subtitleFileId: 999 } })).status).toBe(
+      400,
+    );
+    expect((await call('POST', '/api/v1/downloads', { token, body: { ...body, subtitles: false } })).status).toBe(400);
+    const created = await call<TvDownload>('POST', '/api/v1/downloads', { token, body });
+    expect(created.status).toBe(200);
+    expect(jobs.get(created.body.id)?.release.subtitleChoice).toMatchObject({ fileId: 42, language: 'pl' });
+    expect(jobs.get(created.body.id)?.subtitleLang).toBe('pl');
   });
 
   it('stops listening when turned off', async () => {

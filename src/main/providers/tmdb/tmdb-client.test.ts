@@ -31,6 +31,26 @@ function setup(responses: Response[], token = 'test-read-access-token', language
 afterEach(() => vi.useRealTimers());
 
 describe('TMDB contract (synthetic fixtures)', () => {
+  it('loads curated movie and TV collections, uses the right genre IDs and rejects invalid list/type combinations', async () => {
+    const { client, fetch } = setup([json(movies), json(series), json(movies), json(series)]);
+    await client.collection('movie', 'now_playing');
+    await client.collection('tv', 'top_rated');
+    await client.collection('movie', 'action');
+    await client.collection('tv', 'scifi');
+    const urls = fetch.mock.calls.map((call) => new URL(requestUrl(call[0])));
+    expect(urls.map((url) => url.pathname)).toEqual([
+      '/3/movie/now_playing',
+      '/3/tv/top_rated',
+      '/3/discover/movie',
+      '/3/discover/tv',
+    ]);
+    expect(urls[2]!.searchParams.get('with_genres')).toBe('28');
+    expect(urls[3]!.searchParams.get('with_genres')).toBe('10765');
+    expect(urls[2]!.searchParams.get('include_adult')).toBe('false');
+    await expect(client.collection('tv', 'upcoming')).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    await expect(client.collection('movie', 'on_the_air')).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    expect(fetch).toHaveBeenCalledTimes(4);
+  });
   it('distinguishes 1968/1990, maps movies and authenticates with Bearer in English', async () => {
     const { client, fetch } = setup([json(movies)]);
     const result = await client.search('Night of the Living Dead', 'movie');

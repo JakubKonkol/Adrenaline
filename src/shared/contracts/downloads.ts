@@ -3,7 +3,7 @@ import { JOB_STATES, PAUSE_REASONS } from '../domain/job-state';
 import { SUBTITLE_STATES } from '../domain/job-status';
 import { searchTargetSchema } from '../domain/search-target';
 import { languageCodeSchema } from './settings';
-import { rankedSubtitleSchema } from './subtitles';
+import { rankedSubtitleSchema, subtitleProviderSchema } from './subtitles';
 
 export const jobFileSchema = z.object({
   index: z.number().int().nonnegative(),
@@ -75,6 +75,8 @@ export const downloadOptionsSchema = z
     saveDir: z.string().min(1).max(400).optional(),
     subtitleLang: languageCodeSchema.nullable(),
     subtitleFallbackLang: languageCodeSchema.nullable(),
+    subtitleChoice: rankedSubtitleSchema.optional(),
+    subtitleProvider: subtitleProviderSchema.optional(),
     seedRatioLimit: z.number().min(0).max(100).nullable(),
     seedTimeLimitMin: z.number().int().min(0).max(525_600).nullable(),
     /** Use "<folder> (2)" when the job folder exists (BR07). */

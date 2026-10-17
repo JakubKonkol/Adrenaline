@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { CatalogCollection } from '@shared/contracts/catalog';
 import type { CatalogItem, MediaType, SeasonDetails, TitleDetails } from '@shared/contracts/catalog';
 import { AppError } from '@shared/errors';
 import {
@@ -159,6 +160,27 @@ export class TmdbClient {
     return type === 'movie'
       ? (await this.request('trending/movie/week', movieSearchSchema)).results.map(movie)
       : (await this.request('trending/tv/week', tvSearchSchema)).results.map(tv);
+  }
+
+  async collection(type: MediaType, collection: CatalogCollection): Promise<CatalogItem[]> {
+    const genres = {
+      action: type === 'movie' ? '28' : '10759',
+      comedy: '35',
+      scifi: type === 'movie' ? '878' : '10765',
+    };
+    const genre = genres[collection as keyof typeof genres];
+    if (
+      (collection === 'on_the_air' && type !== 'tv') ||
+      (['now_playing', 'upcoming'].includes(collection) && type !== 'movie')
+    )
+      throw new AppError('BAD_REQUEST');
+    const path = genre ? `discover/${type}` : `${type}/${collection}`;
+    const params: Record<string, string> = genre
+      ? { with_genres: genre, include_adult: 'false', sort_by: 'popularity.desc' }
+      : {};
+    return type === 'movie'
+      ? (await this.request(path, movieSearchSchema, params)).results.map(movie)
+      : (await this.request(path, tvSearchSchema, params)).results.map(tv);
   }
 
   async details(type: MediaType, id: number): Promise<TitleDetails> {
