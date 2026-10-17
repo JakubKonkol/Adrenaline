@@ -36,7 +36,8 @@ writeFileSync(join(target, 'index.html'), html);
 
 const config = readFileSync(join(root, 'tv', 'tizen', 'config.xml'), 'utf8')
   .replace('__VERSION__', widgetVersion)
-  .replace('__CSP__', csp.replace(/&/g, '&amp;'));
+  // AVPlay is a native <object> without a data URL. It needs the widget's own origin allowed.
+  .replace('__CSP__', csp.replace("object-src 'none'", "object-src 'self' file:").replace(/&/g, '&amp;'));
 writeFileSync(join(target, 'config.xml'), config);
 cpSync(join(root, 'tv', 'assets', 'icon-512.png'), join(target, 'icon.png'));
 console.log(`Tizen widget content ${widgetVersion} ready in resources/tv/tizen/web`);

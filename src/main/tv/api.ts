@@ -21,8 +21,10 @@ import {
   tvSelectionSchema,
 } from '@shared/contracts/tv';
 import { deriveJobStatus } from '@shared/domain/job-status';
+import type { MediaProbe, PlaybackPlan } from '@shared/domain/playback';
 import { AppError } from '@shared/errors';
 import { stat as statFile } from 'node:fs/promises';
+import { HLS_FILE, PLAYLIST } from '../media/ffmpeg-args';
 import type { MediaService } from '../media/media-service';
 import type { MediaRepository } from '../persistence/repositories/media';
 import type { CatalogService } from '../services/catalog-service';
@@ -40,7 +42,9 @@ export interface PlaybackApi {
   start: MediaService['start'];
   embeddedVtt: MediaService['embeddedVtt'];
   stopDevice: (deviceId: string) => void;
-  /** Path of an HLS file of the device's session for this item (waits until FFmpeg wrote it). */
+  /** VOD playlist of the device's session for this item. */
+  hlsPlaylist: (sessionId: string, deviceId: string, itemId: string) => string;
+  /** Path of an HLS segment of the device's session for this item (waits until FFmpeg wrote it). */
   hlsFile: (sessionId: string, deviceId: string, itemId: string, name: string) => Promise<string>;
 }
 
@@ -345,6 +349,7 @@ export function tvRoutes(deps: TvApiDeps): Route[] {
             kind: 'external',
             url: `${base}/subtitles/${encodeURIComponent(x.lang)}.vtt`,
             burnedIn: false,
+            lang: x.lang,
           }));
         const embedded: TvSubtitleTrack[] = (probe?.subtitles ?? []).map((x) => ({
           id: `e:${x.index}`,
@@ -359,15 +364,11 @@ export function tvRoutes(deps: TvApiDeps): Route[] {
           kind: x.image ? 'embedded-image' : 'embedded-text',
           url: x.image ? null : `${base}/subtitles/e${x.index}.vtt`,
           burnedIn: plan.subtitles.delivery === 'burn-in' && plan.subtitles.index === x.index,
+          lang: x.language,
         }));
         const audioTracks = (probe?.audio ?? []).map((a) => ({
           index: a.index,
-          label: [
-            a.language?.toUpperCase(),
-            a.title,
-            audioLabel(a.codec, a.profile),
-            a.channels === 6 ? '5.1' : a.channels === 8 ? '7.1' : a.channels === 2 ? 'stereo' : `${a.channels}ch`,
-          ]
+          label: [a.language?.toUpperCase(), a.title, audioLabel(a.codec, a.profile), channels(a.channels)]
             .filter(Boolean)
             .join(' · '),
           selected: a.index === plan.audio.index,
@@ -381,12 +382,13 @@ export function tvRoutes(deps: TvApiDeps): Route[] {
           mode: plan.mode,
           streamUrl: session ? `${base}/hls/${session.id}/index.m3u8` : `${base}/video`,
           mimeType: session ? 'application/vnd.apple.mpegurl' : mime,
-          offsetMs: session ? session.startMs : 0,
           durationMs: probe?.durationMs ?? null,
           resumeMs: p && !watched && p.positionMs > 5_000 ? p.positionMs : null,
           audioTracks,
           subtitleTracks: [...external, ...embedded],
           reasons: plan.reasons,
+          source: describeSource(probe),
+          output: describeOutput(plan),
         };
       },
     },
@@ -427,7 +429,14 @@ export function tvRoutes(deps: TvApiDeps): Route[] {
       handler: async (ctx) => {
         const ticket = requireTicket(ctx);
         const name = ctx.params['file'] ?? '';
-        if (!/^(index\.m3u8|init\.mp4|seg\d{5}\.m4s)$/.test(name)) throw new AppError('BAD_REQUEST');
+        if (!HLS_FILE.test(name)) throw new AppError('BAD_REQUEST');
+        if (name === PLAYLIST) {
+          const body = deps.playback.hlsPlaylist(ctx.params['session']!, ticket.deviceId, ticket.itemId);
+          ctx.res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+          ctx.res.setHeader('Cache-Control', 'no-store');
+          ctx.res.end(ctx.req.method === 'HEAD' ? undefined : body);
+          return HANDLED;
+        }
         const path = await deps.playback.hlsFile(ctx.params['session']!, ticket.deviceId, ticket.itemId, name);
         const stat = await statFile(path);
         deps.trackStream(ticket.deviceId, ctx.res);
@@ -435,7 +444,7 @@ export function tvRoutes(deps: TvApiDeps): Route[] {
           path,
           size: stat.size,
           mtimeMs: stat.mtimeMs,
-          mime: name.endsWith('.m3u8') ? 'application/vnd.apple.mpegurl' : 'video/mp4',
+          mime: 'video/mp2t',
         });
         return HANDLED;
       },
@@ -467,6 +476,57 @@ export function tvRoutes(deps: TvApiDeps): Route[] {
   ];
 }
 
+const VIDEO_NAMES: Record<string, string> = {
+  h264: 'H.264',
+  hevc: 'HEVC',
+  av1: 'AV1',
+  vp9: 'VP9',
+  mpeg2video: 'MPEG-2',
+  mpeg4: 'MPEG-4',
+  vc1: 'VC-1',
+};
+const HDR_NAMES: Record<string, string> = { hdr10: 'HDR10', hdr10plus: 'HDR10+', hlg: 'HLG', sdr: 'SDR' };
+
+function channels(n: number | null): string {
+  return n === 6 ? '5.1' : n === 8 ? '7.1' : n === 2 ? 'stereo' : n ? `${n}ch` : '';
+}
+
+/** The file for the playback info panel: container, video, dynamic range. */
+function describeSource(probe: MediaProbe | null): string {
+  if (!probe) return 'unknown (not analysed)';
+  const v = probe.video;
+  return [
+    probe.container.toUpperCase(),
+    v ? [VIDEO_NAMES[v.codec] ?? v.codec.toUpperCase(), v.profile].filter(Boolean).join(' ') : null,
+    v ? `${v.width}×${v.height}${v.frameRate ? ` ${Math.round(v.frameRate * 100) / 100} fps` : ''}` : null,
+    v ? (v.dolbyVision ? `Dolby Vision ${v.dolbyVision.profile}` : (HDR_NAMES[v.hdr] ?? v.hdr)) : null,
+    probe.bitrate ? `${Math.round(probe.bitrate / 100_000) / 10} Mb/s` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+/** What the TV receives, for the playback info panel. */
+function describeOutput(plan: PlaybackPlan): string {
+  if (plan.delivery === 'file') return 'original file (direct play)';
+  const v = plan.video;
+  const a = plan.audio;
+  return [
+    'HLS (MPEG-TS)',
+    v.action === 'copy'
+      ? 'video copied'
+      : `video → ${VIDEO_NAMES[v.codec] ?? v.codec} ${v.width ?? ''}×${v.height ?? ''} (${v.encoder ?? ''}${v.toneMap !== 'none' ? ', tone mapped' : ''})`,
+    a.action === 'none'
+      ? null
+      : a.action === 'copy'
+        ? 'audio copied'
+        : `audio → ${audioLabel(a.codec, null)} ${channels(a.channels)}`,
+    plan.subtitles.delivery === 'burn-in' ? 'subtitles burned in' : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
 /** Codec name as people know it (TrueHD Atmos, DTS-HD MA, E-AC3 Atmos…). */
 function audioLabel(codec: string, profile: string | null): string {
   if (profile && /atmos|DTS-HD|DTS:X/i.test(profile)) return profile.replace('Dolby Digital Plus', 'E-AC3');
@@ -479,6 +539,10 @@ function audioLabel(codec: string, profile: string | null): string {
     flac: 'FLAC',
     opus: 'Opus',
     mp3: 'MP3',
+    mp2: 'MP2',
+    vorbis: 'Vorbis',
+    pcm_s16le: 'PCM',
+    pcm_s24le: 'PCM',
   };
   return names[codec] ?? codec.toUpperCase();
 }

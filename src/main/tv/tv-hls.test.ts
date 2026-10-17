@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -106,12 +106,17 @@ async function setup() {
     media,
     removeJob: () => Promise.resolve(),
   });
-  // FFmpeg stand-in: writes the HLS files into its working folder, then runs until killed.
+  // FFmpeg stand-in: finishes two segments from its start number (listed like the segment muxer), runs until killed.
   const killed: string[] = [];
-  const spawn = (_args: string[], cwd: string): ProcessHandle => {
-    writeFileSync(join(cwd, 'init.mp4'), 'init');
-    writeFileSync(join(cwd, 'seg00000.m4s'), 'segment-0');
-    writeFileSync(join(cwd, 'index.m3u8'), '#EXTM3U\n#EXT-X-MAP:URI="init.mp4"\n#EXTINF:6,\nseg00000.m4s\n');
+  const starts: number[] = [];
+  const spawn = (args: string[], cwd: string): ProcessHandle => {
+    const from = Number(args[args.indexOf('-segment_start_number') + 1]);
+    starts.push(from);
+    for (const n of [from, from + 1]) {
+      const name = `seg${String(n).padStart(5, '0')}.ts`;
+      writeFileSync(join(cwd, name), `segment-${n}`);
+      appendFileSync(join(cwd, 'ffmpeg.csv'), `${name},${n * 6},${n * 6 + 6}\n`);
+    }
     let exit: ((code: number | null) => void) | null = null;
     return {
       pid: 1,
@@ -186,30 +191,42 @@ async function setup() {
         body: JSON.stringify({ profile: PROFILE, startMs }),
       })
     ).json()) as TvPlayback;
-  return { tv, url, pair, play, transcoder, killed };
+  return { tv, url, pair, play, transcoder, killed, starts };
 }
 
 describe('HLS delivery (D-85)', () => {
   it('serves playlist and segments only with the ticket of the TV that started the session', async () => {
-    const { tv, pair, play, transcoder, killed } = await setup();
+    const { tv, pair, play, transcoder, killed, starts } = await setup();
     const a = await pair('Living room');
     const b = await pair('Bedroom');
     const pa = await play(a.token);
     expect(pa).toMatchObject({
       mode: 'remux',
       mimeType: 'application/vnd.apple.mpegurl',
-      offsetMs: 0,
       durationMs: 600_000,
     });
     expect(pa.streamUrl).toMatch(/\/media\/[\w-]+\/hls\/[0-9a-f]{24}\/index\.m3u8$/);
     const playlist = await fetch(pa.streamUrl);
     expect(playlist.status).toBe(200);
     expect(playlist.headers.get('content-type')).toBe('application/vnd.apple.mpegurl');
-    expect(await playlist.text()).toContain('seg00000.m4s');
-    const segment = pa.streamUrl.replace('index.m3u8', 'seg00000.m4s');
-    expect(await (await fetch(segment)).text()).toBe('segment-0');
+    // One VOD playlist for the whole film (10 minutes = 100 segments of 6 s), as Jellyfin.
+    const text = await playlist.text();
+    expect(text).toContain('#EXT-X-PLAYLIST-TYPE:VOD');
+    expect(text).toContain('seg00099.ts');
+    expect(text).not.toContain('seg00100.ts');
+    expect(text.trimEnd().endsWith('#EXT-X-ENDLIST')).toBe(true);
+    const segment = pa.streamUrl.replace('index.m3u8', 'seg00000.ts');
+    const segmentResponse = await fetch(segment);
+    expect(segmentResponse.headers.get('content-type')).toBe('video/mp2t');
+    expect(await segmentResponse.text()).toBe('segment-0');
+    // A seek far ahead: FFmpeg starts again at that segment; the next one comes from the same run.
+    expect(await (await fetch(pa.streamUrl.replace('index.m3u8', 'seg00050.ts'))).text()).toBe('segment-50');
+    expect(await (await fetch(pa.streamUrl.replace('index.m3u8', 'seg00051.ts'))).text()).toBe('segment-51');
+    expect(starts).toEqual([0, 50]);
+    // Beyond the end of the film or another format: not found.
+    expect((await fetch(pa.streamUrl.replace('index.m3u8', 'seg00100.ts'))).status).toBe(404);
     // Names outside the allowlist and traversal never reach the disk.
-    for (const bad of ['..%2F..%2Fsecret', 'seg1.m4s', 'index.m3u8.bak'])
+    for (const bad of ['..%2F..%2Fsecret', 'seg1.ts', 'seg00001.m4s', 'init.mp4', 'seg00000.tsx', 'index.m3u8.bak'])
       expect((await fetch(pa.streamUrl.replace('index.m3u8', bad))).status).toBe(400);
 
     // Another TV's ticket cannot read this session.
@@ -218,13 +235,13 @@ describe('HLS delivery (D-85)', () => {
     const crossed = pb.streamUrl.replace(/hls\/[0-9a-f]{24}\//, `hls/${sessionA}/`);
     expect((await fetch(crossed)).status).toBe(404);
 
-    // A seek starts a new session from that position and stops the old one.
-    const seek = await play(a.token, 120_000);
-    expect(seek.offsetMs).toBe(120_000);
+    // A new playback (e.g. another audio track from 2:02.5) replaces the session; FFmpeg starts at that segment.
+    const seek = await play(a.token, 122_500);
+    expect(starts.at(-1)).toBe(20);
     expect(seek.streamUrl).not.toBe(pa.streamUrl);
     expect(transcoder.list().filter((s) => s.deviceId === a.deviceId)).toHaveLength(1);
     expect((await fetch(segment)).status).toBe(404); // the old session is gone
-    expect(killed.length).toBe(1);
+    expect(killed.length).toBe(2); // the run from 0 (seek) and the run from 50 (new playback)
 
     // Revoke: the TV's conversion stops and its URLs die.
     tv.revoke(a.deviceId);

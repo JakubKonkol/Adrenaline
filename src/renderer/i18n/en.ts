@@ -277,7 +277,10 @@ export const en = {
       android: {
         devMode:
           'On the TV: Settings → Device Preferences → About → press “Build” 7 times, then turn on Developer options → Network (or Wireless) debugging.',
-        needAdb: 'Android platform-tools (adb) are needed.',
+        automaticHint:
+          'Enter the TV IP below. Adrenaline downloads the official Android tools (adb) on first install, so nothing else has to be installed on this PC.',
+        advanced: 'Advanced: use your own adb',
+        ownAdb: 'Optional: an installed Android SDK is used when found.',
         port: 'Debugging port',
         portHint: '5555 for network debugging; for wireless debugging use the port shown on the TV.',
         pairingTitle: 'Android 11+ “wireless debugging” with a pairing code',
@@ -290,11 +293,15 @@ export const en = {
         devMode:
           'On the TV: open Apps, press 1-2-3-4-5 on the remote, turn on Developer mode and enter the IP address of this PC, then restart the TV.',
         needStudio: 'Samsung Tizen Studio (with the TV extensions and Certificate Manager) is needed.',
+        automatic: 'Automatic (recommended)',
+        automaticHint:
+          'Enter the TV IP below. Adrenaline downloads the official Samsung tools on first install and signs the app automatically. Keep this PC allowed in the TV Developer Mode settings.',
+        advanced: 'Advanced: use your own Samsung certificate',
         certificate:
           'Create a Samsung certificate profile for this TV in Certificate Manager (it needs the DUID of the TV, shown here after the first connection).',
         duid: 'DUID of this TV:',
         profile: 'Certificate profile',
-        profileHint: 'Profiles from the Certificate Manager of Tizen Studio.',
+        profileHint: 'Use Automatic first. A custom profile is only needed if the TV rejects the developer signature.',
         noProfiles: 'No profile found',
       },
       step: {

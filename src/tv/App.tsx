@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { TvSession } from '@shared/contracts/tv';
 import { Api, ApiError } from './api';
 import { clearCache } from './data';
@@ -15,21 +15,30 @@ import { Player } from './screens/Player';
 import { Releases } from './screens/Releases';
 import { Settings } from './screens/Settings';
 import { SessionContext, type SessionContextValue } from './session';
-import { clearConnection, type Connection, loadConnection, saveConnection } from './storage';
+import { clearConnection, type Connection, loadConnection, loadValue, saveConnection, saveValue } from './storage';
 import { Button, Message, Spinner } from './ui';
 
 type Phase =
   | { kind: 'loading' }
-  | { kind: 'connect'; initialServer: string | null; reason: 'revoked' | null }
+  | { kind: 'connect'; initialServer: string | null; reason: 'revoked' | null; auto?: boolean }
   | { kind: 'offline'; connection: Connection }
   | { kind: 'ready'; api: Api; session: TvSession };
 
+/** The install marker the app has already seen (storage.ts). */
+const INSTALL_KEY = 'adrenaline.install.v1';
+
 export function App() {
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' });
+  const freshInstall = useRef(false);
 
   /** Checks the saved token with the PC (async state updates only). */
   const check = useCallback((connection: Connection) => {
-    const api = new Api(connection.server, connection.token);
+    // A token revoked while the app runs (polling, playback) brings the pairing screen back at once.
+    const api = new Api(connection.server, connection.token, () => {
+      clearConnection();
+      clearCache();
+      setPhase({ kind: 'connect', initialServer: connection.server, reason: 'revoked' });
+    });
     api.session().then(
       (session) => {
         saveConnection({ ...connection, serverName: session.server.serverName });
@@ -39,7 +48,12 @@ export function App() {
         const code = error instanceof ApiError ? error.code : 'NETWORK';
         if (code === 'TV_UNAUTHORIZED') {
           clearConnection();
-          setPhase({ kind: 'connect', initialServer: connection.server, reason: 'revoked' });
+          setPhase({
+            kind: 'connect',
+            initialServer: connection.server,
+            reason: freshInstall.current ? null : 'revoked',
+            auto: freshInstall.current,
+          });
         } else {
           setPhase({ kind: 'offline', connection });
         }
@@ -56,12 +70,15 @@ export function App() {
   );
 
   useEffect(() => {
-    const saved = loadConnection();
-    if (saved) check(saved);
-    else
-      void platform
-        .initialServer()
-        .then((server) => setPhase({ kind: 'connect', initialServer: server, reason: null }));
+    void Promise.all([platform.initialServer(), platform.installMarker()]).then(([server, install]) => {
+      // Just installed from the PC: its address is current, and pairing starts by itself if needed.
+      const fresh = !!install && install !== loadValue(INSTALL_KEY);
+      if (fresh) saveValue(INSTALL_KEY, install);
+      freshInstall.current = fresh;
+      const saved = loadConnection();
+      if (saved) check(fresh && server ? { ...saved, server } : saved);
+      else setPhase({ kind: 'connect', initialServer: server, reason: null, auto: !!server });
+    });
   }, [check]);
 
   const disconnect = useCallback((reason?: 'revoked') => {
@@ -79,7 +96,7 @@ export function App() {
 
   if (phase.kind === 'loading') return <Spinner />;
   if (phase.kind === 'connect')
-    return <Connect initialServer={phase.initialServer} reason={phase.reason} onConnected={open} />;
+    return <Connect initialServer={phase.initialServer} reason={phase.reason} auto={!!phase.auto} onConnected={open} />;
   if (phase.kind === 'offline')
     return (
       <div className="screen center" data-page="">
@@ -162,7 +179,7 @@ function Screens() {
       ) : route.name === 'show' ? (
         <Show tmdbId={route.tmdbId} title={route.title} />
       ) : route.name === 'player' ? (
-        <Player itemId={route.itemId} />
+        <Player key={route.itemId} itemId={route.itemId} />
       ) : (
         <Settings />
       )}

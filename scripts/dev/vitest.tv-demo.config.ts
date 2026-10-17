@@ -6,7 +6,11 @@ export default defineConfig({
   resolve: { alias: { '@shared': resolve(import.meta.dirname, '../../src/shared') } },
   test: {
     root: resolve(import.meta.dirname, '../..'),
-    include: ['scripts/dev/tv-demo.test.ts', 'scripts/dev/tv-deploy.test.ts'],
+    include: [
+      'scripts/dev/tv-demo.test.ts',
+      'scripts/dev/tv-deploy.test.ts',
+      'scripts/dev/tizen-deploy.test.ts',
+    ],
     environment: 'node',
     testTimeout: 24 * 60 * 60_000,
   },

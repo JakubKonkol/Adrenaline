@@ -5,10 +5,10 @@
  *   npx vitest run -c scripts/dev/vitest.tv-demo.config.ts     # keeps running (Ctrl+C to stop)
  *   npm run dev:tv                                              # then open http://localhost:5174/?server=127.0.0.1:18790
  *
- * Optional: ffmpeg in PATH makes the library films real, playable 20-second clips.
+ * Optional: ffmpeg in PATH makes the library a playable test matrix of formats (clips cached in TV_DEMO_CLIPS).
  */
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, renameSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { it } from 'vitest';
@@ -31,6 +31,7 @@ import { SettingsService } from '../../src/main/services/settings-service';
 import type { SourcesService } from '../../src/main/services/sources-service';
 import { TvDevicesRepository } from '../../src/main/tv/devices';
 import { TvService } from '../../src/main/tv/tv-service';
+import { DeployService } from '../../src/main/tv/deploy/deploy-service';
 import { listAddresses } from '../../src/main/tv/network';
 import { resolveFfmpeg } from '../../src/main/media/ffmpeg-path';
 import { createMediaService } from '../../src/main/media/media-service';
@@ -216,8 +217,209 @@ it('serves the TV demo', async () => {
   await engine.start();
   const library = new LibraryService({ jobs, subtitles, media, removeJob: (id, del) => downloads.remove(id, del) });
 
-  // Library: two films and three episodes, finished (real clips when ffmpeg is available).
-  const finished = async (target: JobRow['target'], n: number, kind: 'mp4' | 'hdr' = 'mp4') => {
+  // Library: a test matrix of formats (D-85), real clips made once with ffmpeg from PATH and kept in TV_DEMO_CLIPS.
+  // Every frame shows its film time and every subtitle cue says when it should appear, so seeking and subtitle sync
+  // can be checked by eye on the TV.
+  const clipsDir = process.env['TV_DEMO_CLIPS'] ?? join(tmpdir(), 'adr-tv-demo-clips-v2');
+  mkdirSync(clipsDir, { recursive: true });
+  const cues = (seconds: number, lang: string) =>
+    Array.from({ length: Math.floor(seconds / 10) }, (_, i) => {
+      const t = (i + 1) * 10;
+      const at = (x: number) =>
+        `00:${String(Math.floor(x / 60)).padStart(2, '0')}:${String(x % 60).padStart(2, '0')},000`;
+      return `${i + 1}\n${at(t)} --> ${at(t + 4)}\n[${lang}] cue at ${at(t).slice(3, 8)} — zażółć gęślą jaźń\n`;
+    }).join('\n');
+  const video = (size: string, seconds: number, rate = 25) =>
+    `testsrc2=size=${size}:rate=${rate}:duration=${seconds},drawtext=text='%{pts\\:hms}':fontsize=96:fontcolor=white:box=1:boxcolor=black@0.6:x=80:y=80`;
+  const tone = (seconds: number) => `sine=frequency=330:duration=${seconds}`;
+  interface Clip {
+    target: JobRow['target'];
+    ext: string;
+    seconds: number;
+    /** ffmpeg arguments after the lavfi inputs [0] video, [1] audio and [2] an SRT file. */
+    args: string[];
+    embedSubtitles?: boolean;
+  }
+  const movie = (i: number) => ({ kind: 'movie' as const, tmdbId: 1000 + i, title: '', originalTitle: '', year: null });
+  const ep = (show: number, e: number) => ({
+    kind: 'episode' as const,
+    tmdbId: 2000 + show,
+    title: '',
+    originalTitle: '',
+    year: null,
+    season: 1,
+    episode: e,
+  });
+  const hdr10 = ['-x265-params', 'hdr10=1:colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc:log-level=error'];
+  const clips: Record<string, Clip> = {
+    // Direct play everywhere.
+    'h264-aac.mp4': {
+      target: movie(1),
+      ext: 'mp4',
+      seconds: 90,
+      args: ['-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac'],
+    },
+    // 4K HEVC Main10 HDR10 + TrueHD 5.1 + embedded SRT: audio conversion, HLS (MPEG-TS on Samsung).
+    'hevc10-hdr10-truehd.mkv': {
+      target: movie(6),
+      ext: 'mkv',
+      seconds: 60,
+      args: [
+        '-c:v',
+        'libx265',
+        '-preset',
+        'ultrafast',
+        '-pix_fmt',
+        'yuv420p10le',
+        ...hdr10,
+        '-c:a',
+        'truehd',
+        '-strict',
+        '-2',
+        '-ac',
+        '6',
+      ],
+      embedSubtitles: true,
+    },
+    // H.264 + DTS 5.1 + embedded SRT: DTS is converted for Samsung.
+    'h264-dts.mkv': {
+      target: movie(0),
+      ext: 'mkv',
+      seconds: 90,
+      args: ['-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'dca', '-strict', '-2', '-ac', '6'],
+      embedSubtitles: true,
+    },
+    // XviD + MP3 in AVI: video encode.
+    'xvid-mp3.avi': {
+      target: movie(2),
+      ext: 'avi',
+      seconds: 90,
+      args: ['-c:v', 'libxvid', '-q:v', '4', '-c:a', 'libmp3lame'],
+    },
+    // H.264 High 10 + AC3 5.1: 10-bit H.264 is not decoded by TVs → video encode.
+    'h264-10bit-ac3.mkv': {
+      target: movie(3),
+      ext: 'mkv',
+      seconds: 90,
+      args: ['-c:v', 'libx264', '-pix_fmt', 'yuv420p10le', '-c:a', 'ac3', '-ac', '6'],
+    },
+    // VP9 + Opus in WebM: direct play.
+    'vp9-opus.webm': {
+      target: movie(4),
+      ext: 'webm',
+      seconds: 60,
+      args: ['-c:v', 'libvpx-vp9', '-deadline', 'realtime', '-cpu-used', '8', '-b:v', '3M', '-c:a', 'libopus'],
+    },
+    // AV1 10-bit + Opus in MKV: direct play on 4K Samsungs from 2021.
+    'av1-opus.mkv': {
+      target: movie(5),
+      ext: 'mkv',
+      seconds: 60,
+      args: ['-c:v', 'libsvtav1', '-preset', '12', '-pix_fmt', 'yuv420p10le', '-c:a', 'libopus'],
+    },
+    // HEVC 8-bit + FLAC 5.1: FLAC is converted on Samsung (audio delay in direct play).
+    'hevc-flac.mkv': {
+      target: movie(7),
+      ext: 'mkv',
+      seconds: 90,
+      args: [
+        '-c:v',
+        'libx265',
+        '-preset',
+        'ultrafast',
+        '-pix_fmt',
+        'yuv420p',
+        '-x265-params',
+        'log-level=error',
+        '-c:a',
+        'flac',
+        '-ac',
+        '6',
+      ],
+    },
+    // MPEG-2 + MP2 in MPEG-TS (DVB recording): direct play.
+    'mpeg2-mp2.ts': {
+      target: ep(0, 1),
+      ext: 'ts',
+      seconds: 90,
+      args: ['-c:v', 'mpeg2video', '-b:v', '8M', '-c:a', 'mp2'],
+    },
+    // H.264 + E-AC3 5.1 in MP4: direct play, Dolby passthrough.
+    'h264-eac3.mp4': {
+      target: ep(0, 2),
+      ext: 'mp4',
+      seconds: 90,
+      args: ['-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'eac3', '-ac', '6'],
+    },
+    // 4K HEVC Main10 HDR10 + E-AC3 in MP4: HDR direct play.
+    'hevc10-hdr10-eac3.mp4': {
+      target: ep(2, 1),
+      ext: 'mp4',
+      seconds: 60,
+      args: [
+        '-c:v',
+        'libx265',
+        '-preset',
+        'ultrafast',
+        '-pix_fmt',
+        'yuv420p10le',
+        ...hdr10,
+        '-tag:v',
+        'hvc1',
+        '-c:a',
+        'eac3',
+        '-ac',
+        '6',
+      ],
+    },
+    // H.264 + PCM in MOV: container remux and PCM conversion.
+    'h264-pcm.mov': {
+      target: ep(1, 1),
+      ext: 'mov',
+      seconds: 90,
+      args: ['-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'pcm_s16le'],
+    },
+  };
+  const clipFor = (name: string, clip: Clip): string | null => {
+    const out = join(clipsDir, name);
+    if (existsSync(out)) return out;
+    const size = clip.args.includes('yuv420p10le') && name.includes('hdr') ? '3840x2160' : '1920x1080';
+    const srt = join(clipsDir, `${name}.srt`);
+    writeFileSync(srt, cues(clip.seconds, 'embedded'));
+    try {
+      execFileSync('ffmpeg', [
+        ...[
+          '-v',
+          'error',
+          '-y',
+          '-f',
+          'lavfi',
+          '-i',
+          video(size, clip.seconds),
+          '-f',
+          'lavfi',
+          '-i',
+          tone(clip.seconds),
+        ],
+        ...(clip.embedSubtitles
+          ? ['-i', srt, '-map', '0', '-map', '1', '-map', '2', '-c:s', 'srt', '-metadata:s:s:0', 'language=pol']
+          : []),
+        ...clip.args,
+        ...['-shortest', `${out}.part.${clip.ext}`],
+      ]);
+      renameSync(`${out}.part.${clip.ext}`, out);
+      return out;
+    } catch (error) {
+      console.warn(`demo clip ${name} could not be made`, error);
+      return null;
+    }
+  };
+
+  let n = 0;
+  for (const [name, clip] of Object.entries(clips)) {
+    n++;
+    const source = clipFor(name, clip);
+    const target = clip.target;
     const title = await catalog.select(
       target.kind === 'movie'
         ? { type: 'movie', tmdbId: target.tmdbId }
@@ -225,40 +427,18 @@ it('serves the TV demo', async () => {
     );
     const dir = join(base, 'Videos', `demo${n}`);
     mkdirSync(dir, { recursive: true });
-    const file = join(dir, `${title.title.replace(/\W+/g, '.')}.${kind === 'hdr' ? 'mkv' : 'mp4'}`);
-    try {
-      execFileSync(
-        'ffmpeg',
-        kind === 'hdr'
-          ? [
-              // 4K HEVC Main10 HDR10 + TrueHD 5.1 in MKV: needs conversion on most TVs (D-85 demo).
-              ...['-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc2=size=3840x2160:rate=24:duration=30'],
-              ...['-f', 'lavfi', '-i', 'sine=frequency=300:duration=30', '-c:v', 'libx265', '-pix_fmt', 'yuv420p10le'],
-              '-x265-params',
-              'hdr10=1:colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc:log-level=error',
-              ...['-c:a', 'truehd', '-strict', '-2', '-ac', '6', file],
-            ]
-          : [
-              ...['-v', 'error', '-y', '-f', 'lavfi', '-i', `testsrc2=size=1280x720:rate=25:duration=20`],
-              ...['-f', 'lavfi', '-i', 'sine=frequency=440:duration=20'],
-              ...['-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', file],
-            ],
-      );
-    } catch {
-      writeFileSync(file, Buffer.alloc(1024));
-    }
-    const srt = file.replace(/\.(mp4|mkv)$/, '.en.srt');
-    writeFileSync(
-      srt,
-      '1\n00:00:01,000 --> 00:00:06,000\nThis is a demo subtitle.\n\n2\n00:00:07,000 --> 00:00:12,000\nZażółć gęślą jaźń — Polish letters work.\n',
-    );
+    const file = join(dir, `${title.title.replace(/\W+/g, '.')}.${name.replace(/\.\w+$/, '')}.${clip.ext}`);
+    if (source) copyFileSync(source, file);
+    else writeFileSync(file, Buffer.alloc(1024));
+    const srt = file.replace(/\.\w+$/, '.en.srt');
+    writeFileSync(srt, cues(clip.seconds, 'external'));
     const id = `demo-${n}`;
     jobs.insert({
       id,
       mediaItemId: null,
       episodeId: null,
       target: title,
-      release: { name: `Demo.Release.${n}`, sources: ['Demo'], size: 1, suggestedFiles: [] },
+      release: { name: `Demo.Release.${name}`, sources: ['Demo'], size: 1, suggestedFiles: [] },
       sourceKind: 'magnet',
       magnet: null,
       torrent: null,
@@ -283,23 +463,7 @@ it('serves the TV demo', async () => {
     jobs.replaceFiles(id, [{ index: 0, relPath: file.slice(dir.length + 1), size: 1, selected: true, doneBytes: 1 }]);
     const task = subtitles.ensure(id, 0, 'en');
     subtitles.update(task.id, { state: 'ready', targetPath: srt });
-  };
-  const movie = (i: number) => ({ kind: 'movie' as const, tmdbId: 1000 + i, title: '', originalTitle: '', year: null });
-  const ep = (show: number, e: number) => ({
-    kind: 'episode' as const,
-    tmdbId: 2000 + show,
-    title: '',
-    originalTitle: '',
-    year: null,
-    season: 1,
-    episode: e,
-  });
-  await finished(movie(1), 1);
-  await finished(movie(4), 2);
-  await finished(ep(0, 1), 3);
-  await finished(ep(0, 2), 4);
-  await finished(ep(2, 1), 5);
-  await finished(movie(6), 6, 'hdr');
+  }
   // Real sizes for the files (the rows above store 1 byte to keep the insert simple).
   for (const j of jobs.active()) {
     const f = jobs.files(j.id)[0]!;
@@ -334,10 +498,30 @@ it('serves the TV demo', async () => {
         : [{ address: '127.0.0.1', interfaceName: 'loopback', private: true }],
   });
   tv.pairing.on('changed', () => {
-    for (const p of tv.pairing.pending()) setTimeout(() => tv.approve(p.id), 1500);
+    for (const p of tv.pairing.pending()) {
+      if (process.env['TV_TIZEN_ADDRESS'] && p.address !== process.env['TV_TIZEN_ADDRESS']) continue;
+      setTimeout(() => tv.approve(p.id), 1500);
+    }
   });
   settings.update({ tvServerEnabled: true, tvServerPort: 18790 });
   await tv.apply();
   console.log(`TV demo ready: ${tv.status().url} (data in ${base})`);
+  // Explicit opt-in only: install on the named physical Samsung, using the real authenticated handshake.
+  // Keep the author in the desktop profile so a subsequent desktop installation can update this widget.
+  if (process.env['TV_TIZEN_ADDRESS']) {
+    if (!process.env['APPDATA']) throw new Error('APPDATA required to preserve the author identity');
+    const deploy = new DeployService({
+      tvDir: join(process.cwd(), 'resources/tv'),
+      workDir: join(process.env['APPDATA'], 'adrenaline/tv-deploy'),
+      toolchain: () => ({ adb: null, sdb: null, tizen: null, tizenStudio: null, profiles: [] }),
+      serverUrl: () => tv.status().url,
+      waitForTv: (address, since, signal) => tv.waitForTv(address, since, signal),
+      log,
+    });
+    deploy.on('state', (s) =>
+      console.log(`Samsung deploy: ${s.step} ${s.status} ${s.errorCode ?? ''} ${s.detail ?? ''}`),
+    );
+    deploy.start({ platform: 'tizen', address: process.env['TV_TIZEN_ADDRESS'], profile: '' });
+  }
   await new Promise(() => undefined);
 });

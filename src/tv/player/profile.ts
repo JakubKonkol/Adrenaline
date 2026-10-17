@@ -16,7 +16,8 @@ function safe<T>(fn: () => T): T | null {
 /**
  * Samsung Tizen. Panel and HDR come from webapis (productinfo/avinfo); codec support by platform year
  * (Tizen 4.0 = 2018, 5.0 = 2019, 5.5 = 2020, 6.0 = 2021, 6.5 = 2022, 7.0 = 2023, 8.0 = 2024). Samsung TVs have no
- * Dolby Vision and no TrueHD; DTS is left out until confirmed on hardware (P0, docs/manual-tests.md).
+ * Dolby Vision, no TrueHD and no DTS from Tizen 4 on. FLAC is converted (it plays with an audio delay on Tizen) and
+ * MPEG-2/VC-1/PCM/Vorbis play natively, as in Jellyfin's Tizen profile.
  */
 export function tizenProfile(): DeviceProfile {
   const w = window.webapis;
@@ -34,6 +35,10 @@ export function tizenProfile(): DeviceProfile {
     { codec: 'h264', maxWidth: Math.min(maxWidth, 3840), maxHeight: Math.min(maxHeight, 2160), tenBit: false },
     { codec: 'hevc', maxWidth, maxHeight, tenBit: true },
   ];
+  video.push(
+    { codec: 'mpeg2video', maxWidth: 1920, maxHeight: 1080, tenBit: false },
+    { codec: 'vc1', maxWidth: 1920, maxHeight: 1080, tenBit: false },
+  );
   if (version >= 4) video.push({ codec: 'vp9', maxWidth, maxHeight, tenBit: true });
   if (version >= 6 && uhd) video.push({ codec: 'av1', maxWidth, maxHeight, tenBit: true });
   return {
@@ -43,7 +48,7 @@ export function tizenProfile(): DeviceProfile {
     maxHeight,
     video,
     hdr: { hdr10: hdr, hdr10plus: hdr, hlg: hdr, dolbyVision: [] },
-    audioDecode: ['aac', 'ac3', 'eac3', 'mp3', 'flac', 'opus'],
+    audioDecode: ['aac', 'ac3', 'eac3', 'mp3', 'mp2', 'opus', 'vorbis', 'pcm_s16le', 'pcm_s24le'],
     // Dolby Digital Plus with Atmos goes to a soundbar/AVR over (e)ARC from the 2019 models on.
     audioPassthrough: version >= 5 ? ['ac3', 'eac3', 'eac3-joc'] : ['ac3', 'eac3'],
     maxAudioChannels: 6,

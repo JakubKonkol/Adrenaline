@@ -4,6 +4,58 @@ import { errorText, t } from './i18n';
 import { endsTextEntry, keyAction } from './keys';
 import { cueAt, parseVtt } from './player/vtt';
 import { normalizeServer } from './storage';
+import type { TvLibraryItem } from '@shared/contracts/tv';
+import { episodeLabel, nextEpisode } from './player/next';
+
+describe('next episode', () => {
+  const episode = (id: string, season: number, number: number, extra: Partial<TvLibraryItem> = {}): TvLibraryItem => ({
+    id,
+    kind: 'episode',
+    tmdbId: 2000,
+    title: 'Orbit Station',
+    year: 2022,
+    season,
+    episode: number,
+    episodeTitle: null,
+    posterPath: null,
+    fileName: `${id}.mkv`,
+    sizeBytes: 1,
+    completedAt: 1,
+    subtitles: [],
+    available: true,
+    resumeMs: null,
+    durationMs: null,
+    ...extra,
+  });
+
+  it('chooses the closest available later episode of the same show from an unordered library', () => {
+    const current = episode('current', 1, 1);
+    const next = episode('next', 1, 3);
+    const items = [
+      episode('later', 2, 1),
+      next,
+      episode('other', 1, 2, { tmdbId: 2001 }),
+      episode('missing', 1, 2, { available: false }),
+      episode('movie', 1, 2, { kind: 'movie' }),
+      current,
+    ];
+    const original = [...items];
+    expect(nextEpisode(items, current.id)).toBe(next);
+    expect(items).toEqual(original);
+    expect(nextEpisode(items, next.id)?.id).toBe('later');
+  });
+
+  it('returns no next episode for films, unknown items and the last available episode', () => {
+    const items = [episode('last', 2, 1), episode('film', 0, 0, { kind: 'movie' })];
+    for (const id of ['last', 'film', 'unknown']) expect(nextEpisode(items, id)).toBeNull();
+    expect(nextEpisode([], 'last')).toBeNull();
+  });
+
+  it('labels the episode with its season, number and optional title', () => {
+    expect(episodeLabel(episode('next', 2, 3))).toBe('S02E03');
+    expect(episodeLabel(episode('next', 2, 3, { episodeTitle: 'Drift' }))).toBe('S02E03 · Drift');
+  });
+});
 
 const box = (left: number, top: number, w = 100, h = 100) => ({
   left,

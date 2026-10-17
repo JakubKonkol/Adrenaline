@@ -6,8 +6,6 @@ export interface NativePlayRequest {
   url: string;
   title: string;
   mimeType: string;
-  /** The stream starts at this position of the film (HLS after a seek); positions reported back are absolute. */
-  offsetMs: number;
   durationMs: number | null;
   startMs: number;
   audioTracks: { index: number; label: string; selected: boolean }[];
@@ -15,8 +13,8 @@ export interface NativePlayRequest {
 }
 
 /**
- * Events from the Android player. `closed`: back to the app with the position. `restart`: the user sought outside
- * the converted part or chose another audio/burned-in subtitle track; the app asks the PC for a new stream.
+ * Events from the Android player. `closed`: back to the app with the position. `restart`: the user chose another
+ * audio track or burned-in subtitles of an HLS stream; the app asks the PC for a new stream from that position.
  */
 export type NativePlayerEvent =
   | { type: 'closed'; itemId: string; positionMs: number; durationMs: number | null; ended: boolean }
@@ -27,6 +25,8 @@ export interface Platform {
   deviceName(): string;
   /** PC address prepared by Deploy to TV (Tizen: server.json in the package; Android: intent extra). */
   initialServer(): Promise<string | null>;
+  /** Marker of the last installation from the PC (changes with every Deploy to TV), or null. */
+  installMarker(): Promise<string | null>;
   exit(): void;
   /** Android plays in a native Media3 activity; Tizen and the browser use the <video> element. */
   playNative: ((request: NativePlayRequest) => void) | null;
@@ -34,6 +34,15 @@ export interface Platform {
 
 /** Remote keys to receive on Tizen (the rest are handled by the system). */
 const TIZEN_KEYS = ['MediaPlayPause', 'MediaPlay', 'MediaPause', 'MediaStop', 'MediaFastForward', 'MediaRewind'];
+
+/** server.json written into the package by Deploy to TV. */
+let serverJsonCache: Promise<{ server?: unknown; install?: unknown }> | null = null;
+function serverJson() {
+  serverJsonCache ??= fetch('server.json')
+    .then((r) => r.json() as Promise<{ server?: unknown; install?: unknown }>)
+    .catch(() => ({}));
+  return serverJsonCache;
+}
 
 function tizenPlatform(tizen: TizenApi): Platform {
   for (const key of TIZEN_KEYS) {
@@ -54,13 +63,12 @@ function tizenPlatform(tizen: TizenApi): Platform {
       }
     },
     async initialServer() {
-      try {
-        const res = await fetch('server.json');
-        const body = (await res.json()) as { server?: unknown };
-        return typeof body.server === 'string' ? body.server : null;
-      } catch {
-        return null;
-      }
+      const body = await serverJson();
+      return typeof body.server === 'string' ? body.server : null;
+    },
+    async installMarker() {
+      const body = await serverJson();
+      return typeof body.install === 'string' ? body.install.slice(0, 40) : null;
     },
     exit() {
       tizen.application.getCurrentApplication().exit();
@@ -74,6 +82,7 @@ function androidPlatform(bridge: AdrenalineNativeBridge): Platform {
     name: 'android',
     deviceName: () => bridge.deviceName().slice(0, 60) || 'Android TV',
     initialServer: () => Promise.resolve(bridge.serverUrl() || null),
+    installMarker: () => Promise.resolve(bridge.installMarker?.() || null),
     exit: () => bridge.exit(),
     playNative: (request) => bridge.play(JSON.stringify(request)),
   };
@@ -84,6 +93,7 @@ function webPlatform(): Platform {
     name: 'web',
     deviceName: () => 'Browser',
     initialServer: () => Promise.resolve(new URLSearchParams(location.search).get('server')),
+    installMarker: () => Promise.resolve(null),
     exit: () => undefined,
     playNative: null,
   };

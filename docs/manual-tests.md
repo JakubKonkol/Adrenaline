@@ -81,7 +81,7 @@ Zakres i progi: [docs/1.0-adrenaline-tv/05-acceptance-and-risks.md](1.0-adrenali
 
 ### Android TV (fizyczny, Android 9+)
 
-6. Deploy: debugowanie sieciowe (5555) i bezprzewodowe z kodem parowania (Android 11+); monit „Allow debugging” → instalacja → start z adresem PC → kod parowania na TV = kod w zakładce → Approve → stan „Installed and connected”.
+6. Deploy na PC bez Android SDK: automatyczne pobranie adb (kolejna instalacja z cache), debugowanie sieciowe (5555) i bezprzewodowe z kodem parowania (Android 11+); monit „Allow debugging” → instalacja → automatyczny start i parowanie z PC → kod na TV = kod w zakładce → Approve → stan „Installed and connected”. Ubicie aplikacji tuż po parowaniu i ponowny start zachowuje połączenie.
 7. Ponowny Deploy tej samej wersji i nowszej: dane i parowanie zachowane. APK z innym podpisem → `DEPLOY_SIGNATURE_MISMATCH`, bez odinstalowania.
 8. Pilotem: Discover (hero, rzędy, wyszukiwarka z klawiaturą TV), szczegóły filmu i serialu (sezony/odcinki), wydania, „Download to PC” → pobranie widoczne na PC i w Library na TV; Back w każdym miejscu wraca do poprzedniej pozycji.
 9. Odtwarzanie (Media3): MP4 H.264 direct; MKV HEVC direct; napisy SRT obok pliku (polskie znaki); wybór ścieżki audio i napisów osadzonych (PGS w MKV direct play); wznowienie od zapisanej pozycji; Home w trakcie → pozycja zapisana.
@@ -90,10 +90,12 @@ Zakres i progi: [docs/1.0-adrenaline-tv/05-acceptance-and-risks.md](1.0-adrenali
 
 ### Samsung Tizen (fizyczny, najstarszy deklarowany rocznik i nowszy)
 
-12. Developer Mode z IP PC, Tizen Studio + Certificate Manager (profil z DUID z zakładki TV) → Deploy → instalacja WGT → uruchomienie (lub ręcznie z listy aplikacji) → parowanie.
+Odbiór 17.10.2026: QE65Q77BATXXH, Tizen 6.5, automatyczna instalacja i aktualizacja (nowy łańcuch odrzucony → pojedynczy fallback legacy SDK distributor), start i auto-parowanie. Wszystkie 12 syntetycznych formatów osiągają PLAYING: H.264/AAC MP4, VP9/Opus WebM, AV1/Opus MKV, MPEG-2/MP2 TS, H.264/E-AC3 MP4, HEVC HDR10/E-AC3 MP4; HLS MPEG-TS: Saltwind HEVC Main10 HDR10 + TrueHD→E-AC3, H.264+DTS, HEVC+FLAC, MOV+PCM; transkod wideo: XviD/MP3 AVI i H.264 10-bit. Seek +30 s i zgodność napisów z osią czasu sprawdzone; pauza 95 s nie zrywa HLS. Ubicie aplikacji 1,5 s po parowaniu zachowuje połączenie. Są to wyniki API/AVPlay; końcowa ocena obrazu i dźwięku przez widza oraz passthrough do AVR pozostają ręczne. Android TV 14: emulator — deploy, auto-parowanie, direct/HLS, seek i zgodność napisów; brak fizycznego Android TV do odbioru passthrough/DV.
+
+12. Samsung: zapisać dokładny model i firmware. Developer Mode z IP PC → Deploy, IP TV, Automatic, bez Tizen Studio → pierwsze pobranie narzędzi → instalacja WGT → uruchomienie i auto-parowanie bez pilota. Powtórzyć aktualizację z tym samym `author.json`, także bez dostępu PC do internetu (cache). Automatic potwierdzone na QE65Q77BATXXH. Przy odrzuceniu certyfikatu zapisać komunikat; osobno sprawdzić Advanced z profilem Samsung + DUID. Nie odinstalowywać aplikacji jako automatycznej naprawy.
 13. Ponowny Deploy po aktualizacji Adrenaline (ten sam profil): dane i parowanie zachowane. Inny profil autora → `DEPLOY_CERTIFICATE`.
 14. Pilotem jak w punkcie 8; klawisze mediów pilota (Play/Pause, FF/RW, Stop) w odtwarzaczu.
-15. AVPlay: MP4/MKV direct, HLS (remux MKV dla TV bez MKV — wymusić w profilu nie da się, więc sprawdzić plik z kontenerem AVI → konwersja), seek w obrębie i poza skonwertowaną częścią (nowa sesja od pozycji), zmiana ścieżki audio (direct: w pliku; HLS: nowa sesja), napisy WebVTT rysowane przez aplikację, standby TV w trakcie → powrót.
+15. AVPlay: MP4/MKV direct, HLS VOD MPEG-TS (np. DTS→E-AC3 i AVI→H.264), natywny seek w obrębie i poza skonwertowaną częścią (restart FFmpeg w tej samej sesji), zmiana ścieżki audio (direct: w pliku; HLS: nowa sesja), napisy WebVTT zgodne z pełnym czasem filmu, pauza >60 s → wznowienie; standby TV w trakcie → powrót.
 16. HDR10/HDR10+ na Samsungu HDR (direct), na modelu bez HDR → tone mapping; E-AC3 JOC przez eARC do soundbara (Atmos).
 
 ### Konwersja na PC (dowolny TV)
@@ -102,3 +104,10 @@ Zakres i progi: [docs/1.0-adrenaline-tv/05-acceptance-and-risks.md](1.0-adrenali
 18. Dwa TV jednocześnie: drugi transkod wideo → `TV_TRANSCODE_BUSY` na drugim TV, direct play działa równolegle.
 19. Stop/seek/revoke/Quit w trakcie konwersji: `ffmpeg.exe` znika w ≤ 2 s, katalog `%APPDATA%\adrenaline\transcode` pusty po Quit; limit miejsca (np. 5 GB) nie jest przekraczany przy długim remuxie 4K.
 20. PGS i ASS przy konwersji wideo: napisy wypalone, zsynchronizowane po seeku.
+
+### Odtwarzacz i następny odcinek
+
+21. Samsung: pasek czasu z podglądem pozycji, seek po OK / zakończeniu naciskania strzałek, −10/+30 s, pauza, „kończy się o”. Arkusze napisów/audio i ustawienia (rozmiar/tło/wysokość/synchronizacja ±0,25 s), fit/fill, informacje o źródle i strumieniu. Wyjść i wrócić: wygląd i język napisów zachowane. Ustawienia obejrzane w Chrome; ocena wyglądu na ekranie TV pozostaje ręczna.
+22. Orbit Station S01E01 → przycisk „Next episode” otwiera S01E02 bez powrotu do biblioteki. Ponownie S01E01 → koniec → „Up next”, odliczanie 10 s → S01E02. Sprawdzić „Play now”, Back (anulowanie), ostatni odcinek i film (bez odliczania). Biblioteka może być nieposortowana, brakujący plik lub inny serial nie może być wybrany. Powtórzyć po zakończeniu natywnego Media3 na Androidzie.
+
+Wynik 17.10.2026, build 1.0.0, QE65Q77BATXXH / Tizen 6.5: przycisk Next episode uruchamia S01E02 (AVPlay PLAYING). Rzeczywisty koniec S01E01 po przewinięciu do ostatnich 4 s pokazuje Up next z S01E02 i odliczaniem 10 s, po którym S01E02 odtwarza się automatycznie; jako ostatni dostępny odcinek nie ma przycisku Next episode. Wynik przez CDP/AVPlay, bez oceny obrazu/dźwięku przez widza. Anulowanie i Play now oraz zakończenie Media3 pozostają dodatkowymi odbiorami ręcznymi.

@@ -1,6 +1,6 @@
 # Odtwarzanie na TV: negocjacja w stylu Jellyfin (wymóg 1.0)
 
-Polecenie Jakuba z 16.10.2026, oznaczone jako **BARDZO WAŻNE**. Rozszerza P3 z [02-architecture-and-api.md](02-architecture-and-api.md) („Biblioteka i player”) i **zastępuje D-83** (1.0 tylko direct play) decyzją **D-85**. Bez tego 1.0 nie jest gotowe do wydania.
+Polecenie Jakuba z 16.10.2026, oznaczone jako **BARDZO WAŻNE**. Rozszerza P3 z [02-architecture-and-api.md](02-architecture-and-api.md) („Biblioteka i player”) i **zastępuje D-83** (1.0 tylko direct play) decyzją **D-85**, zaktualizowaną przez **D-87** po odbiorze Samsunga 17.10.2026. Aktualny transport to HLS VOD MPEG-TS na obu platformach.
 
 ## Wymagania (dosłownie z polecenia, uporządkowane)
 
@@ -8,7 +8,7 @@ Polecenie Jakuba z 16.10.2026, oznaczone jako **BARDZO WAŻNE**. Rozszerza P3 z 
 2. **ffprobe każdego pliku biblioteki**, wynik w cache `media_probe`: kontener, kodek i profil wideo, HDR10 / HDR10+ / Dolby Vision (profil 5/7/8), ścieżki audio (TrueHD/Atmos, E-AC3 JOC, DTS-HD), napisy (SRT/ASS/PGS).
 3. **Klient raportuje możliwości urządzenia**: Android przez `MediaCodecList` / `AudioCapabilities` (passthrough E-AC3/TrueHD/DTS, DV); Tizen przez `webapis.avinfo` i listę modeli. **PlaybackPlanner** wybiera najtańszy wariant:
    1. direct play,
-   2. remux do **HLS fMP4** (kopia HEVC/DV, bez strat),
+   2. remux do **HLS VOD MPEG-TS** (kopia H.264/HEVC, DV P7/P8 jako warstwa bazowa; DV P5 w HLS wymaga tone mappingu),
    3. transkod tylko audio (TrueHD/DTS → E-AC3 5.1 z zachowaniem Atmos tam, gdzie się da, inaczej AAC),
    4. transkod wideo **sprzętowo** (NVENC/QSV/AMF) z tone mappingiem HDR/DV → SDR, gdy TV nie wspiera HDR/DV. **DV profil 5 na TV bez DV — zawsze z tone mappingiem** (profil 5 nie ma warstwy bazowej HDR10/SDR).
 4. **Tizen: AVPlay** zamiast `<video>` (wybór ścieżek audio/napisów, passthrough, HLS). **Android: Media3** z passthrough audio i wyborem ścieżek.
@@ -28,7 +28,8 @@ Polecenie Jakuba z 16.10.2026, oznaczone jako **BARDZO WAŻNE**. Rozszerza P3 z 
 | `src/shared/domain/playback.ts` | Typy `MediaProbe`, `DeviceProfile`, `PlaybackPlan` i **czysty** `planPlayback()` (testowalny bez FFmpeg) |
 | `src/main/media/hwaccel.ts` | Wykrycie enkoderów (`ffmpeg -hide_banner -encoders` + próbny encode 1 klatki) → `nvenc/qsv/amf/cpu`, cache na sesję |
 | `src/main/media/ffmpeg-args.ts` | Budowa argumentów dla planu (allowlista, tablica argumentów, bez shell) |
-| `src/main/media/transcoder.ts` | Sesje HLS: proces FFmpeg, katalog segmentów, kolejka (1 transkod), restart od pozycji przy seek, kill drzewa procesów (`taskkill /T /F` na Windows) |
+| `src/main/media/transcoder.ts` | Sesje HLS: pełna playlista VOD, segmenty na żądanie, limit bufora, restart procesu przy dalekim seek, kill drzewa procesów (`taskkill /T /F` na Windows) |
+| `src/main/media/keyframes.ts` | Granice segmentów kopii z MKV Cues / MP4 stss+ctts+elst, fallback skan ffprobe do 30 s; cache indeksu w `userData/keyframes` |
 | `src/main/media/hls-cache.ts` | Cache w `userData/transcode`, limit miejsca (ustawienie, domyślnie 10 GiB), sprzątanie przy starcie i po sesji |
 | `src/main/tv/api.ts` | `POST /playback/:itemId` przyjmuje `DeviceProfile`, zwraca plan + URL (`/media/:ticket/video` albo `/media/:ticket/hls/master.m3u8`), `GET /media/:ticket/hls/*` za biletem |
 
@@ -42,7 +43,7 @@ Polecenie Jakuba z 16.10.2026, oznaczone jako **BARDZO WAŻNE**. Rozszerza P3 z 
   video: [{ codec: 'h264'|'hevc'|'av1'|'vp9', maxLevel?, profiles?: string[], tenBit: boolean }],
   hdr: { hdr10: boolean, hdr10plus: boolean, hlg: boolean, dolbyVision: { profiles: number[] } },
   audio: { decode: string[], passthrough: string[], maxChannels: number },  // 'aac','ac3','eac3','eac3-joc','truehd','dts','dts-hd','flac','opus'
-  containers: string[],                         // 'mp4','mkv','webm','ts','hls-fmp4','hls-ts'
+  containers: string[],                         // 'mp4','mkv','webm','ts'
   subtitles: { external: string[], embedded: string[] } // 'vtt','srt','ass','pgs'
 }
 ```
@@ -57,21 +58,23 @@ Wejście: `MediaProbe`, `DeviceProfile`, ustawienia PC (hwaccel, maxHeight, maxB
 
 ```ts
 { mode: 'direct' | 'remux' | 'audio' | 'video',
-  container: 'file' | 'hls-fmp4',
+  container: 'file' | 'hls-ts',
   video: { action: 'copy' | 'encode', codec, toneMap: boolean, scaleTo?: { w, h }, bitrate?, encoder? },
   audio: { streamIndex, action: 'copy' | 'encode', codec?: 'eac3'|'aac', channels? },
   subtitles: { streamIndex|null, delivery: 'external-vtt' | 'embedded' | 'burn-in' | 'none' },
   reasons: string[] }        // np. ['container mkv not supported', 'audio truehd not supported → eac3']
 ```
 
-Kolejność decyzji: direct play tylko gdy kontener + wideo (kodek, profil, bit depth, rozdzielczość, HDR/DV) + wybrane audio (decode lub passthrough) + wybrane napisy (zewnętrzne VTT lub osadzone wspierane) pasują. Inaczej remux (wideo i audio kopiowane, kontener HLS fMP4). Inaczej audio-only transkod. Wideo transkodowane tylko gdy: kodek/profil/bit depth/rozdzielczość nieobsługiwane, HDR/DV bez wsparcia (tone mapping), napisy obrazkowe/ASS wymagające burn-in, albo bitrate ponad limit. DV: profil 5 bez DV → zawsze `video encode + toneMap` (kolory w IPTPQc2 bez warstwy bazowej); profil 8.1 bez DV → kopia jako HDR10 (warstwa bazowa), profil 7 → kopia warstwy bazowej HDR10 (EL odrzucona) lub tone mapping, gdy brak HDR10. Atmos: E-AC3 JOC kopiowany, gdy passthrough `eac3-joc`; TrueHD Atmos → E-AC3 5.1 (Atmos z TrueHD nie przetrwa transkodu do E-AC3 bez enkodera Dolby — **zachowanie Atmos tylko przez passthrough/kopię**; dokumentujemy to jawnie w powodach planu).
+Kolejność decyzji: direct play tylko gdy kontener + wideo (kodek, profil, bit depth, rozdzielczość, HDR/DV) + wybrane audio (decode lub passthrough) + wybrane napisy (zewnętrzne VTT lub osadzone wspierane) pasują. Inaczej remux (wideo i audio kopiowane, kontener HLS MPEG-TS). Inaczej audio-only transkod. Wideo transkodowane tylko gdy: kodek/profil/bit depth/rozdzielczość nieobsługiwane, HDR/DV bez wsparcia (tone mapping), napisy obrazkowe/ASS wymagające burn-in, albo bitrate ponad limit. DV: profil 5 bez DV → zawsze `video encode + toneMap` (kolory w IPTPQc2 bez warstwy bazowej); profil 8.1 bez DV → kopia jako HDR10 (warstwa bazowa), profil 7 → kopia warstwy bazowej HDR10 (EL odrzucona) lub tone mapping, gdy brak HDR10. Atmos: E-AC3 JOC kopiowany, gdy passthrough `eac3-joc`; TrueHD Atmos → E-AC3 5.1 (Atmos z TrueHD nie przetrwa transkodu do E-AC3 bez enkodera Dolby — **zachowanie Atmos tylko przez passthrough/kopię**; dokumentujemy to jawnie w powodach planu).
 
 ### FFmpeg
 
-- Build: **BtbN FFmpeg-Builds `win64-gpl`** z przypiętego wydania (zawiera nvenc/ffnvcodec, qsv/libvpl, amf, libx264/x265 jako fallback CPU, zscale/libzimg i libplacebo do tone mappingu). Wersja i SHA-256 w `scripts/ffmpeg-version.txt` / `scripts/ffmpeg-sha256.txt`, pobieranie `scripts/fetch-ffmpeg.mjs` w workflow (wzorem `fetch-jackett.mjs`). Licencja GPL-3.0: osobny program wywoływany jako proces (agregacja), w instalatorze `resources/licenses/ffmpeg/` (LICENSE + link do dokładnego źródła wydania). Audyt licencji = bramka przed wydaniem (zapisać w D-85).
+- Build: **Gyan Doshi `full_build-shared`, 9.0.2**, przypięty SHA-256 (NVENC/QSV/AMF, libx264/x265, zscale i libplacebo). Wersja i SHA-256 w `scripts/ffmpeg-version.txt` / `scripts/ffmpeg-sha256.txt`, pobieranie `scripts/fetch-ffmpeg.mjs` w workflow. GPL-3.0: osobny program wywoływany jako proces; w instalatorze `resources/ffmpeg/` znajdują się LICENSE, README.txt i SOURCE.txt z odnośnikiem do źródeł wydania. Obecność sprawdzona przy odbiorze paczki.
 - Tone mapping: `zscale=t=linear:npl=100,tonemap=hable:desat=0,zscale=p=bt709:t=bt709:m=bt709:r=tv,format=yuv420p` (CPU) albo `libplacebo` (Vulkan) — wybór po teście sprzętu; dla NVENC/QSV/AMF dekodowanie sprzętowe i tone mapping na CPU/GPU zgodnie z dostępnymi filtrami. DV profil 5: `libplacebo` z obsługą DV RPU (FFmpeg ≥ 6) albo jawny błąd, gdy niedostępne.
-- HLS fMP4: `-f hls -hls_segment_type fmp4 -hls_time 6 -hls_playlist_type event -hls_flags independent_segments`, seek = nowy proces od `-ss` z nową sesją segmentów. Remux HEVC/DV: `-c:v copy -tag:v hvc1` (DV: `-strict unofficial` dla zachowania `dvcC`).
-- Procesy: `spawn` bez shell, `windowsHide`, argumenty z allowlisty, limit czasu bezczynności (brak żądań segmentów 60 s → kill), kill drzewa przy stop/seek/quit/revoke, limit wyjścia logu.
+- HLS: pełna playlista **VOD** (`#EXT-X-ENDLIST`) dla całego filmu i segmenty `.ts`. AVPlay odrzucał fMP4 z HEVC HDR; MPEG-TS przeszedł odbiór na Samsungu i emulatorze Media3. Kopiowane kodeki w TS: H.264/HEVC oraz AAC/AC3/EAC3/MP3/MP2; pozostałe wymagają konwersji. DV P5 w HLS → tone mapping, P7/P8 → warstwa bazowa.
+- Granice kopii: klatki kluczowe z indeksu, zachłannie co najmniej 6 s; kodowanie: stałe 6 s i wymuszone IDR. Muxer `segment`, `-segment_times` względem początku przebiegu, `-copyts -start_at_zero`; przy kopii `-ss` ustawione 0,5 s za granicą, by demuxer cofnął do właściwej klatki. CSV FFmpeg potwierdza ukończenie segmentu przed udostępnieniem.
+- Seek jest natywny w AVPlay/Media3: żądanie odległego segmentu (ponad 24 s lub wstecz) uruchamia FFmpeg od tej granicy w tej samej sesji; URL i oś czasu filmu pozostają stałe. Napisy WebVTT używają pełnego czasu filmu.
+- Procesy: `spawn` bez shell, `windowsHide`, argumenty z allowlisty, limit logu. Po 60 s bez żądań segmentów zatrzymuje się FFmpeg, ale sesja pozostaje dostępna przez 6 h, więc długa pauza nie zrywa odtwarzania. Bufor do przodu ograniczony do 5 min; proces wznawia się 2 min przed końcem bufora. Stop/quit/revoke kończą proces i sesję; dwa nieudane przebiegi dają `TV_UNSUPPORTED_MEDIA`.
 
 ### Ustawienia (PC) i diagnostyka
 

@@ -150,8 +150,8 @@ export const errorTexts: Record<AppErrorCode, { message: string; action: string 
     action: 'Play it on the PC from the Library.',
   },
   DEPLOY_TOOL_MISSING: {
-    message: 'The tool needed to install on this TV was not found.',
-    action: 'Install it as described in the TV tab, or choose its location.',
+    message: 'The tools needed to install on this TV could not be prepared.',
+    action: 'Check the internet connection (they are downloaded on the first install) and try again.',
   },
   DEPLOY_PACKAGE_MISSING: {
     message: 'The TV app package is missing from this installation.',
@@ -182,8 +182,9 @@ export const errorTexts: Record<AppErrorCode, { message: string; action: string 
     action: 'Free some space on the TV and try again.',
   },
   DEPLOY_CERTIFICATE: {
-    message: 'The Samsung certificate profile is missing or does not match this TV.',
-    action: 'Create a certificate profile for this TV in Tizen Studio (Certificate Manager).',
+    message: 'The TV rejected the signing certificate, or the selected profile is unavailable.',
+    action:
+      'If Automatic signing is rejected, create a Samsung certificate for this TV in Tizen Studio and select its profile under TV installation.',
   },
   DEPLOY_CANCELLED: {
     message: 'The installation was cancelled.',

@@ -5,10 +5,11 @@ import { AppError } from '@shared/errors';
 import type { Logger } from '../logger';
 import type { LibraryService, ResolvedLibraryFile } from '../services/library-service';
 import type { SettingsService } from '../services/settings-service';
-import { extractVttArgs } from './ffmpeg-args';
+import { extractVttArgs, SEGMENT_SECONDS } from './ffmpeg-args';
 import type { FfmpegTools } from './ffmpeg-path';
 import type { Database } from '../persistence/db';
 import { EncoderDetector } from './hwaccel';
+import { KeyframeIndex, segmentStarts } from './keyframes';
 import { ProbeCache } from './probe-cache';
 import { probeFile, runTool } from './probe';
 import { runFfmpegIn, spawnFfmpeg, type TranscodeSession, Transcoder } from './transcoder';
@@ -23,6 +24,8 @@ export interface MediaServiceDeps {
   transcoder: Transcoder | null;
   log: Logger;
   probe?: (ffprobe: string, path: string, size: number) => Promise<MediaProbe>;
+  /** Keyframes of files whose video is copied (HLS segments start there). */
+  keyframes?: KeyframeIndex | null;
 }
 
 export interface PlaybackStart {
@@ -128,11 +131,28 @@ export class MediaService {
     let session: TranscodeSession | null = null;
     if (!plan.error && plan.delivery === 'hls') {
       if (!this.deps.transcoder) throw new Error('transcoder missing');
+      // The VOD playlist needs the length of the film (ffprobe gives it for every file it can read).
+      if (!probe?.durationMs) throw new AppError('TV_UNSUPPORTED_MEDIA', 'unknown duration');
+      // A copied video can only be cut at its keyframes: the segments start there.
+      const keyframes =
+        plan.video.action === 'copy' && plan.video.index !== null && this.deps.keyframes
+          ? await this.deps.keyframes.get({
+              path: file.path,
+              container: probe.container,
+              sizeBytes: file.size,
+              mtimeMs: file.mtimeMs,
+              itemId: file.item.id,
+            })
+          : null;
+      if (plan.video.action === 'copy' && plan.video.index !== null && !keyframes)
+        this.deps.log.warn(`no keyframes for ${file.item.id}: even segments, seeking may be off`);
       session = await this.deps.transcoder.start({
         deviceId: input.deviceId,
         itemId: input.itemId,
         input: file.path,
         plan,
+        durationMs: probe.durationMs,
+        starts: segmentStarts(probe.durationMs, SEGMENT_SECONDS * 1000, keyframes),
         startMs: Math.max(0, Math.round(input.startMs ?? 0)),
       });
     } else {
@@ -161,7 +181,7 @@ export class MediaService {
     const sessions = this.deps.transcoder?.list() ?? [];
     return this.recent.map((r) => {
       const s = r.sessionId ? sessions.find((x) => x.id === r.sessionId) : undefined;
-      return { ...r, speed: s?.speed ?? null, active: !!s && !s.finished };
+      return { ...r, speed: s?.speed ?? null, active: !!s && s.runningFrom !== null };
     });
   }
 
@@ -176,14 +196,24 @@ export class MediaService {
     }
   }
 
-  /** An HLS file of a session, only for the TV and item that started it; waits until FFmpeg wrote it. */
-  async hlsFile(sessionId: string, deviceId: string, itemId: string, name: string): Promise<string> {
+  private ownSession(sessionId: string, deviceId: string, itemId: string) {
     const transcoder = this.deps.transcoder;
     const session = transcoder?.get(sessionId);
     if (!transcoder || !session || session.deviceId !== deviceId || session.itemId !== itemId)
       throw new AppError('NOT_FOUND');
-    transcoder.markSegment(session, name);
-    return transcoder.waitForFile(session, name);
+    return { transcoder, session };
+  }
+
+  /** The VOD playlist of a session, only for the TV and item that started it. */
+  hlsPlaylist(sessionId: string, deviceId: string, itemId: string): string {
+    const { transcoder, session } = this.ownSession(sessionId, deviceId, itemId);
+    return transcoder.playlist(session);
+  }
+
+  /** A segment (or fMP4 init) of a session, only for the TV and item that started it; waits until FFmpeg wrote it. */
+  async hlsFile(sessionId: string, deviceId: string, itemId: string, name: string): Promise<string> {
+    const { transcoder, session } = this.ownSession(sessionId, deviceId, itemId);
+    return transcoder.file(session, name);
   }
 
   stopDevice(deviceId: string): void {
@@ -211,6 +241,7 @@ export function createMediaService(opts: {
     cache: new ProbeCache(opts.db),
     tools,
     detector: tools ? EncoderDetector.forFfmpeg(tools.ffmpeg, log) : null,
+    keyframes: tools ? new KeyframeIndex({ dir: join(opts.userData, 'keyframes'), ffprobe: tools.ffprobe, log }) : null,
     transcoder: tools
       ? new Transcoder({
           cacheDir: join(opts.userData, 'transcode'),

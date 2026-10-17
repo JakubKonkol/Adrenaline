@@ -2,6 +2,8 @@
 
 Instalacja i parowanie są osobnymi operacjami. ADB/SDB służy tylko do deploy; po instalacji aplikacja TV komunikuje się zwykłym API LAN. Wyłączenie debugowania nie może przerwać korzystania z aplikacji. Procedury platformowe wynikają ze źródeł opisanych w [research](01-research.md).
 
+**Stan implementacji 1.0.0 (D-86/D-87, 17.10.2026):** Automatic pobiera przypięte narzędzia SDB/certyfikatów Samsunga oraz oficjalne platform-tools Androida, sprawdza SHA-256 i zapisuje lokalny cache. Użytkownik nie instaluje SDK; własne narzędzia/profile są w Advanced. Pakiet przekazuje adres PC i znacznik instalacji, po starcie klient sam rozpoczyna parowanie, a użytkownik zatwierdza kod na PC. Android zapisuje połączenie w SharedPreferences, Tizen w pliku wgt-private. Pełny deploy i upgrade potwierdzono na QE65Q77BATXXH (Tizen 6.5), Android na emulatorze TV 14. Poniższe bramki P0 opisują plan bazowy; aktualne wyniki i pozostające odbiory są w [STATUS.md](STATUS.md).
+
 ## Zakładka TV w desktopie
 
 Elementy: włącznik serwera, adres PC/port i status, lista sparowanych urządzeń, uprawnienia, ostatnie połączenie, wersja klienta, Revoke, Update oraz **Deploy to TV**. Widoczna informacja, że komputer musi pozostać uruchomiony. Lista interfejsów wyklucza przypadkowe wskazanie loopback/VPN zamiast LAN; użytkownik może wybrać interfejs.
@@ -35,6 +37,10 @@ Kod parowania podawać interaktywnie przez stdin, bez zapisywania w logach/argum
 Aktualizacja przez `install -r`, tylko z tym samym podpisem i poprawnym versionCode. Błąd podpisu nie uruchamia automatycznego uninstall, bo utraciłby dane/parowanie. Klucz release APK tylko w sekretach CI z kopią odzyskiwania; klucz debug oddzielny.
 
 ## Tizen
+
+**Aktualizacja implementacji D-86 (review 16/17.10.2026):** domyślnie Automatic, bez Tizen Studio i bez ręcznego profilu. Adrenaline pobiera z `download.tizen.org` przypięte archiwa SDB 4.2.36 i certificate-generator 0.1.4, sprawdza SHA-256 i przechowuje cache w `userData/tv-deploy/tools`. Nie uruchamia instalatorów SDK. Tworzy autora w `userData/tv-deploy/author.json`, podpisuje cały widget wraz z `server.json`, wykonuje SDB push, `shell 0 vd_appinstall`, `shell 0 execute`, następnie czeka na uwierzytelnione połączenie z TV. Pierwsza instalacja wymaga internetu; cache umożliwia ponowienie offline. Advanced zachowuje opisaną niżej ścieżkę Studio z nazwanym profilem Samsung/DUID.
+
+Plik autora zawiera prywatny klucz: wymaga bezpiecznej kopii i ochrony profilu Windows. Nie jest szyfrowany przez safeStorage; `mode: 0600` nie ustawia Windows ACL. CA autora wygasa 2027-01-01, a zapisany wygasły certyfikat jest odrzucany bez nadpisywania pliku. Odnowienie z zachowaniem tożsamości wymaga osobnej implementacji i testu aktualizacji; usunięcie pliku nie jest procedurą odnowienia. Lokalna poprawność podpisów nie dowodzi akceptacji na wszystkich firmware. Źródło protokołu: [Samsung appLauncher](https://github.com/Samsung/webIDE-common-tizentv/blob/master/lib/appLauncher.js).
 
 W instalatorze dostarczamy **gotowe zbudowane zasoby aplikacji TV, config.xml i manifest hashy**, bez potrzeby Node/npm na komputerze użytkownika. Docelowy WGT powstaje przez lokalne podpisanie tych zasobów właściwym profilem. Jeżeli P0 potwierdzi działanie pre-signed WGT na określonej klasie urządzeń, można dodać go jako szybszą ścieżkę; nie jest to założenie uniwersalne.
 

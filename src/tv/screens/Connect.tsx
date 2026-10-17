@@ -80,10 +80,13 @@ export function TextField({
 export function Connect({
   initialServer,
   reason,
+  auto = false,
   onConnected,
 }: {
   initialServer: string | null;
   reason: 'revoked' | null;
+  /** First launch after Deploy to TV: start pairing with the PC's address at once. */
+  auto?: boolean;
   onConnected: (connection: Connection) => void;
 }) {
   const [address, setAddress] = useState(initialServer?.replace(/^https?:\/\//, '') ?? '');
@@ -131,6 +134,17 @@ export function Connect({
       setStep({ kind: 'address', error: message });
     }
   };
+
+  // Installed from the PC (Deploy to TV): the address is known, so ask for approval right away. Only once: a failed
+  // attempt leaves the address on screen to try again.
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (autoStarted.current || !auto || !initialServer) return;
+    autoStarted.current = true;
+    void connect();
+    // connect() reads the address state set from initialServer on the first render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const pairing = step.kind === 'pairing' ? step : null;
   useEffect(() => {

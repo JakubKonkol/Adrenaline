@@ -52,6 +52,11 @@ body {
   overflow: hidden;
 }
 
+html.avplay-active,
+html.avplay-active body {
+  background: transparent;
+}
+
 h1,
 h2,
 h3,
@@ -1086,45 +1091,86 @@ img {
   white-space: pre-wrap;
 }
 
-.player-controls {
+.subtitle-line.sub-small span {
+  font-size: 1.9rem;
+}
+
+.subtitle-line.sub-large span {
+  font-size: 3rem;
+}
+
+.subtitle-line.sub-xlarge span {
+  font-size: 3.6rem;
+}
+
+.subtitle-line.sub-shadow span {
+  background: transparent;
+  text-shadow:
+    0 0 0.25rem #000,
+    0 0.1rem 0.3rem #000,
+    0.1rem 0.1rem 0 #000,
+    -0.1rem -0.1rem 0 #000;
+}
+
+/* OSD (Jellyfin-style): title and clock on top, scrubber and buttons at the bottom. */
+.osd-top,
+.osd {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 0;
-  padding: 6rem var(--page-x) 3.5rem;
-  background: linear-gradient(0deg, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0) 100%);
+  z-index: 3;
+  padding-left: var(--page-x);
+  padding-right: var(--page-x);
   opacity: 0;
   transition: opacity 300ms var(--ease);
 }
 
-.player-controls.is-visible {
+.osd-top.is-visible,
+.osd.is-visible {
   opacity: 1;
 }
 
-/* Subtitles move above the controls while those are shown. */
-.player.controls-on .subtitle-line {
-  bottom: 24%;
-}
-
-.player-title {
-  font-size: 2rem;
-  font-weight: 700;
-}
-
-.player-bar {
+.osd-top {
+  top: 0;
   display: flex;
-  align-items: center;
-  margin-top: 1.25rem;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding-top: 3rem;
+  padding-bottom: 5rem;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0) 100%);
 }
 
-.player-bar .progress {
-  flex: 1 1 auto;
-  margin: 0 1.5rem;
+.osd-title {
+  max-width: 75%;
+  font-size: 2.1rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.osd-clock {
+  color: var(--text-dim);
+  font-size: 1.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.osd {
+  bottom: 0;
+  padding-top: 7rem;
+  padding-bottom: 3rem;
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.88) 0%, rgba(0, 0, 0, 0.55) 55%, rgba(0, 0, 0, 0) 100%);
+}
+
+.osd-times {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 0.9rem;
 }
 
 .player-time {
-  min-width: 6rem;
-  color: var(--text-dim);
+  min-width: 7rem;
+  color: var(--text);
+  font-size: 1.5rem;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1132,56 +1178,298 @@ img {
   text-align: right;
 }
 
-.player-hint {
-  min-height: 2rem;
-  margin-top: 0.75rem;
-  font-size: 1.5rem;
+.osd-ends {
+  color: var(--text-dim);
+  font-size: 1.3rem;
 }
 
-.player-menu {
+.scrubber {
+  padding: 0.9rem 0;
+}
+
+.scrubber-track {
+  position: relative;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  transition: height 160ms var(--ease);
+}
+
+.scrubber.is-focused .scrubber-track {
+  height: 0.65rem;
+}
+
+.scrubber-played,
+.scrubber-preview {
   position: absolute;
-  top: 5rem;
-  right: var(--page-x);
-  display: flex;
-  max-height: 70vh;
-  padding: 1.5rem;
-  border-radius: var(--radius-large);
-  background: rgba(26, 29, 35, 0.94);
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: 999px;
 }
 
-.player-column {
-  width: 24rem;
-  overflow: hidden;
-  opacity: 0.55;
+.scrubber-played {
+  background: var(--accent);
 }
 
-.player-column + .player-column {
-  margin-left: 1.5rem;
+.scrubber-preview {
+  background: rgba(255, 255, 255, 0.45);
 }
 
-.player-column.is-active {
+.scrubber-thumb {
+  position: absolute;
+  top: 50%;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin-left: -0.55rem;
+  margin-top: -0.55rem;
+  border-radius: 50%;
+  background: #fff;
+  opacity: 0;
+  transition: opacity 160ms var(--ease);
+}
+
+.scrubber.is-focused .scrubber-thumb {
   opacity: 1;
+  box-shadow: 0 0 0 0.35rem rgba(255, 255, 255, 0.25);
+}
+
+.scrubber-bubble {
+  position: absolute;
+  bottom: 1.8rem;
+  left: 50%;
+  padding: 0.35rem 0.8rem;
+  border-radius: 0.5rem;
+  background: #fff;
+  color: #0b0c0f;
+  font-size: 1.4rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.osd-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1.2rem;
+}
+
+.osd-group {
+  display: flex;
+  align-items: center;
+}
+
+.osd-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.4rem;
+  height: 4.4rem;
+  margin-right: 1rem;
+  border-radius: 50%;
+  color: var(--text);
+  transition:
+    transform 160ms var(--ease),
+    background 160ms var(--ease),
+    color 160ms var(--ease);
+}
+
+.osd-group-end .osd-button {
+  margin-right: 0;
+  margin-left: 1rem;
+}
+
+.osd-button.is-focused {
+  background: var(--focus-ring);
+  color: #0b0c0f;
+  transform: scale(1.12);
+}
+
+.osd-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+.osd-button-label {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-top: 0.6rem;
+  color: var(--text);
+  font-size: 1.1rem;
+  white-space: nowrap;
+  transform: translateX(-50%);
 }
 
 .player-mode {
+  margin-top: 0.4rem;
   color: var(--text-dim);
-  font-size: 1.1rem;
+  font-size: 1.2rem;
 }
 
-.player-menu h3 {
-  margin-bottom: 0.75rem;
+/* Subtitles move above the OSD while it is shown (the height is set inline). */
+.player.controls-on .subtitle-line {
+  transition: bottom 300ms var(--ease);
+}
+
+/* Side sheet: track lists and settings. */
+.sheet {
+  position: absolute;
+  z-index: 4;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 34rem;
+  padding: 3.5rem 2rem;
+  background: rgba(20, 22, 27, 0.96);
+  box-shadow: -1rem 0 3rem rgba(0, 0, 0, 0.5);
+}
+
+.sheet-title {
+  margin-bottom: 1.4rem;
+  padding: 0 1rem;
   color: var(--text-faint);
-  font-size: 1.1rem;
+  font-size: 1.15rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
-.player-option {
-  padding: 0.7rem 1rem;
-  border-radius: var(--radius);
+.sheet-heading {
+  margin: 1.2rem 1rem 0.4rem;
+  color: var(--text-faint);
+  font-size: 1rem;
 }
 
-.player-option.is-focused {
+.sheet-item {
+  display: flex;
+  align-items: center;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius);
+  font-size: 1.45rem;
+}
+
+.sheet-item.is-focused {
   background: var(--focus-ring);
   color: #0b0c0f;
+}
+
+.sheet-check {
+  flex: 0 0 2rem;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.sheet-item.is-focused .sheet-check {
+  color: #0b0c0f;
+}
+
+.sheet-label {
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.sheet-hint {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--text-faint);
+  font-size: 1.05rem;
+}
+
+.sheet-item.is-focused .sheet-hint {
+  color: #3a3f48;
+}
+
+.sheet-value {
+  flex: 0 0 auto;
+  margin-left: 1rem;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.sheet-item.is-focused .sheet-value {
+  color: #0b0c0f;
+}
+
+/* Playback info (top left). */
+.stats {
+  position: absolute;
+  z-index: 3;
+  top: 9rem;
+  left: var(--page-x);
+  width: 48rem;
+  padding: 1.4rem 1.6rem;
+  border-radius: var(--radius-large);
+  background: rgba(10, 11, 14, 0.85);
+  font-size: 1.15rem;
+}
+
+.stats-row {
+  display: flex;
+  padding: 0.25rem 0;
+}
+
+.stats-key {
+  flex: 0 0 9rem;
+  color: var(--text-faint);
+}
+
+.stats-value {
+  flex: 1 1 auto;
+  color: var(--text);
+}
+
+.player.fit-fill .player-video {
+  object-fit: cover;
+}
+
+/* Up next (after an episode). */
+.up-next {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding: 0 var(--page-x) 6rem;
+  background: radial-gradient(ellipse at 20% 100%, #1d2027 0%, var(--bg) 70%);
+}
+
+.up-next-card {
+  max-width: 60rem;
+}
+
+.up-next-kicker {
+  color: var(--accent);
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.up-next-card h1 {
+  margin-top: 0.6rem;
+  font-size: 3.4rem;
+  line-height: 1.1;
+}
+
+.up-next-card p {
+  margin-top: 0.6rem;
+  color: var(--text-dim);
+  font-size: 1.8rem;
+}
+
+.up-next-count {
+  margin-top: 1.6rem;
+  color: var(--text-dim);
+  font-size: 1.4rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.up-next-card .actions {
+  margin-top: 2rem;
 }

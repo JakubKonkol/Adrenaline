@@ -251,7 +251,7 @@ describe('TV API v1 on loopback (B7)', () => {
       token,
       body: { profile: PROFILE },
     });
-    expect(playback.body).toMatchObject({ mimeType: 'video/mp4', mode: 'direct', offsetMs: 0 });
+    expect(playback.body).toMatchObject({ mimeType: 'video/mp4', mode: 'direct' });
     // No FFmpeg in this test: the file is sent as it is, and the reason says why.
     expect(playback.body.reasons.join(' ')).toMatch(/FFmpeg is missing/);
     expect(playback.body.streamUrl.startsWith(`${url}/media/`)).toBe(true);

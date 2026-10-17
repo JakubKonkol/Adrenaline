@@ -21,6 +21,8 @@ export interface PlayerEngine {
   /** Audio tracks reported by the engine (Tizen); empty when not available. */
   audioTracks(): { index: number; label: string }[];
   selectAudio(index: number): void;
+  /** Whole picture with bars (fit) or the screen filled, cropping the edges (fill). */
+  setFit(fit: 'fit' | 'fill'): void;
   destroy(): void;
 }
 
@@ -130,6 +132,13 @@ export function createAvPlayEngine(av: AvPlay, events: EngineEvents): PlayerEngi
         .filter((t) => t.type === 'AUDIO')
         .map((t) => ({ index: t.index, label: audioLabel(t.extra_info, t.index) })),
     selectAudio: (index) => av.setSelectTrack?.('AUDIO', index),
+    setFit(fit) {
+      try {
+        av.setDisplayMethod?.(fit === 'fill' ? 'PLAYER_DISPLAY_MODE_FULL_SCREEN' : 'PLAYER_DISPLAY_MODE_LETTER_BOX');
+      } catch {
+        /* not available in this state */
+      }
+    },
     destroy() {
       if (!opened) return;
       try {
@@ -178,6 +187,9 @@ export function createVideoEngine(video: HTMLVideoElement, events: EngineEvents)
     duration: () => (Number.isFinite(video.duration) ? video.duration * 1000 : null),
     audioTracks: () => [],
     selectAudio: () => undefined,
+    setFit(fit) {
+      video.style.objectFit = fit === 'fill' ? 'cover' : 'contain';
+    },
     destroy() {
       video.pause();
       video.removeAttribute('src');

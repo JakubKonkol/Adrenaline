@@ -7,6 +7,9 @@ import type { Logger } from '../../logger';
 import { redact } from '../../redact';
 import { Emitter } from '../../util/emitter';
 import { type ProcessRunner, type RunResult, runProcess } from './process-runner';
+import { prepareAutomaticAdb } from './android-tools';
+import { prepareAutomaticTizen, type AutomaticTizenTools } from './tizen-tools';
+import { packageTizen } from './tizen-signing';
 
 /** resources/tv/manifest.json (scripts/tv/write-manifest.mjs). */
 export interface TvManifest {
@@ -31,6 +34,10 @@ export interface DeployDeps {
   sleep?: (ms: number, signal: AbortSignal) => Promise<void>;
   /** How long to wait for the user on the TV (debugging prompt, pairing). */
   userWaitMs?: number;
+  automaticTizen?: (cacheDir: string, signal: AbortSignal) => Promise<AutomaticTizenTools>;
+  /** adb when none is installed: official platform-tools downloaded once (android-tools.ts). */
+  automaticAdb?: (cacheDir: string, signal: AbortSignal) => Promise<string>;
+  packageTizen?: typeof packageTizen;
 }
 
 const TIZEN_PORT = 26101;
@@ -143,13 +150,16 @@ export class DeployService extends Emitter<{ state: TvDeployState }> {
     if (signal.aborted) throw new AppError('DEPLOY_CANCELLED');
     // Only the tool and its arguments go to the log (the pairing code arrives through stdin).
     this.deps.log.info(`deploy: ${exe.split(/[\\/]/).pop()} ${args.join(' ')}`);
-    return (this.deps.run ?? runProcess)(exe, args, {
+    const result = await (this.deps.run ?? runProcess)(exe, args, {
       timeoutMs,
       signal,
       ...(input !== undefined ? { input } : {}),
     }).catch((error: unknown) => {
       throw new AppError('DEPLOY_TOOL_MISSING', error instanceof Error ? error.message : String(error));
     });
+    if (signal.aborted) throw new AppError('DEPLOY_CANCELLED');
+    if (result.timedOut) throw new AppError('DEPLOY_TIMEOUT', tail(result, input ? [input] : []));
+    return result;
   }
 
   private sleep(ms: number, signal: AbortSignal) {
@@ -181,12 +191,23 @@ export class DeployService extends Emitter<{ state: TvDeployState }> {
 
   private async android(request: Extract<TvDeployRequest, { platform: 'android' }>, signal: AbortSignal) {
     const tools = this.deps.toolchain();
-    if (!tools.adb) throw new AppError('DEPLOY_TOOL_MISSING', 'adb');
-    const adb = tools.adb;
     const server = this.requireServer();
     const manifest = this.manifest();
     const apk = join(this.deps.tvDir, manifest.android.file);
     if (!existsSync(apk) || sha256(apk) !== manifest.android.sha256) throw new AppError('DEPLOY_PACKAGE_MISSING');
+    let adb = tools.adb;
+    if (!adb) {
+      // No Android SDK on this PC: the official adb is downloaded once, like the Samsung tools.
+      try {
+        adb = await (this.deps.automaticAdb ?? prepareAutomaticAdb)(join(this.deps.workDir, 'tools'), signal);
+      } catch (error) {
+        if (error instanceof AppError || signal.aborted) throw error;
+        throw new AppError(
+          'DEPLOY_TOOL_MISSING',
+          'Could not download the Android tools. Check the internet connection and retry.',
+        );
+      }
+    }
     const serial = `${request.address}:${request.port}`;
 
     if (request.pairing) {
@@ -242,7 +263,10 @@ export class DeployService extends Emitter<{ state: TvDeployState }> {
     const launchedAt = this.now();
     const start = await this.run(
       adb,
-      ['-s', serial, 'shell', 'am', 'start', '-n', manifest.android.activity, '--es', 'server', server],
+      [
+        ...['-s', serial, 'shell', 'am', 'start', '-n', manifest.android.activity],
+        ...['--es', 'server', server, '--es', 'install', String(launchedAt)],
+      ],
       signal,
       20_000,
     );
@@ -254,9 +278,10 @@ export class DeployService extends Emitter<{ state: TvDeployState }> {
 
   private async tizen(request: Extract<TvDeployRequest, { platform: 'tizen' }>, signal: AbortSignal) {
     const tools = this.deps.toolchain();
-    if (!tools.sdb || !tools.tizen) throw new AppError('DEPLOY_TOOL_MISSING', 'tizen-studio');
-    const { sdb, tizen } = tools;
-    if (!tools.profiles.includes(request.profile)) throw new AppError('DEPLOY_CERTIFICATE', request.profile);
+    const automatic = !request.profile;
+    if (!automatic && (!tools.sdb || !tools.tizen)) throw new AppError('DEPLOY_TOOL_MISSING', 'tizen-studio');
+    if (!automatic && !tools.profiles.includes(request.profile))
+      throw new AppError('DEPLOY_CERTIFICATE', request.profile);
     const server = this.requireServer();
     const manifest = this.manifest();
     const webDir = join(this.deps.tvDir, manifest.tizen.dir);
@@ -264,6 +289,20 @@ export class DeployService extends Emitter<{ state: TvDeployState }> {
       const path = join(webDir, ...f.path.split('/'));
       if (!existsSync(path) || sha256(path) !== f.sha256) throw new AppError('DEPLOY_PACKAGE_MISSING', f.path);
     }
+    let prepared: AutomaticTizenTools | null = null;
+    if (automatic) {
+      try {
+        prepared = await (this.deps.automaticTizen ?? prepareAutomaticTizen)(join(this.deps.workDir, 'tools'), signal);
+      } catch (error) {
+        if (error instanceof AppError || signal.aborted) throw error;
+        throw new AppError(
+          'DEPLOY_TOOL_MISSING',
+          'Could not download Tizen tools. Check the internet connection and retry.',
+        );
+      }
+    }
+    const sdb = prepared?.sdb ?? tools.sdb!;
+    const tizen = tools.tizen!;
     const serial = `${request.address}:${TIZEN_PORT}`;
 
     this.step('connecting');
@@ -291,17 +330,24 @@ export class DeployService extends Emitter<{ state: TvDeployState }> {
     const out = join(work, 'out');
     mkdirSync(out, { recursive: true });
     cpSync(webDir, stage, { recursive: true });
-    // The TV app finds this PC on its first start (it can be changed in the app).
-    writeFileSync(join(stage, 'server.json'), JSON.stringify({ server }));
-    const pack = await this.run(
-      tizen,
-      ['package', '-t', 'wgt', '-s', request.profile, '-o', out, '--', stage],
-      signal,
-      180_000,
-    );
+    // The TV app finds this PC on its first start (it can be changed in the app); a new `install` marker tells it that
+    // this PC has just installed it, so it pairs at once even when its saved token is no longer valid.
+    writeFileSync(join(stage, 'server.json'), JSON.stringify({ server, install: String(this.now()) }));
+    const pack = automatic
+      ? null
+      : await this.run(tizen, ['package', '-t', 'wgt', '-s', request.profile, '-o', out, '--', stage], signal, 180_000);
+    if (prepared) {
+      signal.throwIfAborted();
+      (this.deps.packageTizen ?? packageTizen)(
+        stage,
+        join(out, 'Adrenaline.wgt'),
+        join(this.deps.workDir, 'author.json'),
+        prepared.certificates,
+      );
+    }
     const wgt = existsSync(out) ? readdirSync(out).find((f) => f.endsWith('.wgt')) : undefined;
     if (!wgt) {
-      const text = `${pack.stdout}\n${pack.stderr}`;
+      const text = `${pack?.stdout ?? ''}\n${pack?.stderr ?? ''}`;
       throw new AppError(
         /profile|certificate|password|signing|sign/i.test(text) ? 'DEPLOY_CERTIFICATE' : 'DEPLOY_INSTALL_FAILED',
         tail(pack),
@@ -309,9 +355,39 @@ export class DeployService extends Emitter<{ state: TvDeployState }> {
     }
 
     this.step('installing');
-    const install = await this.run(tizen, ['install', '-n', wgt, '-t', target, '--', out], signal, 300_000);
+    let install: RunResult;
+    if (automatic) {
+      const remote = '/home/owner/share/tmp/sdk_tools/tmp/Adrenaline.wgt';
+      const installWidget = async () => {
+        const push = await this.run(sdb, ['-s', serial, 'push', join(out, wgt), remote], signal, 120_000);
+        if (push.code !== 0 || /error|failed/i.test(`${push.stdout}\n${push.stderr}`))
+          throw new AppError('DEPLOY_INSTALL_FAILED', tail(push));
+        return this.run(
+          sdb,
+          ['-s', serial, 'shell', '0', 'vd_appinstall', manifest.tizen.appId, remote],
+          signal,
+          300_000,
+        );
+      };
+      install = await installWidget();
+      if (/invalid certificate chain/i.test(`${install.stdout}\n${install.stderr}`) && prepared) {
+        signal.throwIfAborted();
+        this.deps.log.info('deploy: TV rejected the new SDK chain; retrying once with the legacy SDK distributor');
+        (this.deps.packageTizen ?? packageTizen)(
+          stage,
+          join(out, wgt),
+          join(this.deps.workDir, 'author.json'),
+          prepared.certificates,
+          true,
+        );
+        install = await installWidget();
+      }
+    } else {
+      install = await this.run(tizen, ['install', '-n', wgt, '-t', target, '--', out], signal, 300_000);
+    }
     const installOut = `${install.stdout}\n${install.stderr}`;
     if (
+      install.code !== 0 ||
       !/installed the package|install completed|installing\.\.\..*100%/is.test(installOut) ||
       /fail/i.test(installOut)
     ) {

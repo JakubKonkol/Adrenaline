@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ReleaseSession } from '@shared/contracts/releases';
 import type { SearchTarget } from '@shared/domain/search-target';
 import { FakeJackett } from '../../../tests/helpers/fake-jackett';
@@ -30,7 +30,10 @@ const H2 = '2'.repeat(40);
 type Responder = (params: URLSearchParams) => string | Response | Promise<Response>;
 
 let db: Database;
-afterEach(() => db?.close());
+afterEach(() => {
+  vi.useRealTimers();
+  db?.close();
+});
 
 function setup(
   responders: Record<string, Responder>,
@@ -130,6 +133,7 @@ describe('ReleaseSearchService (FR03, FR04, BR08)', () => {
   });
 
   it('stops slow sources at the session limit and keeps the others', async () => {
+    vi.useFakeTimers();
     const { run } = setup(
       {
         fast: () => rss(item('Night.of.the.Living.Dead.1968.720p', H1, 3)),
@@ -137,7 +141,9 @@ describe('ReleaseSearchService (FR03, FR04, BR08)', () => {
       },
       { timeoutMs: 80 },
     );
-    const last = (await run()).at(-1)!;
+    const pending = run();
+    await vi.advanceTimersByTimeAsync(100);
+    const last = (await pending).at(-1)!;
     expect(last.sources.find((s) => s.id === 'slow')).toMatchObject({ state: 'error', errorCode: 'SOURCE_TIMEOUT' });
     expect(last.releases).toHaveLength(1);
   });

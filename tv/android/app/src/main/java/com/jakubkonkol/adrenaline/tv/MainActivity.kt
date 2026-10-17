@@ -87,11 +87,18 @@ class MainActivity : ComponentActivity() {
     private fun rememberServer(intent: Intent?) {
         val server = intent?.getStringExtra(EXTRA_SERVER) ?: return
         if (Regex("""^https?://[0-9A-Za-z.\-]+:\d{2,5}$""").matches(server)) {
-            getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(EXTRA_SERVER, server).apply()
+            val install = intent.getStringExtra(EXTRA_INSTALL)?.takeIf { Regex("""^\d{1,20}$""").matches(it) } ?: ""
+            getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                .putString(EXTRA_SERVER, server)
+                .putString(EXTRA_INSTALL, install)
+                .commit()
         }
     }
 
     fun serverUrl(): String = getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(EXTRA_SERVER, "") ?: ""
+
+    /** Marker of the last Deploy to TV (the web app pairs at once when it sees a new one). */
+    fun installMarker(): String = getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(EXTRA_INSTALL, "") ?: ""
 
     fun play(request: String) = runOnUiThread {
         player.launch(Intent(this, PlayerActivity::class.java).putExtra(PlayerActivity.EXTRA_REQUEST, request))
@@ -105,6 +112,7 @@ class MainActivity : ComponentActivity() {
     companion object {
         const val APP_ROOT = "file:///android_asset/tv/"
         const val EXTRA_SERVER = "server"
+        const val EXTRA_INSTALL = "install"
         private const val PREFS = "adrenaline"
     }
 }

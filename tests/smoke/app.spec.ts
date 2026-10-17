@@ -1,5 +1,6 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { createServer } from 'node:net';
 import { join, resolve } from 'node:path';
 import { _electron as electron, type ElectronApplication, expect, test } from '@playwright/test';
 import movies from '../fixtures/tmdb/search-movie.json' with { type: 'json' };
@@ -33,8 +34,9 @@ async function quit(app: ElectronApplication) {
 
 test('first run, onboarding, settings kept after restart, isolated renderer', async () => {
   const userData = mkdtempSync(join(tmpdir(), 'adrenaline-smoke-'));
+  let app: ElectronApplication | undefined;
   try {
-    let app = await launch(userData);
+    app = await launch(userData);
     let page = await app.firstWindow();
     await expect(page).toHaveTitle(/Adrenaline/);
     await expect(page.getByTestId('titlebar')).toBeVisible();
@@ -172,6 +174,20 @@ test('first run, onboarding, settings kept after restart, isolated renderer', as
     await expect(page.locator('article')).toContainText('react@19.3.1');
 
     // 1.0: the TV tab. The server is off by default; turned on it answers the TV API, turned off it stops.
+    // Use an OS-assigned port so a real TV server or the hardware demo can run alongside this test.
+    const reservation = createServer();
+    await new Promise<void>((resolve, reject) => {
+      reservation.once('error', reject);
+      reservation.listen(0, '0.0.0.0', resolve);
+    });
+    const address = reservation.address();
+    if (!address || typeof address === 'string') throw new Error('No TCP port assigned');
+    const tvPort = address.port;
+    await new Promise<void>((resolve, reject) => reservation.close((error) => (error ? reject(error) : resolve())));
+    await page.evaluate(async (port) => {
+      const result = await window.adrenaline.settings.update({ tvServerPort: port });
+      if (!result.ok) throw new Error('Cannot set the smoke TV port');
+    }, tvPort);
     await page.getByRole('navigation').getByRole('link', { name: 'TV', exact: true }).click();
     await expect(page.getByTestId('screen-tv')).toBeVisible();
     await expect(page.getByTestId('tv-server-state')).toHaveCount(0);
@@ -305,6 +321,8 @@ test('first run, onboarding, settings kept after restart, isolated renderer', as
     expect(p95).toBeLessThan(200);
     await quit(app);
   } finally {
-    rmSync(userData, { recursive: true, force: true });
+    await app?.close().catch(() => undefined);
+    // Chromium can release profile handles shortly after Electron exits on Windows.
+    rmSync(userData, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
   }
 });

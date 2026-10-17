@@ -94,7 +94,7 @@ export interface DeviceProfile {
   maxAudioChannels: number;
   /** Containers the player opens directly (mp4, mkv, webm, ts, mov, avi). */
   containers: string[];
-  /** HLS with fMP4 segments. */
+  /** HLS with MPEG-TS segments. */
   hls: boolean;
 }
 
@@ -129,7 +129,7 @@ export type PlaybackMode = 'direct' | 'remux' | 'audio' | 'video';
 
 export interface PlaybackPlan {
   mode: PlaybackMode;
-  /** `file`: the original via HTTP Range; `hls`: FFmpeg writes HLS with fMP4 segments. */
+  /** `file`: the original via HTTP Range; `hls`: FFmpeg writes HLS with MPEG-TS segments. */
   delivery: 'file' | 'hls';
   video: {
     index: number | null;
@@ -160,10 +160,12 @@ export interface PlaybackPlan {
   error: string | null;
 }
 
-/** Audio codecs that can be copied into fMP4 HLS segments. */
-export const HLS_AUDIO_COPY = ['aac', 'ac3', 'eac3', 'mp3', 'flac', 'opus', 'alac'];
-/** Video codecs that can be copied into fMP4 HLS segments. */
-export const HLS_VIDEO_COPY = ['h264', 'hevc', 'av1', 'vp9'];
+/**
+ * HLS is always MPEG-TS: Samsung AVPlay rejects fMP4 HLS with HEVC HDR (QE65Q77B, Tizen 6.5) and plays the same stream
+ * as MPEG-TS, Media3 plays both, and Jellyfin defaults to MPEG-TS too. Codecs that can be copied into MPEG-TS:
+ */
+export const HLS_AUDIO_COPY = ['aac', 'ac3', 'eac3', 'mp3', 'mp2'];
+export const HLS_VIDEO_COPY = ['h264', 'hevc'];
 const TEXT_SUBTITLES = ['subrip', 'srt', 'ass', 'ssa', 'webvtt', 'mov_text', 'text'];
 
 /** Audio as the profile names it (eac3 + JOC → eac3-joc, dts + HD → dts-hd). */
@@ -189,10 +191,6 @@ function defaultAudio(probe: MediaProbe, wanted: number | null): AudioStream | n
     if (chosen) return chosen;
   }
   return probe.audio.find((a) => a.isDefault) ?? probe.audio[0] ?? null;
-}
-
-function even(n: number): number {
-  return Math.max(2, Math.round(n / 2) * 2);
 }
 
 const ENCODERS: Record<'nvenc' | 'qsv' | 'amf', { h264: string; hevc: string }> = {
@@ -302,7 +300,7 @@ export function planPlayback(input: PlanInput): PlaybackPlan {
   const containerOk = device.containers.includes(probe.container);
   const needsHls = encodeVideo || encodeAudio || !containerOk;
   if (needsHls && a && !encodeAudio && !HLS_AUDIO_COPY.includes(a.codec)) {
-    // TrueHD/DTS cannot travel in fMP4 HLS segments.
+    // TrueHD/DTS/FLAC/Opus cannot travel in MPEG-TS segments.
     encodeAudio = true;
     reasons.push(`audio ${audioKind(a)} cannot be carried in HLS`);
   }
@@ -310,8 +308,25 @@ export function planPlayback(input: PlanInput): PlaybackPlan {
     encodeVideo = true;
     reasons.push(`video ${v.codec} cannot be carried in HLS`);
   }
+  if (needsHls && v?.dolbyVision && !encodeVideo && device.hdr.dolbyVision.includes(v.dolbyVision.profile)) {
+    // MPEG-TS has no Dolby Vision signalling: the TV gets the base layer, which profile 5 does not have.
+    const dv = v.dolbyVision;
+    if (dv.profile === 5 || dv.blCompatibility === 0 || dv.blCompatibility === null) {
+      encodeVideo = true;
+      toneMap = true;
+      dvProfile5 = true;
+      reasons.push(`Dolby Vision profile ${dv.profile} cannot be carried in HLS → tone mapping to SDR`);
+    } else reasons.push(`Dolby Vision profile ${dv.profile} plays as its base layer in HLS`);
+  }
 
   // ------------------------------------------------ result
+  // Our encode pipeline outputs 8-bit SDR, even when the TV itself supports HDR.
+  // Scaling or burning PGS must therefore tone map HDR too, not just change pixel format.
+  if (encodeVideo && v && v.hdr !== 'sdr' && !toneMap) {
+    toneMap = true;
+    dvProfile5 = v.dolbyVision?.profile === 5 || v.dolbyVision?.blCompatibility === 0;
+    reasons.push('HDR video is being encoded to SDR (scaling, codec conversion or subtitles)');
+  }
   const mode: PlaybackMode = encodeVideo ? 'video' : encodeAudio ? 'audio' : containerOk ? 'direct' : 'remux';
   if (mode === 'direct') reasons.unshift('the TV plays the file as it is');
   if (mode === 'remux')
@@ -334,11 +349,20 @@ export function planPlayback(input: PlanInput): PlaybackPlan {
     plan.video.height = v.height;
     if (encodeVideo) {
       const maxH = Math.min(settings.maxHeight, device.maxHeight);
-      const height = Math.min(v.height, maxH);
-      const width = even((v.width * height) / v.height);
+      let height = Math.min(v.height, maxH);
       const hevcOk = device.video.some((c) => c.codec === 'hevc') && encoders.hevc;
       // HEVC above 1080p (bandwidth), H.264 otherwise (plays everywhere).
       const codec = height > 1080 && hevcOk ? 'hevc' : 'h264';
+      const outputSupport = device.video.find((c) => c.codec === codec);
+      const scale = Math.min(
+        1,
+        maxH / v.height,
+        (outputSupport?.maxHeight ?? device.maxHeight) / v.height,
+        Math.min(device.maxWidth, outputSupport?.maxWidth ?? device.maxWidth) / v.width,
+      );
+      // Round down so neither odd source dimensions nor ultrawide films exceed decoder limits.
+      height = Math.max(2, Math.floor((v.height * scale) / 2) * 2);
+      const width = Math.max(2, Math.floor((v.width * scale) / 2) * 2);
       const hw = settings.hwAccel === 'cpu' ? null : encoders.hardware;
       plan.video.action = 'encode';
       plan.video.codec = codec;

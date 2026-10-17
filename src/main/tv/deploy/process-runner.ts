@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { AppError } from '@shared/errors';
 
 export interface RunResult {
@@ -39,6 +39,10 @@ export function cmdLine(exe: string, args: string[]): string {
 /** spawn without a shell (array of arguments), hidden window, timeout, output limit, cancel. */
 export const runProcess: ProcessRunner = (exe, args, opts) =>
   new Promise((resolve, reject) => {
+    if (opts.signal?.aborted) {
+      reject(new AppError('DEPLOY_CANCELLED'));
+      return;
+    }
     const bat = /\.(bat|cmd)$/i.test(exe);
     const child = bat
       ? spawn(process.env['ComSpec'] ?? 'cmd.exe', ['/d', '/s', '/c', cmdLine(exe, args)], {
@@ -56,7 +60,10 @@ export const runProcess: ProcessRunner = (exe, args, opts) =>
     child.stdout?.on('data', (d: Buffer) => (stdout = take(stdout, d)));
     child.stderr?.on('data', (d: Buffer) => (stderr = take(stderr, d)));
     const kill = () => {
-      if (child.exitCode === null) child.kill();
+      if (child.exitCode !== null || child.pid === undefined) return;
+      if (process.platform === 'win32') {
+        execFile('taskkill', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true }, () => undefined);
+      } else child.kill('SIGKILL');
     };
     const timer = setTimeout(() => {
       timedOut = true;

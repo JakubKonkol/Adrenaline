@@ -88,13 +88,25 @@ export const publicApi = {
 
 /** Paired API: every call carries the device token. */
 export class Api {
+  private revoked = false;
+
   constructor(
     readonly base: string,
     private readonly token: string,
+    /** The PC no longer knows this token (revoked, or its data was reset): called once, the app pairs again. */
+    private readonly onUnauthorized: () => void = () => undefined,
   ) {}
 
-  private call<T>(method: string, path: string, body?: unknown) {
-    return request<T>(this.base, method, path, { token: this.token, body });
+  private async call<T>(method: string, path: string, body?: unknown, timeoutMs?: number): Promise<T> {
+    try {
+      return await request<T>(this.base, method, path, { token: this.token, body, timeoutMs });
+    } catch (error) {
+      if (error instanceof ApiError && error.code === 'TV_UNAUTHORIZED' && !this.revoked) {
+        this.revoked = true;
+        this.onUnauthorized();
+      }
+      throw error;
+    }
   }
 
   session = () => this.call<TvSession>('GET', `/api/v1/session?clientVersion=${encodeURIComponent(__TV_VERSION__)}`);
@@ -114,7 +126,8 @@ export class Api {
   removeDownload = (id: string) => this.call<void>('DELETE', `/api/v1/downloads/${id}`);
   library = () => this.call<TvLibraryItem[]>('GET', '/api/v1/library');
   playback = (itemId: string, request: PlaybackRequest) =>
-    this.call<TvPlayback>('POST', `/api/v1/playback/${encodeURIComponent(itemId)}`, request);
+    // The first playback of a file may analyse it on the PC (ffprobe, keyframe index): allow it time.
+    this.call<TvPlayback>('POST', `/api/v1/playback/${encodeURIComponent(itemId)}`, request, 60_000);
   stopPlayback = () => this.call<void>('DELETE', '/api/v1/playback');
   saveProgress = (itemId: string, positionMs: number, durationMs: number | null) =>
     this.call<void>('PUT', `/api/v1/playback/${encodeURIComponent(itemId)}/progress`, {

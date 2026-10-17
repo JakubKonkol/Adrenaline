@@ -123,7 +123,7 @@ export const tvLibraryItemSchema = libraryItemSchema.omit({ jobId: true }).exten
 });
 export type TvLibraryItem = z.infer<typeof tvLibraryItemSchema>;
 
-const codec = z.string().regex(/^[a-z0-9-]{1,20}$/);
+const codec = z.string().regex(/^[a-z0-9_-]{1,20}$/);
 
 /** What the TV can play (D-85): reported by the TV app, used by the PlaybackPlanner. */
 export const deviceProfileSchema = z
@@ -187,6 +187,8 @@ export const tvSubtitleTrackSchema = z.object({
   url: z.string().nullable(),
   /** Already part of the picture (burned in). */
   burnedIn: z.boolean(),
+  /** Language code as the file or Adrenaline names it (remembered by the TV to pick the same next time). */
+  lang: z.string().nullable(),
 });
 
 export const tvPlaybackSchema = z.object({
@@ -196,14 +198,16 @@ export const tvPlaybackSchema = z.object({
   /** Absolute URL with a short-lived ticket: the file (HTTP Range) or an HLS playlist. */
   streamUrl: z.string(),
   mimeType: z.string(),
-  /** Position in the film where the stream starts (HLS after a seek); the player adds it to its own time. */
-  offsetMs: z.number().int().nonnegative(),
   durationMs: z.number().int().nonnegative().nullable(),
   resumeMs: z.number().int().nonnegative().nullable(),
   audioTracks: z.array(tvAudioTrackSchema),
   subtitleTracks: z.array(tvSubtitleTrackSchema),
   /** Why this variant (direct play, remux, conversion). */
   reasons: z.array(z.string()),
+  /** The file as people know it (`MKV · HEVC Main 10 · 3840×2160 · HDR10`), for the playback info panel. */
+  source: z.string(),
+  /** What the TV receives (`HLS (MPEG-TS) · video copied · audio E-AC3 5.1`). */
+  output: z.string(),
 });
 export type TvPlayback = z.infer<typeof tvPlaybackSchema>;
 export type TvSubtitleTrack = z.infer<typeof tvSubtitleTrackSchema>;
@@ -318,8 +322,11 @@ export const tvDeployRequestSchema = z.discriminatedUnion('platform', [
     .object({
       platform: z.literal('tizen'),
       address: tvAddressSchemaIp,
-      /** Certificate profile (author + Samsung distributor certificate with this TV's DUID). */
-      profile: z.string().regex(/^[\w-]{1,64}$/),
+      /** Empty = automatic Tizen developer signing; named profile = advanced Samsung signing. */
+      profile: z
+        .string()
+        .regex(/^(?:[\w-]{1,64})?$/)
+        .default(''),
     })
     .strict(),
 ]);

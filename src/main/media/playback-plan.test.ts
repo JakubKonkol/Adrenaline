@@ -105,6 +105,20 @@ describe('ffprobe parsing (D-85)', () => {
 });
 
 describe('PlaybackPlanner (D-85)', () => {
+  it('tone maps HDR even on an HDR TV when PGS subtitles require SDR encoding', () => {
+    const p = plan(probe('dv-p8-truehd-atmos-pgs.mkv.json'), samsung, {
+      subtitle: { kind: 'embedded', index: 5 },
+    });
+    expect(p).toMatchObject({ mode: 'video', video: { toneMap: 'libplacebo' } });
+  });
+
+  it('fits ultrawide and odd-sized video within both decoder dimensions', () => {
+    const file = probe('h264-aac.mp4.json');
+    file.video = { ...file.video!, width: 3840, height: 1601 };
+    const p = plan(file, sdr1080);
+    expect(p.video).toMatchObject({ action: 'encode', width: 1920, height: 800 });
+  });
+
   it('direct play when everything fits', () => {
     const p = plan(probe('h264-aac.mp4.json'), sdr1080);
     expect(p).toMatchObject({ mode: 'direct', delivery: 'file', video: { action: 'copy' }, audio: { action: 'copy' } });
@@ -188,6 +202,30 @@ describe('PlaybackPlanner (D-85)', () => {
       delivery: 'external-vtt',
       lang: 'en',
     });
+  });
+
+  it('converts what MPEG-TS HLS cannot carry and never sends Dolby Vision profile 5 through HLS', () => {
+    // FLAC/Opus cannot be copied into MPEG-TS: audio is converted when HLS is needed anyway.
+    const flac = probe('h264-aac.mp4.json');
+    flac.container = 'avi';
+    flac.audio = [{ ...flac.audio[0]!, codec: 'flac' }];
+    expect(plan(flac, { ...samsung, containers: ['mp4'] })).toMatchObject({
+      mode: 'audio',
+      delivery: 'hls',
+      audio: { action: 'encode', codec: 'aac' },
+    });
+    // Nor AV1: when HLS is needed anyway (TrueHD), it is encoded.
+    const av1 = probe('hevc10-hdr10-truehd.mkv.json');
+    av1.video = { ...av1.video!, codec: 'av1', profile: 'Main' };
+    expect(plan(av1, samsung)).toMatchObject({ mode: 'video', video: { action: 'encode' } });
+    // A DV TV that needs HLS for the audio: profile 8 goes as its HDR10 base, profile 5 is tone mapped.
+    const dvTv = { ...androidDv, audioPassthrough: [] };
+    const p8 = plan(probe('dv-p8-truehd-atmos-pgs.mkv.json'), dvTv);
+    expect(p8).toMatchObject({ mode: 'audio', video: { action: 'copy' } });
+    expect(p8.reasons.join(' ')).toMatch(/base layer in HLS/);
+    const p5 = probe('dv-p5-eac3-atmos.mp4.json');
+    p5.container = 'avi';
+    expect(plan(p5, dvTv)).toMatchObject({ mode: 'video', video: { toneMap: 'libplacebo' } });
   });
 
   it('transcodes codecs the TV does not know and honours the PC limits and encoder choice', () => {

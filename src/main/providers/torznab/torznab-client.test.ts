@@ -22,7 +22,10 @@ const source: TorznabSource = {
 };
 
 function client(body: Buffer | string, init: ResponseInit = {}) {
-  const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(new Response(body, { status: 200, ...init }));
+  const responseBody = typeof body === 'string' ? body : new Uint8Array(body);
+  const fetch = vi
+    .fn<typeof globalThis.fetch>()
+    .mockResolvedValue(new Response(responseBody, { status: 200, ...init }));
   return { c: new TorznabClient({ fetch, now: () => 42 }), fetch };
 }
 
@@ -33,7 +36,8 @@ describe('Torznab contract (synthetic fixtures)', () => {
     expect(caps.movieSearch).toEqual({ available: true, params: ['q', 'imdbid'] });
     expect(caps.tvSearch.params).toEqual(['q', 'season', 'ep']);
     expect(caps.categories).toEqual([2000, 2040, 2045, 5000]);
-    const url = new URL(fetch.mock.calls[0]![0]);
+    const input = fetch.mock.calls[0]![0];
+    const url = new URL(input instanceof Request ? input.url : input);
     expect(url.searchParams.get('t')).toBe('caps');
     expect(url.searchParams.get('apikey')).toBe('secret-key');
   });

@@ -4,7 +4,7 @@ Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka no
 
 **Bieżący etap:** 8 — kod gotowy do bety v0.9.0; otwarte są wyłącznie odbiory ręczne właściciela (live OpenSubtitles 7.1, czysty Windows/Sandbox 8.5, pełny przegląd Tab/czytnika 8.2, końcowe nasłuchy/logi 8.6) i samo wydanie 8.7.
 
-**1.0 (TV, biblioteka, bez seedowania) — 16.10.2026:** implementacja na `main`, postęp i przekazanie w [../1.0-adrenaline-tv/STATUS.md](../1.0-adrenaline-tv/STATUS.md). Decyzje D-80…D-85. Otwarte: odbiór na fizycznym Samsungu/Android TV i wydanie.
+**1.0 (TV, biblioteka, bez seedowania) — odbiór 17.10.2026:** wersja 1.0.0, D-80…D-87, check 456/4 skipped, build/TV/APK, smoke Windows, silnik 4/4 i NSIS zaliczone. Fizyczny Samsung: deploy, 12 formatów, seek, napisy, pauza i następny odcinek; Android: emulator TV 14. Postęp i pozostałe odbiory ręczne w [../1.0-adrenaline-tv/STATUS.md](../1.0-adrenaline-tv/STATUS.md).
 
 **Sesja Claude 15/16.10.2026** (gałąź `claude/finish-implementation-readme-e3hepr`, do scalenia na `main`; szczegóły i kolejne kroki: [../current-progress.md](../current-progress.md)):
 - UI, instrukcja, README, instalator i dokumenty dla osób klonujących repo po angielsku (D-77). TMDB w `en-US`.

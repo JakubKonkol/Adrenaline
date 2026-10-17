@@ -263,9 +263,10 @@ function DeploySection({ status, settings }: { status: TvServerStatus; settings:
         pairing: usePairing ? { port: pp, code: pairCode.trim() } : null,
       };
     }
-    return { platform, address: address.trim(), profile: profile || tools?.profiles[0] || '' };
+    return { platform, address: address.trim(), profile };
   };
-  const toolReady = platform === 'android' ? !!tools?.adb : !!tools?.sdb && !!tools.tizen;
+  // Android and automatic Samsung installs fetch their tools; only the advanced Samsung path needs Tizen Studio.
+  const toolReady = platform === 'android' || !profile || (!!tools?.sdb && !!tools.tizen);
 
   return (
     <Section title={t('tv.deploy.title')} description={t('tv.deploy.description')} testId="tv-deploy">
@@ -291,19 +292,23 @@ function DeploySection({ status, settings }: { status: TvServerStatus; settings:
             <li>
               {t('tv.deploy.android.devMode')} <Link href={LINKS.androidDebugging}>{t('tv.deploy.howTo')}</Link>
             </li>
+            <li>{t('tv.deploy.android.automaticHint')}</li>
             <li>
-              {tools?.adb ? (
-                <span className={styles.ok}>
-                  <CheckCircle2 size={13} aria-hidden /> adb: <span className="mono">{tools.adb}</span>
-                </span>
-              ) : (
-                <>
-                  {t('tv.deploy.android.needAdb')} <Link href={LINKS.platformTools}>{t('tv.deploy.download')}</Link>
-                </>
-              )}{' '}
-              <Button size="sm" variant="ghost" onClick={() => choose.mutate('adb')}>
-                {t('tv.deploy.choose')}
-              </Button>
+              <details className={styles.details}>
+                <summary>{t('tv.deploy.android.advanced')}</summary>
+                {tools?.adb ? (
+                  <span className={styles.ok}>
+                    <CheckCircle2 size={13} aria-hidden /> adb: <span className="mono">{tools.adb}</span>
+                  </span>
+                ) : (
+                  <>
+                    {t('tv.deploy.android.ownAdb')} <Link href={LINKS.platformTools}>{t('tv.deploy.download')}</Link>
+                  </>
+                )}{' '}
+                <Button size="sm" variant="ghost" onClick={() => choose.mutate('adb')}>
+                  {t('tv.deploy.choose')}
+                </Button>
+              </details>
             </li>
           </>
         ) : (
@@ -311,28 +316,33 @@ function DeploySection({ status, settings }: { status: TvServerStatus; settings:
             <li>
               {t('tv.deploy.tizen.devMode')} <Link href={LINKS.tizenDevMode}>{t('tv.deploy.howTo')}</Link>
             </li>
+            <li>{t('tv.deploy.tizen.automaticHint')}</li>
             <li>
-              {tools?.sdb && tools.tizen ? (
-                <span className={styles.ok}>
-                  <CheckCircle2 size={13} aria-hidden /> Tizen Studio: <span className="mono">{tools.tizenStudio}</span>
-                </span>
-              ) : (
-                <>
-                  {t('tv.deploy.tizen.needStudio')} <Link href={LINKS.tizenStudio}>{t('tv.deploy.download')}</Link>
-                </>
-              )}{' '}
-              <Button size="sm" variant="ghost" onClick={() => choose.mutate('tizen')}>
-                {t('tv.deploy.choose')}
-              </Button>
-            </li>
-            <li>
-              {t('tv.deploy.tizen.certificate')} <Link href={LINKS.tizenCertificate}>{t('tv.deploy.howTo')}</Link>
-              {state?.duid ? (
-                <>
-                  {' '}
-                  {t('tv.deploy.tizen.duid')} <strong className="mono">{state.duid}</strong>
-                </>
-              ) : null}
+              <details className={styles.details}>
+                <summary>{t('tv.deploy.tizen.advanced')}</summary>
+                {tools?.sdb && tools.tizen ? (
+                  <span className={styles.ok}>
+                    <CheckCircle2 size={13} aria-hidden /> Tizen Studio:{' '}
+                    <span className="mono">{tools.tizenStudio}</span>
+                  </span>
+                ) : (
+                  <>
+                    {t('tv.deploy.tizen.needStudio')} <Link href={LINKS.tizenStudio}>{t('tv.deploy.download')}</Link>
+                  </>
+                )}{' '}
+                <Button size="sm" variant="ghost" onClick={() => choose.mutate('tizen')}>
+                  {t('tv.deploy.choose')}
+                </Button>
+                <p>
+                  {t('tv.deploy.tizen.certificate')} <Link href={LINKS.tizenCertificate}>{t('tv.deploy.howTo')}</Link>
+                  {state?.duid ? (
+                    <>
+                      {' '}
+                      {t('tv.deploy.tizen.duid')} <strong className="mono">{state.duid}</strong>
+                    </>
+                  ) : null}
+                </p>
+              </details>
             </li>
           </>
         )}
@@ -370,9 +380,7 @@ function DeploySection({ status, settings }: { status: TvServerStatus; settings:
           <Field label={t('tv.deploy.tizen.profile')} hint={t('tv.deploy.tizen.profileHint')}>
             {(a) => (
               <Select {...a} value={profile} disabled={running} onChange={(e) => setProfile(e.target.value)}>
-                {(tools?.profiles ?? []).length === 0 ? (
-                  <option value="">{t('tv.deploy.tizen.noProfiles')}</option>
-                ) : null}
+                <option value="">{t('tv.deploy.tizen.automatic')}</option>
                 {(tools?.profiles ?? []).map((p) => (
                   <option key={p} value={p}>
                     {p}
