@@ -1,5 +1,7 @@
 # Status implementacji
 
+**1.1.0 — 17.10.2026:** implementation complete for the requested subtitle providers, independent movie completion, TV release filters, TMDB collections, subtitle file selection and Android subtitle sync. Release preparation and validation: [1.1 validation](../1.1-validation.md), [release notes](../releases/1.1.0.md). The published 1.0 record below is historical until the 1.1 workflow publishes its assets.
+
 Agent aktualizuje ten plik po każdym zamkniętym zadaniu (checkbox + krótka notatka, jeśli coś odbiega od planu). Zadania odpowiadają numeracji w `etapy/`.
 
 **Aktualne wydanie: [v1.0.0](https://github.com/JakubKonkol/Adrenaline/releases/tag/v1.0.0)** — opublikowane 17.10.2026 08:44 UTC, commit `061051e`, [Release CI](https://github.com/JakubKonkol/Adrenaline/actions/runs/39018081348) zielony. Poniższy stan bety i starsze wpisy są historią; aktualny odbiór TV w [STATUS 1.0](../1.0-adrenaline-tv/STATUS.md).

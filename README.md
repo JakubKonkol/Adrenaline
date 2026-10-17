@@ -20,7 +20,7 @@
   <img src="docs/screenshots/catalog.png" alt="Searching the movie catalog" width="900">
 </p>
 
-Adrenaline is a Windows desktop app that takes you from “I want to watch this” to a ready folder in a few clicks. It searches the [TMDB](https://www.themoviedb.org/) catalog, looks for releases across several sources at once, downloads the one you pick with a built-in engine, and — if you want — saves matching subtitles from [OpenSubtitles.com](https://www.opensubtitles.com/) right next to the video.
+Adrenaline is a Windows desktop app that takes you from “I want to watch this” to a ready folder in a few clicks. It searches the [TMDB](https://www.themoviedb.org/) catalog, looks for releases across several sources at once, downloads the one you pick with a built-in engine, and — if you want — saves matching subtitles from [OpenSubtitles.com](https://www.opensubtitles.com/), [NapiProjekt](https://napiprojekt.pl/) or [Napisy24](https://napisy24.pl/) right next to the video.
 
 No separate torrent client, no .NET install, no browser tabs. Everything runs locally on your machine.
 
@@ -56,7 +56,7 @@ No separate torrent client, no .NET install, no browser tabs. Everything runs lo
 1. Download `Adrenaline-Setup-<version>.exe` from the [latest release](https://github.com/JakubKonkol/Adrenaline/releases/latest) and run it. No administrator rights are needed.
 2. The setup wizard asks for a download folder, a subtitle language, and your **TMDB key** — get one for free at [themoviedb.org](https://www.themoviedb.org/settings/api).
 3. Turn on the release sources you want to use.
-4. *(Optional)* For subtitles, add an [OpenSubtitles.com](https://www.opensubtitles.com/en/consumers) API key and your account in **Settings → Accounts and keys**.
+4. *(Optional)* Enable subtitle providers in **Settings**. For Polish, NapiProjekt works without an account. OpenSubtitles requires an API key and account; Napisy24 requires its own API user agent and password in **Accounts and keys**.
 5. Search for a title, choose a release, decide on subtitles and click **Download**.
 
 Movies are saved as `Title (year)/<release>/…` and episodes as `Show/Season NN/<release>/…`, with subtitles next to the video (e.g. `Movie.en.srt`).
@@ -105,7 +105,7 @@ Releases are built only by GitHub Actions. `npm version <patch|minor|major> -m "
 ## Credits
 
 - Movie and TV data by [TMDB](https://www.themoviedb.org/). *This product uses the TMDB API but is not endorsed or certified by TMDB.*
-- Subtitles by [OpenSubtitles.com](https://www.opensubtitles.com/).
+- Subtitles by [OpenSubtitles.com](https://www.opensubtitles.com/), [NapiProjekt](https://napiprojekt.pl/) and [Napisy24](https://napisy24.pl/).
 - Release search by [Jackett](https://github.com/Jackett/Jackett) (GPL-2.0, shipped unmodified as a separate program).
 - Downloads by [libtorrent](https://libtorrent.org/) (BSD-3-Clause).
 - Full third-party notices: [resources/licenses](resources/licenses).

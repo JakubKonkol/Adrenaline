@@ -69,7 +69,12 @@ jobs:
           else
             LABEL="Adrenaline ${GITHUB_REF_NAME#v}"
             if [[ "$GITHUB_REF_NAME" == "v0.9.0" ]]; then LABEL="$LABEL — beta (acceptance checklist in docs/manual-tests.md)"; fi
-            gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "${GITHUB_REF_NAME#v}" --notes "$LABEL"
+            NOTES="docs/releases/${GITHUB_REF_NAME#v}.md"
+            if [[ -f "$NOTES" ]]; then
+              gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "${GITHUB_REF_NAME#v}" --notes-file "$NOTES"
+            else
+              gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "${GITHUB_REF_NAME#v}" --notes "$LABEL"
+            fi
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
